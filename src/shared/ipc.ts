@@ -4,6 +4,7 @@ import type {
   ConnectionStatus,
   LyricsCandidateInfo,
   LyricsResult,
+  ModeEvent,
   PlaybackSnapshot,
   PlayerCommand,
   QueueItem,
@@ -23,6 +24,10 @@ export const CH = {
   windowDragStart: 'window:drag-start',
   windowDragMove: 'window:drag-move',
   windowDragEnd: 'window:drag-end',
+  windowResizeStart: 'window:resize-start',
+  windowResizeMove: 'window:resize-move',
+  windowResizeEnd: 'window:resize-end',
+  windowSettle: 'window:settle',
   windowHide: 'window:hide',
   windowQuit: 'window:quit',
   spotifyConnect: 'spotify:connect',
@@ -76,7 +81,12 @@ export interface LyraApi {
   window: {
     setMode(mode: ViewMode): Promise<void>
     getMode(): Promise<ViewMode>
-    onMode(cb: (mode: ViewMode) => void): Unsubscribe
+    onMode(cb: (e: ModeEvent) => void): Unsubscribe
+    /** Finish a shell-driven transition: shrink the window to its final size. */
+    settle(): void
+    resizeStart(): void
+    resizeMove(): void
+    resizeEnd(): void
     dragStart(): void
     dragMove(): void
     dragEnd(): void

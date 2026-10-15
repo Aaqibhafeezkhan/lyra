@@ -2,14 +2,16 @@ import { BrowserWindow, app, screen, shell, type Rectangle } from 'electron'
 import { join } from 'node:path'
 import { EventEmitter } from 'node:events'
 import { EV } from '@shared/ipc'
-import type { Settings, ViewMode } from '@shared/types'
+import type { ModeEvent, Rect, Settings, ViewMode } from '@shared/types'
 import { createLogger } from './logger'
 import { settings } from './settings'
 
 const log = createLogger('window')
 
 const MARGIN = 24
-const ANIM_MS = 280
+const SNAP_MARGIN = 12 // resting gap when snapped to a screen edge
+const SNAP_DISTANCE = 16
+const SETTLE_FALLBACK_MS = 800
 
 function sizeFor(mode: Exclude<ViewMode, 'full'>, s: Settings): { width: number; height: number } {
   switch (mode) {
@@ -17,24 +19,34 @@ function sizeFor(mode: Exclude<ViewMode, 'full'>, s: Settings): { width: number;
       return { width: Math.round(s.compactWidth * 0.78), height: 64 }
     case 'compact':
       return { width: s.compactWidth, height: 140 }
-    case 'mini':
+    case 'mini': {
       // tall player, but never taller than the screen's usable area
-      return {
-        width: Math.max(s.compactWidth + 40, 420),
-        height: Math.min(700, screen.getPrimaryDisplay().workArea.height - MARGIN * 2)
-      }
+      const maxH = screen.getPrimaryDisplay().workArea.height - MARGIN * 2
+      if (s.miniSize) return { width: s.miniSize.width, height: Math.min(s.miniSize.height, maxH) }
+      return { width: Math.max(s.compactWidth + 40, 420), height: Math.min(700, maxH) }
+    }
   }
 }
 
-const ease = (t: number): number => 1 - Math.pow(1 - t, 3)
+const clampN = (n: number, lo: number, hi: number): number => Math.min(hi, Math.max(lo, n))
+
+const union = (a: Rectangle, b: Rectangle): Rectangle => {
+  const x = Math.min(a.x, b.x)
+  const y = Math.min(a.y, b.y)
+  return { x, y, width: Math.max(a.x + a.width, b.x + b.width) - x, height: Math.max(a.y + a.height, b.y + b.height) - y }
+}
+const rel = (r: Rectangle, origin: Rectangle): Rect => ({ x: r.x - origin.x, y: r.y - origin.y, width: r.width, height: r.height })
 
 class WindowManager extends EventEmitter {
   private win: BrowserWindow | null = null
   private mode: ViewMode = 'compact'
   /** Top-left of the widget in windowed modes; where we return to after fullscreen. */
   private anchor: { x: number; y: number } | null = null
-  private anim: NodeJS.Timeout | null = null
+  /** Final window bounds waiting for the renderer to finish its shell transition. */
+  private pendingFinal: Rectangle | null = null
+  private settleTimer: NodeJS.Timeout | null = null
   private drag: { cx: number; cy: number; bounds: Rectangle } | null = null
+  private resize: { cx: number; cy: number; bounds: Rectangle } | null = null
   private persistTimer: NodeJS.Timeout | null = null
   private topTimer: NodeJS.Timeout | null = null
 
@@ -136,7 +148,7 @@ class WindowManager extends EventEmitter {
   }
 
   private onMoved(): void {
-    if (this.mode === 'full' || this.anim) return
+    if (this.mode === 'full' || this.pendingFinal) return
     const w = this.window
     if (!w) return
     const b = w.getBounds()
@@ -180,44 +192,42 @@ class WindowManager extends EventEmitter {
       if (prev === 'full') w.focus()
     }
 
-    this.broadcastMode()
-    this.animateTo(target, next === 'full' || prev === 'full')
+    this.transitionTo(next, target)
     if (next === 'mini' || next === 'full') w.focus()
   }
 
-  private animateTo(target: Rectangle, fast: boolean): void {
+  /**
+   * Shell-driven transition: grow the window ONCE to cover both the old and new rectangles and let the
+   * renderer animate its own shell between them (GPU-composited, no per-frame OS resize). The window is
+   * shrunk to its final size in `settle()` once the animation finishes.
+   */
+  private transitionTo(mode: ViewMode, target: Rectangle): void {
     const w = this.window
     if (!w) return
-    if (this.anim) clearInterval(this.anim)
-    const reduced = settings.get().reducedMotion === 'on'
     const from = w.getBounds()
-    if (reduced) {
+    if (this.settleTimer) clearTimeout(this.settleTimer)
+
+    if (settings.get().reducedMotion === 'on') {
+      this.pendingFinal = null
       w.setBounds(target)
-      this.anim = null
+      this.sendMode({ mode })
       return
     }
-    const dur = fast ? ANIM_MS + 60 : ANIM_MS
-    const t0 = Date.now()
-    this.anim = setInterval(() => {
-      const win = this.window
-      if (!win) {
-        if (this.anim) clearInterval(this.anim)
-        this.anim = null
-        return
-      }
-      const p = Math.min(1, (Date.now() - t0) / dur)
-      const e = ease(p)
-      win.setBounds({
-        x: Math.round(from.x + (target.x - from.x) * e),
-        y: Math.round(from.y + (target.y - from.y) * e),
-        width: Math.round(from.width + (target.width - from.width) * e),
-        height: Math.round(from.height + (target.height - from.height) * e)
-      })
-      if (p >= 1) {
-        if (this.anim) clearInterval(this.anim)
-        this.anim = null
-      }
-    }, 16)
+    const big = union(from, target)
+    this.pendingFinal = target
+    if (big.x !== from.x || big.y !== from.y || big.width !== from.width || big.height !== from.height) w.setBounds(big)
+    this.sendMode({ mode, from: rel(from, big), to: rel(target, big) })
+    this.settleTimer = setTimeout(() => this.settle(), SETTLE_FALLBACK_MS)
+  }
+
+  /** Called by the renderer when its shell animation has finished. */
+  settle(): void {
+    if (this.settleTimer) clearTimeout(this.settleTimer)
+    this.settleTimer = null
+    const w = this.window
+    const final = this.pendingFinal
+    this.pendingFinal = null
+    if (w && final) w.setBounds(final)
   }
 
   toggleExpand(): void {
@@ -231,8 +241,12 @@ class WindowManager extends EventEmitter {
   }
 
   private broadcastMode(): void {
-    this.window?.webContents.send(EV.mode, this.mode)
-    this.emit('mode', this.mode)
+    this.sendMode({ mode: this.mode })
+  }
+
+  private sendMode(e: ModeEvent): void {
+    this.window?.webContents.send(EV.mode, e)
+    this.emit('mode', e.mode)
   }
 
   // ---- dragging (cursor-driven; immune to DPI rounding drift) ----
@@ -249,12 +263,67 @@ class WindowManager extends EventEmitter {
     if (!w || !this.drag) return
     const c = screen.getCursorScreenPoint()
     const { bounds } = this.drag
-    w.setBounds({ x: bounds.x + (c.x - this.drag.cx), y: bounds.y + (c.y - this.drag.cy), width: bounds.width, height: bounds.height })
+    const moved = { x: bounds.x + (c.x - this.drag.cx), y: bounds.y + (c.y - this.drag.cy), width: bounds.width, height: bounds.height }
+    w.setBounds({ ...moved, ...this.snap(moved) })
+  }
+
+  /** Magnetic edges: snap to the work area border (with a small margin) when close. */
+  private snap(r: Rectangle): { x: number; y: number } {
+    const wa = screen.getDisplayMatching(r).workArea
+    const left = wa.x + SNAP_MARGIN
+    const right = wa.x + wa.width - SNAP_MARGIN - r.width
+    const top = wa.y + SNAP_MARGIN
+    const bottom = wa.y + wa.height - SNAP_MARGIN - r.height
+    const near = (v: number, target: number): boolean => Math.abs(v - target) <= SNAP_DISTANCE
+    return {
+      x: near(r.x, left) ? left : near(r.x, right) ? right : r.x,
+      y: near(r.y, top) ? top : near(r.y, bottom) ? bottom : r.y
+    }
   }
 
   dragEnd(): void {
     this.drag = null
     this.onMoved()
+  }
+
+  // ---- resizing (custom grip: the window itself is not user-resizable because it is transparent) ----
+
+  resizeStart(): void {
+    const w = this.window
+    if (!w || this.mode === 'full' || this.pendingFinal) return
+    const c = screen.getCursorScreenPoint()
+    this.resize = { cx: c.x, cy: c.y, bounds: w.getBounds() }
+  }
+
+  resizeMove(): void {
+    const w = this.window
+    const r = this.resize
+    if (!w || !r || this.mode === 'full') return
+    const c = screen.getCursorScreenPoint()
+    const wa = screen.getDisplayMatching(r.bounds).workArea
+    const maxW = Math.max(300, wa.x + wa.width - r.bounds.x)
+    const maxH = Math.max(300, wa.y + wa.height - r.bounds.y)
+    let width = r.bounds.width + (c.x - r.cx)
+    let height = r.bounds.height + (c.y - r.cy)
+    if (this.mode === 'mini') {
+      width = clampN(width, 360, Math.min(700, maxW))
+      height = clampN(height, 480, Math.min(1200, maxH))
+    } else {
+      // widgets are fixed-height; only the width is adjustable
+      const k = this.mode === 'minimal' ? 0.78 : 1
+      width = clampN(width, Math.ceil(320 * k), Math.min(Math.floor(520 * k), maxW))
+      height = r.bounds.height
+    }
+    w.setBounds({ x: r.bounds.x, y: r.bounds.y, width, height })
+  }
+
+  resizeEnd(): void {
+    const w = this.window
+    this.resize = null
+    if (!w || this.mode === 'full') return
+    const b = w.getBounds()
+    if (this.mode === 'mini') settings.update({ miniSize: { width: b.width, height: b.height } })
+    else settings.update({ compactWidth: Math.round(b.width / (this.mode === 'minimal' ? 0.78 : 1)) })
   }
 
   // ---- visibility / settings ----
@@ -285,8 +354,8 @@ class WindowManager extends EventEmitter {
     w.setContentProtection(s.hideOnScreenShare)
     if (app.isPackaged) app.setLoginItemSettings({ openAtLogin: s.launchAtStartup })
     // Resize resting layouts when width changes
-    if (this.mode === 'minimal' || this.mode === 'compact' || this.mode === 'mini') {
-      const size = sizeFor(this.mode, s)
+    if (!this.resize && !this.pendingFinal && (this.mode === 'minimal' || this.mode === 'compact' || this.mode === 'mini')) {
+      const size = sizeFor(this.mode as Exclude<ViewMode, 'full'>, s)
       const b = w.getBounds()
       if (b.width !== size.width || b.height !== size.height) {
         log.debug('resize for settings', size)

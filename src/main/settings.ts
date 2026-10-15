@@ -16,6 +16,10 @@ function sanitize(s: Settings): Settings {
     lineSpacing: clamp(s.lineSpacing, 1, 2),
     lyricOffsetMs: clamp(s.lyricOffsetMs, -5000, 5000),
     compactWidth: clamp(s.compactWidth, 320, 520),
+    miniSize:
+      s.miniSize && Number.isFinite(s.miniSize.width) && Number.isFinite(s.miniSize.height)
+        ? { width: Math.round(clamp(s.miniSize.width, 360, 700)), height: Math.round(clamp(s.miniSize.height, 480, 1200)) }
+        : null,
     defaultMode: (['minimal', 'compact', 'mini'] as const).includes(s.defaultMode as 'mini') ? s.defaultMode : d.defaultMode,
     position:
       pos && Number.isFinite(pos.x) && Number.isFinite(pos.y) ? { x: Math.round(pos.x), y: Math.round(pos.y) } : null,

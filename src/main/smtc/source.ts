@@ -138,7 +138,7 @@ export class SmtcSource extends PlaybackSource {
     }
     if (!m.found) {
       snap = { ...base, track: null, isPlaying: false, positionMs: 0, isAdOrUnknown: false }
-    } else if (!m.title || m.title === 'Advertisement' || m.title === 'Spotify') {
+    } else if (!m.title || m.title === 'Advertisement' || m.title === 'Spotify' || m.artist === 'Spotify') {
       snap = { ...base, track: null, isPlaying: !!m.playing, positionMs: 0, isAdOrUnknown: true }
     } else {
       const dur = m.durationMs ?? 0

@@ -4,11 +4,13 @@ import { Backdrop } from '@/components/Backdrop'
 import { CompactWidget } from '@/components/CompactWidget'
 import { FullscreenPlayer } from '@/components/FullscreenPlayer'
 import { MiniPlayer } from '@/components/MiniPlayer'
+import { ResizeGrip } from '@/components/ResizeGrip'
 import { SidePanel } from '@/components/SidePanel'
 import { Toasts } from '@/components/Toasts'
 import { useArtwork, usePalette } from '@/hooks/useArtwork'
 import { useReducedMotion } from '@/hooks/useMotion'
 import { NEUTRAL_PALETTE } from '@/lib/palette'
+import { fillWindow, isAnimating, runTransition, shell } from '@/lib/shell'
 import { useLyrics } from '@/store/lyrics'
 import { OFFSET_STEP_MS, nudgeSongOffset } from '@/store/offsets'
 import { usePlayer } from '@/store/player'
@@ -26,7 +28,17 @@ function useBoot(): boolean {
       useLyrics.getState().init()
       useUi.getState().setMode(await api.window.getMode())
       off = [
-        api.window.onMode((m) => useUi.getState().setMode(m)),
+        api.window.onMode((e) => {
+          useUi.getState().setMode(e.mode)
+          if (!e.from || !e.to) return fillWindow()
+          const reduced = useSettings.getState().settings.reducedMotion === 'on' || (useSettings.getState().settings.reducedMotion === 'system' && window.matchMedia('(prefers-reduced-motion: reduce)').matches)
+          const to = e.to
+          void runTransition(e.from, to, reduced).then(() => {
+            // The window is still big here; shrinking it moves its origin to `to`, so the shell jumps to 0,0 at once.
+            api.window.settle()
+            if (to.x === 0 && to.y === 0) requestAnimationFrame(fillWindow)
+          })
+        }),
         api.app.onCommand((c) => {
           const p = usePlayer.getState()
           if (c === 'toggle-play') p.toggle()
@@ -152,6 +164,14 @@ export default function App() {
     }
   }, [settings.autoHide, mode])
 
+  useEffect(() => {
+    const onResize = (): void => {
+      if (!isAnimating()) fillWindow()
+    }
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [])
+
   if (!ready) return null
 
   return (
@@ -164,7 +184,7 @@ export default function App() {
         data-faded={faded || undefined}
         style={{ ['--alpha' as string]: mode === 'full' ? 1 : settings.opacity }}
       >
-        <div className="shell">
+        <motion.div className="shell" style={{ x: shell.x, y: shell.y, width: shell.width, height: shell.height }}>
           <Backdrop rich={mode === 'full'} />
           <AnimatePresence mode="wait" initial={false}>
             <motion.div
@@ -185,7 +205,8 @@ export default function App() {
           </AnimatePresence>
           {(mode === 'mini' || mode === 'full') && <SidePanel />}
           <Toasts />
-        </div>
+          {(mode === 'mini' || mode === 'compact' || mode === 'minimal') && <ResizeGrip />}
+        </motion.div>
       </div>
     </MotionConfig>
   )

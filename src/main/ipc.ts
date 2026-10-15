@@ -97,6 +97,10 @@ export function registerIpc(): void {
   on(CH.windowDragStart, () => windows.dragStart())
   on(CH.windowDragMove, () => windows.dragMove())
   on(CH.windowDragEnd, () => windows.dragEnd())
+  on(CH.windowResizeStart, () => windows.resizeStart())
+  on(CH.windowResizeMove, () => windows.resizeMove())
+  on(CH.windowResizeEnd, () => windows.resizeEnd())
+  on(CH.windowSettle, () => windows.settle())
   on(CH.windowHide, () => windows.hide())
   on(CH.windowQuit, () => app.quit())
 

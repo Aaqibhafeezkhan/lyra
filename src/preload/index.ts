@@ -22,6 +22,10 @@ const api: LyraApi = {
     dragStart: () => ipcRenderer.send(CH.windowDragStart),
     dragMove: () => ipcRenderer.send(CH.windowDragMove),
     dragEnd: () => ipcRenderer.send(CH.windowDragEnd),
+    settle: () => ipcRenderer.send(CH.windowSettle),
+    resizeStart: () => ipcRenderer.send(CH.windowResizeStart),
+    resizeMove: () => ipcRenderer.send(CH.windowResizeMove),
+    resizeEnd: () => ipcRenderer.send(CH.windowResizeEnd),
     hide: () => ipcRenderer.send(CH.windowHide),
     quit: () => ipcRenderer.send(CH.windowQuit)
   },

@@ -63,7 +63,8 @@ p {
 
 .shell {
   position: absolute;
-  inset: 0;
+  left: 0;
+  top: 0; /* geometry is driven by motion values (see lib/shell.ts) */
   overflow: hidden;
   border-radius: 18px;
   background: color-mix(in srgb, var(--bg-0) calc(var(--alpha) * 100%), transparent);
@@ -430,4 +431,30 @@ p {
   animation-duration: 0.001ms !important;
   animation-iteration-count: 1 !important;
   transition-duration: 0.001ms !important;
+}
+
+/* ---------- resize grip ---------- */
+
+.grip {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  z-index: 30;
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: end;
+  padding: 0 5px 5px 0;
+  color: var(--fg-3);
+  cursor: nwse-resize;
+  opacity: 0;
+  transition: opacity 0.18s;
+  touch-action: none;
+}
+.shell:hover .grip,
+.grip:focus-visible {
+  opacity: 0.8;
+}
+.grip:hover {
+  color: var(--fg-2);
 }

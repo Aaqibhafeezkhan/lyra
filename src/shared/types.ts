@@ -2,6 +2,24 @@
 
 export type ViewMode = 'minimal' | 'compact' | 'mini' | 'full'
 
+export interface Rect {
+  x: number
+  y: number
+  width: number
+  height: number
+}
+
+/**
+ * Sent when the window mode changes. When `from`/`to` are present the window has already been grown to
+ * cover both rectangles and the renderer must animate its shell between them (coordinates are relative
+ * to the window), then call `window.settle()`.
+ */
+export interface ModeEvent {
+  mode: ViewMode
+  from?: Rect
+  to?: Rect
+}
+
 export interface Track {
   /** Stable id: Spotify track id, or `demo:<n>` in demo mode. */
   id: string
@@ -159,6 +177,8 @@ export interface Settings {
   lyricOffsetMs: number
   reducedMotion: 'system' | 'on' | 'off'
   compactWidth: number
+  /** User-resized size of the expanded player (null = automatic). */
+  miniSize: { width: number; height: number } | null
   position: { x: number; y: number } | null
   spotifyClientId: string
 }
@@ -182,6 +202,7 @@ export const DEFAULT_SETTINGS: Settings = {
   lyricOffsetMs: 0,
   reducedMotion: 'system',
   compactWidth: 380,
+  miniSize: null,
   position: null,
   spotifyClientId: ''
 }
