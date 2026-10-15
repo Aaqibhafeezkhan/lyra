@@ -1,0 +1,60 @@
+/* Animatable colour tokens: artwork changes cross-fade the whole UI tint. */
+@property --tint1 {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #1a1a1a;
+}
+@property --tint2 {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #101010;
+}
+@property --accent {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #d8d8d8;
+}
+
+:root {
+  --bg-0: #0a0a0a;
+  --bg-1: #151515;
+  --fg: #f5f5f5;
+  --fg-2: rgba(245, 245, 245, 0.62);
+  --fg-3: rgba(245, 245, 245, 0.38);
+  --line: rgba(255, 255, 255, 0.08);
+  --line-2: rgba(255, 255, 255, 0.15);
+  --glass: rgba(255, 255, 255, 0.06);
+  --glass-2: rgba(255, 255, 255, 0.11);
+  --shade: rgba(8, 8, 8, 0.56);
+  --panel: rgba(21, 21, 21, 0.88);
+  --word-dim: rgba(245, 245, 245, 0.38);
+  --on-fg: #0a0a0a;
+
+  --accent: #d8d8d8;
+  --tint1: #1a1a1a;
+  --tint2: #101010;
+
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --font: 'Inter Variable', 'Segoe UI Variable Text', 'Segoe UI', system-ui, sans-serif;
+
+  transition:
+    --tint1 900ms ease,
+    --tint2 900ms ease,
+    --accent 900ms ease;
+}
+
+[data-theme='light'] {
+  --bg-0: #f5f5f5;
+  --bg-1: #ffffff;
+  --fg: #121212;
+  --fg-2: rgba(18, 18, 18, 0.62);
+  --fg-3: rgba(18, 18, 18, 0.4);
+  --line: rgba(0, 0, 0, 0.09);
+  --line-2: rgba(0, 0, 0, 0.16);
+  --glass: rgba(0, 0, 0, 0.05);
+  --glass-2: rgba(0, 0, 0, 0.09);
+  --shade: rgba(248, 248, 248, 0.7);
+  --panel: rgba(250, 250, 250, 0.9);
+  --word-dim: rgba(18, 18, 18, 0.34);
+  --on-fg: #f5f5f5;
+}

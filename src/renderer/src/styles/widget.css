@@ -1,0 +1,308 @@
+[data-reduced] .backdrop__blob {
+  animation: none !important;
+}
+
+/* ---------- compact + minimal widget ---------- */
+
+.widget {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: stretch;
+  gap: 14px;
+  padding: 13px;
+  outline-offset: -3px;
+}
+.widget--minimal {
+  align-items: center;
+  gap: 10px;
+  padding: 0 10px;
+}
+
+.widget__meta {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 2px 0;
+}
+.widget__meta--min {
+  gap: 1px;
+  justify-content: center;
+  padding: 0;
+}
+.widget__title {
+  font-size: 14px;
+  font-weight: 620;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding-right: 4px;
+}
+.widget__artist {
+  margin-top: 1px;
+  font-size: 12px;
+  color: var(--fg-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.widget--minimal .widget__title {
+  font-size: 12.5px;
+}
+.widget--minimal .widget__artist {
+  font-size: 11px;
+  margin: 0;
+}
+.widget--minimal .transport .ibtn {
+  display: none;
+}
+.widget__transport {
+  margin-left: -6px;
+}
+
+/* hover actions */
+.widget__actions {
+  position: absolute;
+  top: 7px;
+  right: 7px;
+  display: flex;
+  gap: 1px;
+  padding: 2px;
+  border-radius: 11px;
+  background: color-mix(in srgb, var(--bg-0) 78%, transparent);
+  border: 1px solid var(--line);
+  opacity: 0;
+  transform: translateY(-2px);
+  transition:
+    opacity 0.18s,
+    transform 0.18s var(--ease);
+}
+.widget:hover .widget__actions,
+.widget:focus-within .widget__actions {
+  opacity: 1;
+  transform: none;
+}
+.widget--minimal .widget__actions {
+  top: 50%;
+  right: 8px;
+  translate: 0 -50%;
+}
+.widget--minimal .widget__actions .ibtn {
+  width: 24px;
+  height: 24px;
+}
+
+.widget__bar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+}
+
+/* lyric preview */
+.preview {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 22px;
+  margin-top: 6px;
+  overflow: hidden;
+}
+.preview__text {
+  display: block;
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 540;
+  letter-spacing: -0.005em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: color-mix(in srgb, var(--accent) 55%, var(--fg));
+}
+.preview__text--plain,
+.preview__text--none,
+.preview__text--error,
+.preview__text--instrumental {
+  color: var(--fg-3);
+  font-weight: 450;
+}
+.preview__text--gap {
+  color: var(--fg-3);
+}
+
+.syncdot {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 10px;
+  margin-right: 2px;
+  flex-shrink: 0;
+  color: var(--accent);
+  opacity: 0.85;
+}
+.syncdot i {
+  width: 2px;
+  height: 3px;
+  border-radius: 1px;
+  background: currentColor;
+  transform-origin: bottom;
+}
+.syncdot.is-live i {
+  animation: eq 1s ease-in-out infinite;
+}
+.syncdot.is-live i:nth-child(2) {
+  animation-delay: -0.35s;
+}
+.syncdot.is-live i:nth-child(3) {
+  animation-delay: -0.7s;
+}
+@keyframes eq {
+  0%,
+  100% {
+    height: 3px;
+  }
+  50% {
+    height: 10px;
+  }
+}
+
+/* status states in the small widget */
+.wstatus {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-width: 0;
+  padding-right: 62px;
+}
+.wstatus__glyph {
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  background: var(--glass);
+  border: 1px solid var(--line);
+  color: var(--fg-2);
+}
+.wstatus__text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.wstatus__text b {
+  font-size: 13px;
+  font-weight: 600;
+}
+.wstatus__text span {
+  font-size: 11.5px;
+  color: var(--fg-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.widget--compact > .wstatus {
+  align-self: center;
+}
+
+/* ---------- progress ---------- */
+
+.progress {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+}
+.progress__track {
+  position: relative;
+  flex: 1;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  touch-action: none;
+}
+.progress__rail {
+  width: 100%;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--glass-2);
+  overflow: hidden;
+  transition: height 0.15s var(--ease);
+}
+.progress__fill {
+  width: 100%;
+  height: 100%;
+  background: var(--fg);
+  transform-origin: left center;
+  transform: scaleX(0);
+  will-change: transform;
+}
+.progress__thumb {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 12px;
+  height: 12px;
+  margin-top: -6px;
+  margin-left: -6px;
+  border-radius: 50%;
+  background: var(--fg);
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.4);
+  opacity: 0;
+  transition: opacity 0.15s;
+  pointer-events: none;
+}
+.progress__track:hover .progress__rail,
+.progress[data-active] .progress__rail {
+  height: 6px;
+}
+.progress__track:hover .progress__thumb,
+.progress[data-active] .progress__thumb,
+.progress__track:focus-visible .progress__thumb {
+  opacity: 1;
+}
+.progress__time {
+  min-width: 34px;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--fg-3);
+}
+.progress__time--right {
+  text-align: right;
+}
+
+.progress--thin .progress__track {
+  height: 3px;
+  cursor: default;
+  pointer-events: none;
+}
+.progress--thin .progress__rail {
+  height: 3px;
+  border-radius: 0;
+  background: transparent;
+}
+.progress--thin .progress__fill {
+  background: color-mix(in srgb, var(--accent) 80%, var(--fg));
+}
+
+/* ---------- volume ---------- */
+
+.volume {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 132px;
+}
+.volume--wide {
+  width: 100%;
+  max-width: 220px;
+}

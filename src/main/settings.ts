@@ -1,0 +1,53 @@
+import { EventEmitter } from 'node:events'
+import { DEFAULT_SETTINGS, type Settings } from '@shared/types'
+import { JsonStore } from './jsonStore'
+
+const clamp = (n: number, lo: number, hi: number): number => Math.min(hi, Math.max(lo, Number.isFinite(n) ? n : lo))
+
+/** Validate/normalise a settings object so corrupt files can't break the UI. */
+function sanitize(s: Settings): Settings {
+  const d = DEFAULT_SETTINGS
+  const pos = s.position
+  return {
+    ...d,
+    ...s,
+    opacity: clamp(s.opacity, 0.4, 1),
+    lyricFontSize: clamp(s.lyricFontSize, 24, 72),
+    lineSpacing: clamp(s.lineSpacing, 1, 2),
+    lyricOffsetMs: clamp(s.lyricOffsetMs, -5000, 5000),
+    compactWidth: clamp(s.compactWidth, 320, 520),
+    defaultMode: (['minimal', 'compact', 'mini'] as const).includes(s.defaultMode as 'mini') ? s.defaultMode : d.defaultMode,
+    position:
+      pos && Number.isFinite(pos.x) && Number.isFinite(pos.y) ? { x: Math.round(pos.x), y: Math.round(pos.y) } : null,
+    spotifyClientId: typeof s.spotifyClientId === 'string' ? s.spotifyClientId.trim() : ''
+  }
+}
+
+class SettingsService extends EventEmitter {
+  private store: JsonStore<Settings> | null = null
+
+  private ensure(): JsonStore<Settings> {
+    if (!this.store) {
+      this.store = new JsonStore<Settings>('settings.json', DEFAULT_SETTINGS)
+      this.store.set(sanitize(this.store.get()))
+    }
+    return this.store
+  }
+
+  get(): Settings {
+    return this.ensure().get()
+  }
+
+  update(patch: Partial<Settings>): Settings {
+    const next = sanitize({ ...this.get(), ...patch })
+    this.ensure().set(next)
+    this.emit('change', next, patch)
+    return next
+  }
+
+  flush(): void {
+    this.store?.flush()
+  }
+}
+
+export const settings = new SettingsService()

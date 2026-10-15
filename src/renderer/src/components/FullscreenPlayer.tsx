@@ -1,0 +1,103 @@
+import { useEffect, useState } from 'react'
+import { usePlayerView } from '@/hooks/usePlayerView'
+import { joinArtists } from '@/lib/format'
+import { usePlayer } from '@/store/player'
+import { requestMode, useUi } from '@/store/ui'
+import { Artwork } from './Artwork'
+import { IconButton, Transport, VolumeControl } from './Controls'
+import { LyricsView } from './LyricsView'
+import { LikeButton } from './MiniPlayer'
+import { ProgressBar } from './ProgressBar'
+import { ConnectScreen, LoadingScreen, NoMusicScreen, OfflineBanner, OfflineScreen } from './StateScreens'
+
+/** Hide chrome and the cursor after a few seconds without mouse movement. */
+function useIdle(ms: number): boolean {
+  const [idle, setIdle] = useState(false)
+  useEffect(() => {
+    let t: ReturnType<typeof setTimeout>
+    const wake = (): void => {
+      setIdle(false)
+      clearTimeout(t)
+      t = setTimeout(() => setIdle(true), ms)
+    }
+    wake()
+    window.addEventListener('mousemove', wake)
+    window.addEventListener('mousedown', wake)
+    window.addEventListener('keydown', wake)
+    return () => {
+      clearTimeout(t)
+      window.removeEventListener('mousemove', wake)
+      window.removeEventListener('mousedown', wake)
+      window.removeEventListener('keydown', wake)
+    }
+  }, [ms])
+  return idle
+}
+
+export function FullscreenPlayer() {
+  const view = usePlayerView()
+  const track = usePlayer((s) => s.snapshot?.track ?? null)
+  const device = usePlayer((s) => s.snapshot?.device ?? null)
+  const idle = useIdle(3500)
+  const panel = useUi((s) => s.panel)
+  const togglePanel = useUi((s) => s.togglePanel)
+  const df = useUi((s) => s.distractionFree)
+  const toggleDf = useUi((s) => s.toggleDistractionFree)
+
+  const quiet = idle && panel === 'none'
+
+  return (
+    <div className={`full ${quiet ? 'is-idle' : ''} ${df ? 'is-df' : ''}`}>
+      <header className="full__top">
+        <span className="full__device">{device ? `Playing on ${device.name}` : 'Lyra'}</span>
+        <div className="full__tools">
+          <IconButton icon="type" label="Distraction-free: artwork and lyrics only" active={df} onClick={toggleDf} />
+          <IconButton icon="queue" label="Queue" active={panel === 'queue'} onClick={() => togglePanel('queue')} />
+          <IconButton icon="bookmark" label="Saved lyric moments" active={panel === 'moments'} onClick={() => togglePanel('moments')} />
+          <IconButton icon="settings" label="Settings" active={panel === 'settings'} onClick={() => togglePanel('settings')} />
+          <IconButton icon="exitFullscreen" label="Exit fullscreen (Esc)" onClick={() => requestMode('mini')} />
+        </div>
+      </header>
+
+      {view === 'playing' && track ? (
+        <div className="full__body">
+          <aside className="full__side">
+            <Artwork url={track.artworkUrl} size="min(34vw, 46vh, 460px)" radius={18} className="artwork--lift" />
+            <div className="full__chrome">
+              <div className="full__titlerow">
+                <div className="full__titles">
+                  <h1 title={track.title}>{track.title}</h1>
+                  <p className="full__artist">{joinArtists(track.artists)}</p>
+                  <p className="full__album">
+                    {track.album}
+                    {track.releaseYear ? ` · ${track.releaseYear}` : ''}
+                  </p>
+                </div>
+                <LikeButton size={22} />
+              </div>
+              <ProgressBar showTimes remaining />
+              <div className="full__controls">
+                <Transport size="lg" extras />
+              </div>
+              <div className="full__volume">
+                <VolumeControl wide />
+                <IconButton icon="external" label="Open in Spotify" size={16} onClick={() => void window.lyra.player.openInSpotify(track)} />
+              </div>
+            </div>
+          </aside>
+          <section className="full__lyrics">
+            <LyricsView variant="full" />
+          </section>
+          <OfflineBanner />
+        </div>
+      ) : (
+        <div className="full__screen">
+          {view === 'loading' && <LoadingScreen />}
+          {view === 'connect' && <ConnectScreen />}
+          {view === 'offline' && <OfflineScreen />}
+          {(view === 'idle' || view === 'ad') && <NoMusicScreen ad={view === 'ad'} />}
+        </div>
+      )}
+    </div>
+  )
+}
