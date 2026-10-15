@@ -1,4 +1,5 @@
 import { BrowserWindow, app, screen, shell, type Rectangle } from 'electron'
+import { execFile } from 'node:child_process'
 import { join } from 'node:path'
 import { EventEmitter } from 'node:events'
 import { EV } from '@shared/ipc'
@@ -54,6 +55,7 @@ class WindowManager extends EventEmitter {
   private outsideSince: number | null = null
   private faded = false
   private quitting = false
+  private loginState: boolean | null = null
 
   get window(): BrowserWindow | null {
     return this.win && !this.win.isDestroyed() ? this.win : null
@@ -409,12 +411,36 @@ class WindowManager extends EventEmitter {
     this.window?.minimize()
   }
 
+  /**
+   * "Launch at startup". Electron writes the HKCU Run entry itself; some security software silently blocks
+   * an unsigned app from doing that, so if it didn't stick we write/remove it with reg.exe (Microsoft-signed).
+   */
+  private syncLoginItem(enable: boolean): void {
+    if (!app.isPackaged) return
+    // Only act on a change (and at startup when enabled, which also repairs a path that moved after an update).
+    if (this.loginState === enable || (this.loginState === null && !enable)) {
+      this.loginState = enable
+      return
+    }
+    this.loginState = enable
+    try {
+      app.setLoginItemSettings({ openAtLogin: enable, name: 'Lyra', path: process.execPath })
+    } catch (e) {
+      log.warn('setLoginItemSettings failed', (e as Error).message)
+    }
+    const key = String.raw`HKCU\Software\Microsoft\Windows\CurrentVersion\Run`
+    const args = enable ? ['add', key, '/v', 'Lyra', '/t', 'REG_SZ', '/d', `"${process.execPath}"`, '/f'] : ['delete', key, '/v', 'Lyra', '/f']
+    execFile('reg.exe', args, { windowsHide: true }, (err) => {
+      if (err && enable) log.warn('could not register launch-at-startup', err.message)
+    })
+  }
+
   applySettings(s: Settings): void {
     const w = this.window
     if (!w) return
     if (this.mode !== 'full') w.setAlwaysOnTop(s.alwaysOnTop, 'screen-saver')
     w.setContentProtection(s.hideOnScreenShare)
-    if (app.isPackaged) app.setLoginItemSettings({ openAtLogin: s.launchAtStartup, name: 'Lyra', path: process.execPath })
+    this.syncLoginItem(s.launchAtStartup)
     // Resize resting layouts when width changes
     if (!this.resize && !this.pendingFinal && (this.mode === 'minimal' || this.mode === 'compact' || this.mode === 'mini')) {
       const size = sizeFor(this.mode as Exclude<ViewMode, 'full'>, s)
