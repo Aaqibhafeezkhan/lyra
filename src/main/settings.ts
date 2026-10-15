@@ -56,6 +56,14 @@ class SettingsService extends EventEmitter {
     return next
   }
 
+  /** Back to factory defaults. The welcome card isn't shown again. */
+  reset(): Settings {
+    const next = sanitize({ ...DEFAULT_SETTINGS, onboarded: true })
+    this.ensure().set(next)
+    this.emit('change', next, {})
+    return next
+  }
+
   flush(): void {
     this.store?.flush()
   }

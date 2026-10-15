@@ -58,6 +58,31 @@ function Slider({ value, min, max, step, onChange, label, format }: { value: num
   )
 }
 
+function ResetButton() {
+  const [armed, setArmed] = useState(false)
+  useEffect(() => {
+    if (!armed) return
+    const t = setTimeout(() => setArmed(false), 4000)
+    return () => clearTimeout(t)
+  }, [armed])
+  return (
+    <button
+      type="button"
+      className={`pill ${armed ? 'pill--danger' : ''}`}
+      onClick={() => {
+        if (!armed) return setArmed(true)
+        setArmed(false)
+        void window.lyra.settings
+          .reset()
+          .then(() => useUi.getState().toast('Settings reset to defaults'))
+          .catch(() => useUi.getState().toast('Couldn’t reset settings', 'error'))
+      }}
+    >
+      {armed ? 'Click again to confirm' : 'Reset settings'}
+    </button>
+  )
+}
+
 export function SettingsPanel() {
   const s = useSettings((x) => x.settings)
   const set = useSettings((x) => x.set)
@@ -259,6 +284,7 @@ export function SettingsPanel() {
         >
           Copy diagnostics
         </button>
+        <ResetButton />
         <button type="button" className="pill" onClick={() => window.lyra.window.quit()}>
           Quit Lyra
         </button>

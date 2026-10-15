@@ -144,28 +144,10 @@ export default function App() {
   useThemeVars()
   useHotkeys()
 
-  // Fade the small widget when the cursor leaves it (optional).
+  // "Fade when idle": main decides from the cursor position; we just apply it.
+  useEffect(() => window.lyra.window.onFade(setFaded), [])
   useEffect(() => {
-    if (!settings.autoHide || mode === 'full' || mode === 'mini') {
-      setFaded(false)
-      return
-    }
-    let t: ReturnType<typeof setTimeout>
-    const leave = (): void => {
-      clearTimeout(t)
-      t = setTimeout(() => setFaded(true), 1200)
-    }
-    const enter = (): void => {
-      clearTimeout(t)
-      setFaded(false)
-    }
-    document.addEventListener('mouseleave', leave)
-    document.addEventListener('mouseenter', enter)
-    return () => {
-      clearTimeout(t)
-      document.removeEventListener('mouseleave', leave)
-      document.removeEventListener('mouseenter', enter)
-    }
+    if (!settings.autoHide || mode === 'full' || mode === 'mini') setFaded(false)
   }, [settings.autoHide, mode])
 
   useEffect(() => {

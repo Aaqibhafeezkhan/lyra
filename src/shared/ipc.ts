@@ -20,6 +20,7 @@ import type {
 export const CH = {
   settingsGet: 'settings:get',
   settingsSet: 'settings:set',
+  settingsReset: 'settings:reset',
   windowSetMode: 'window:set-mode',
   windowGetMode: 'window:get-mode',
   windowDragStart: 'window:drag-start',
@@ -68,7 +69,8 @@ export const EV = {
   playback: 'ev:playback',
   mode: 'ev:mode',
   command: 'ev:command',
-  update: 'ev:update'
+  update: 'ev:update',
+  fade: 'ev:fade'
 } as const
 
 export interface AppInfo {
@@ -84,12 +86,16 @@ export interface LyraApi {
   settings: {
     get(): Promise<Settings>
     set(patch: Partial<Settings>): Promise<Settings>
+    /** Restore every setting (and widget size/position) to its default. */
+    reset(): Promise<Settings>
     onChange(cb: (s: Settings) => void): Unsubscribe
   }
   window: {
     setMode(mode: ViewMode): Promise<void>
     getMode(): Promise<ViewMode>
     onMode(cb: (e: ModeEvent) => void): Unsubscribe
+    /** Cursor-driven dimming of the small widget ("Fade when idle"). */
+    onFade(cb: (faded: boolean) => void): Unsubscribe
     /** Finish a shell-driven transition: shrink the window to its final size. */
     settle(): void
     resizeStart(): void

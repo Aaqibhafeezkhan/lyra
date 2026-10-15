@@ -538,3 +538,12 @@
 .updaterow__text[data-state='error'] {
   color: #e8b56a;
 }
+
+.pill--danger {
+  border-color: rgba(240, 130, 110, 0.5);
+  background: rgba(240, 130, 110, 0.14);
+  color: #ffb4a8;
+}
+.srow--actions {
+  flex-wrap: wrap;
+}

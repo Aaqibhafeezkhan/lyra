@@ -99,8 +99,8 @@ export class SmtcSource extends PlaybackSource {
       this.lastErr = d.toString().trim().slice(0, 400)
       log.warn('powershell:', this.lastErr)
     })
-    proc.on('error', (e) => this.onExit(`could not start PowerShell: ${e.message}`))
-    proc.on('exit', (code) => this.onExit(`bridge exited (${code})`))
+    proc.on('error', (e) => this.onExit(`could not start the media helper: ${e.message}`, proc))
+    proc.on('exit', (code) => this.onExit(`bridge exited (${code})`, proc))
   }
 
   private helperPath(): string | null {
@@ -108,7 +108,9 @@ export class SmtcSource extends PlaybackSource {
     return candidates.find((p) => existsSync(p)) ?? null
   }
 
-  private onExit(why: string): void {
+  private onExit(why: string, from?: ChildProcessWithoutNullStreams): void {
+    // a restart replaces this.proc; the old process's late exit must not tear down the new one
+    if (from && from !== this.proc) return
     this.proc = null
     if (this.stopped) return
     this.failures++

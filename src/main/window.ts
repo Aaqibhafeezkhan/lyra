@@ -50,6 +50,9 @@ class WindowManager extends EventEmitter {
   private resize: { cx: number; cy: number; bounds: Rectangle } | null = null
   private persistTimer: NodeJS.Timeout | null = null
   private topTimer: NodeJS.Timeout | null = null
+  private fadeTimer: NodeJS.Timeout | null = null
+  private outsideSince: number | null = null
+  private faded = false
 
   get window(): BrowserWindow | null {
     return this.win && !this.win.isDestroyed() ? this.win : null
@@ -113,8 +116,10 @@ class WindowManager extends EventEmitter {
     win.on('blur', () => this.reassertTop())
     win.on('show', () => this.reassertTop())
     this.topTimer = setInterval(() => this.reassertTop(), 2500)
+    this.fadeTimer = setInterval(() => this.tickFade(), 250)
     win.on('closed', () => {
       if (this.topTimer) clearInterval(this.topTimer)
+      if (this.fadeTimer) clearInterval(this.fadeTimer)
       this.win = null
     })
 
@@ -138,6 +143,46 @@ class WindowManager extends EventEmitter {
       x: Math.min(Math.max(r.x, wa.x), Math.max(wa.x, wa.x + wa.width - r.width)),
       y: Math.min(Math.max(r.y, wa.y), Math.max(wa.y, wa.y + wa.height - r.height))
     }
+  }
+
+  /**
+   * "Fade when idle": decided here from the OS cursor position (reliable even when the window is not
+   * focused) and pushed to the renderer, which only applies the dimming.
+   */
+  private tickFade(): void {
+    const w = this.window
+    if (!w) return
+    const enabled = settings.get().autoHide && (this.mode === 'compact' || this.mode === 'minimal') && w.isVisible() && !this.drag && !this.resize
+    if (!enabled && !this.faded) {
+      this.outsideSince = null
+      return
+    }
+    let fade = false
+    if (enabled) {
+      const c = screen.getCursorScreenPoint()
+      const b = w.getBounds()
+      const inside = c.x >= b.x && c.x < b.x + b.width && c.y >= b.y && c.y < b.y + b.height
+      if (inside) this.outsideSince = null
+      else {
+        this.outsideSince ??= Date.now()
+        fade = Date.now() - this.outsideSince >= 1200
+      }
+    } else this.outsideSince = null
+    if (fade !== this.faded) {
+      this.faded = fade
+      w.webContents.send(EV.fade, fade)
+    }
+  }
+
+  /** Put the widget back in the default corner at its current mode's size (used by Reset). */
+  resetPlacement(): void {
+    const w = this.window
+    if (!w || this.mode === 'full') return
+    const size = sizeFor(this.mode, settings.get())
+    const wa = screen.getPrimaryDisplay().workArea
+    const pos = { x: wa.x + wa.width - size.width - MARGIN, y: wa.y + wa.height - size.height - MARGIN }
+    this.anchor = pos
+    w.setBounds({ ...pos, ...size })
   }
 
   /** Keep the widget above other windows (no focus steal). */

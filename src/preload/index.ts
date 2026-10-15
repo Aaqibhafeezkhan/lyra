@@ -13,12 +13,14 @@ const api: LyraApi = {
   settings: {
     get: () => invoke(CH.settingsGet),
     set: (patch) => invoke(CH.settingsSet, patch),
+    reset: () => invoke(CH.settingsReset),
     onChange: (cb) => subscribe(EV.settings, cb)
   },
   window: {
     setMode: (mode) => invoke(CH.windowSetMode, mode),
     getMode: () => invoke(CH.windowGetMode),
     onMode: (cb) => subscribe(EV.mode, cb),
+    onFade: (cb) => subscribe(EV.fade, cb),
     dragStart: () => ipcRenderer.send(CH.windowDragStart),
     dragMove: () => ipcRenderer.send(CH.windowDragMove),
     dragEnd: () => ipcRenderer.send(CH.windowDragEnd),

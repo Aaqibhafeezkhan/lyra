@@ -92,6 +92,18 @@ export function registerIpc(): void {
     return next
   })
 
+  handle(CH.settingsReset, () => {
+    const prevVolume = settings.get().systemVolume
+    const next = settings.reset()
+    windows.resetPlacement()
+    if (windows.getMode() !== next.defaultMode) windows.setMode(next.defaultMode)
+    // default source is the Windows (no-login) one
+    local ??= new SmtcSource()
+    if (active !== local) activate(local)
+    else if (prevVolume !== next.systemVolume) local.restart()
+    return next
+  })
+
   handle(CH.windowSetMode, (mode: ViewMode) => {
     if (['minimal', 'compact', 'mini', 'full'].includes(mode)) windows.setMode(mode)
   })
