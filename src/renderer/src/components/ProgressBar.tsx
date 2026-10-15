@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { useFrame } from '@/hooks/useLyricsSync'
 import { formatTime } from '@/lib/format'
 import { getPosition, usePlayer } from '@/store/player'
 
@@ -46,7 +45,14 @@ export function ProgressBar({ variant = 'scrub', showTimes = false, remaining = 
       if (dragging.current === null) paint(getPosition())
     })
   }, [paint])
-  useFrame((pos) => dragging.current === null && paint(pos), playing, [paint])
+  // Stepped once per second: a continuously animating bar keeps the compositor busy at 60 fps for the whole song
+  useEffect(() => {
+    if (!playing) return
+    const t = setInterval(() => {
+      if (dragging.current === null && document.visibilityState !== 'hidden') paint(getPosition())
+    }, 1000)
+    return () => clearInterval(t)
+  }, [playing, paint])
 
   const fromEvent = (e: React.PointerEvent): number => {
     const r = trackEl.current!.getBoundingClientRect()

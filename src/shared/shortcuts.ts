@@ -1,6 +1,6 @@
 /** Global (system-wide) shortcuts. Shared so Settings can show exactly what main registers. */
 export const GLOBAL_SHORTCUTS = [
-  { id: 'toggle-play', accel: 'Control+Alt+Space', label: 'Play / pause' },
+  { id: 'toggle-play', accel: 'Control+Alt+P', label: 'Play / pause' },
   { id: 'next', accel: 'Control+Alt+Right', label: 'Next track' },
   { id: 'previous', accel: 'Control+Alt+Left', label: 'Previous track' },
   { id: 'toggle-expand', accel: 'Control+Alt+L', label: 'Expand / collapse' },

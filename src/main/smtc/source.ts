@@ -128,7 +128,7 @@ export class SmtcSource extends PlaybackSource {
       sampledAt: now,
       device: {
         id: null,
-        name: 'This PC (system volume)',
+        name: 'Spotify · Windows',
         type: 'Computer',
         volumePercent: m.volume ?? null,
         supportsVolume: m.volume !== undefined

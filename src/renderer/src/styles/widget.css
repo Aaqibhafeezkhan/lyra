@@ -148,7 +148,8 @@
 }
 .syncdot i {
   width: 2px;
-  height: 3px;
+  height: 10px;
+  transform: scaleY(0.3);
   border-radius: 1px;
   background: currentColor;
   transform-origin: bottom;
@@ -165,10 +166,10 @@
 @keyframes eq {
   0%,
   100% {
-    height: 3px;
+    transform: scaleY(0.3);
   }
   50% {
-    height: 10px;
+    transform: scaleY(1);
   }
 }
 
@@ -244,7 +245,6 @@
   background: var(--fg);
   transform-origin: left center;
   transform: scaleX(0);
-  will-change: transform;
 }
 .progress__thumb {
   position: absolute;

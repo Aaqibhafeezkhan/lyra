@@ -100,7 +100,7 @@ export function SettingsPanel() {
           label="Status"
           hint={
             status?.state === 'local'
-              ? 'Reads the Spotify app via Windows media controls. No volume, queue or likes.'
+              ? 'Reads the Spotify app via Windows media controls. No queue; likes are saved locally.'
               : status?.controlsLimited
                 ? 'Free accounts can’t be remote-controlled — display only'
                 : undefined

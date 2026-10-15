@@ -54,6 +54,7 @@ p {
 .root {
   position: absolute;
   inset: 0;
+  color: var(--fg); /* theme vars live on .root, so colour must be resolved here, not on body */
   transition: opacity 0.4s var(--ease);
 }
 .root[data-faded] {
