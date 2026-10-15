@@ -49,6 +49,7 @@ export class SmtcSource extends PlaybackSource {
   private years = new Map<string, number | null>()
   private yearRequested = new Set<string>()
   private failures = 0
+  private lastErr = ''
 
   start(): void {
     if (process.platform !== 'win32') {
@@ -79,7 +80,10 @@ export class SmtcSource extends PlaybackSource {
     })
     this.proc = proc
     createInterface({ input: proc.stdout }).on('line', (l) => this.onLine(l))
-    proc.stderr.on('data', (d: Buffer) => log.warn('powershell:', d.toString().trim().slice(0, 300)))
+    proc.stderr.on('data', (d: Buffer) => {
+      this.lastErr = d.toString().trim().slice(0, 400)
+      log.warn('powershell:', this.lastErr)
+    })
     proc.on('error', (e) => this.onExit(`could not start PowerShell: ${e.message}`))
     proc.on('exit', (code) => this.onExit(`bridge exited (${code})`))
   }
@@ -89,7 +93,7 @@ export class SmtcSource extends PlaybackSource {
     if (this.stopped) return
     this.failures++
     log.warn(why)
-    this.setStatus({ state: 'offline', message: 'Lost the connection to Windows media controls. Retrying…', retryInSec: 3 })
+    this.setStatus({ state: 'offline', message: `Lost the connection to Windows media controls (${why}${this.lastErr ? `: ${this.lastErr}` : ''}). Retrying…`, retryInSec: 3 })
     this.restartTimer = setTimeout(() => !this.stopped && this.spawn(), Math.min(15_000, 3000 * this.failures))
   }
 

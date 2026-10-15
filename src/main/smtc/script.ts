@@ -14,6 +14,8 @@ $null = [Windows.Storage.Streams.IRandomAccessStreamWithContentType,Windows.Stor
 $null = [Windows.Media.Control.GlobalSystemMediaTransportControlsSessionMediaProperties,Windows.Media.Control,ContentType=WindowsRuntime]
 
 # System master volume (what the Windows volume flyout controls) via Core Audio COM interop.
+$hasVol = $true
+try {
 Add-Type -TypeDefinition @'
 using System;
 using System.Runtime.InteropServices;
@@ -59,6 +61,10 @@ public static class SysVol {
   }
 }
 '@
+} catch {
+  $hasVol = $false
+  [Console]::Error.WriteLine('volume support disabled: ' + $_.Exception.Message)
+}
 
 $opName = 'IAsyncOperation' + [char]96 + '1'
 $asTask = ([System.WindowsRuntimeSystemExtensions].GetMethods() | Where-Object {
@@ -125,7 +131,7 @@ while ($true) {
           '^pause$'  { [void](Await $s.TryPauseAsync() ([bool])) }
           '^next$'   { [void](Await $s.TrySkipNextAsync() ([bool])) }
           '^prev$'   { [void](Await $s.TrySkipPreviousAsync() ([bool])) }
-          '^volume:(\d+)$' { [void][SysVol]::Set([float]([int]$Matches[1] / 100)) }
+          '^volume:(\d+)$' { if ($hasVol) { [void][SysVol]::Set([float]([int]$Matches[1] / 100)) } }
           '^seek:(\d+)$' { [void](Await $s.TryChangePlaybackPositionAsync([int64]([int64]$Matches[1] * 10000)) ([bool])) }
         }
       }
@@ -177,7 +183,8 @@ while ($true) {
         positionMs = [int64]$pos
         playing = $playing
       }
-      $vol = [SysVol]::Get()
+      $vol = -1
+      if ($hasVol) { try { $vol = [SysVol]::Get() } catch { $vol = -1 } }
       if ($vol -ge 0) { $out.volume = [int][Math]::Round($vol * 100) }
       if ($thumb -and $thumbSentKey -ne $key) { $out.thumb = $thumb; $thumbSentKey = $key }
       Emit $out
