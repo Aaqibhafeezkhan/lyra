@@ -9,7 +9,8 @@ import { createLogger } from '../logger'
 import { PlaybackSource } from '../source'
 import { favorites } from '../favorites'
 import { releaseYear } from '../meta/musicbrainz'
-import { SMTC_SCRIPT } from './script'
+import { settings } from '../settings'
+import { smtcScript } from './script'
 
 const log = createLogger('smtc')
 
@@ -61,6 +62,12 @@ export class SmtcSource extends PlaybackSource {
     this.spawn()
   }
 
+  /** Re-spawn the bridge (used when the system-volume option changes). */
+  restart(): void {
+    this.stop()
+    this.start()
+  }
+
   stop(): void {
     this.stopped = true
     if (this.restartTimer) clearTimeout(this.restartTimer)
@@ -73,7 +80,7 @@ export class SmtcSource extends PlaybackSource {
     const dir = join(app.getPath('userData'), 'bridge')
     mkdirSync(dir, { recursive: true })
     const file = join(dir, 'smtc.ps1')
-    writeFileSync(file, '﻿' + SMTC_SCRIPT, 'utf8')
+    writeFileSync(file, '﻿' + smtcScript(settings.get().systemVolume), 'utf8')
 
     const proc = spawn('powershell.exe', ['-NoLogo', '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', file], {
       windowsHide: true

@@ -83,9 +83,10 @@ export function registerIpc(): void {
   handle(CH.settingsGet, () => settings.get())
   handle(CH.settingsSet, (patch: Partial<Settings>) => {
     const prevId = clientId()
+    const prevVolume = settings.get().systemVolume
     const next = settings.update(patch)
     if (active === spotify && clientId() !== prevId) spotify.start()
-    void prevId
+    if (active === local && local && next.systemVolume !== prevVolume) local.restart()
     return next
   })
 

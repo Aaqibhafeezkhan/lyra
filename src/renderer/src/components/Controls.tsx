@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { usePlayer } from '@/store/player'
+import { useSettings } from '@/store/settings'
 import { Icon, type IconName } from './Icon'
 
 interface BtnProps {
@@ -95,6 +96,9 @@ export function Transport({ size = 'md', extras: wantExtras = false }: Transport
 }
 
 export function VolumeControl({ wide = false }: { wide?: boolean }) {
+  const isLocal = usePlayer((s) => s.status?.state === 'local')
+  const volumeOn = useSettings((s) => s.settings.systemVolume)
+  const hidden = isLocal && !volumeOn
   const device = usePlayer((s) => s.snapshot?.device ?? null)
   const setVolume = usePlayer((s) => s.setVolume)
   const remote = device?.volumePercent ?? 0
@@ -112,6 +116,7 @@ export function VolumeControl({ wide = false }: { wide?: boolean }) {
       setLocal(null)
     }, 120)
   }
+  if (hidden) return null
   const icon: IconName = value === 0 ? 'volumeMute' : value < 45 ? 'volumeLow' : 'volume'
 
   return (

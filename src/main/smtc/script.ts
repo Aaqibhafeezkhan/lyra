@@ -3,16 +3,7 @@
  * Runs as one long-lived child process: prints one JSON line per tick on stdout and reads
  * commands (toggle|play|pause|next|prev|seek:<ms>) from stdin. No native modules, no account.
  */
-export const SMTC_SCRIPT = String.raw`
-$ErrorActionPreference = 'Stop'
-[Console]::OutputEncoding = New-Object System.Text.UTF8Encoding($false)
-Add-Type -AssemblyName System.Runtime.WindowsRuntime
-$null = [Windows.Media.Control.GlobalSystemMediaTransportControlsSessionManager,Windows.Media.Control,ContentType=WindowsRuntime]
-$null = [Windows.Storage.Streams.IInputStream,Windows.Storage.Streams,ContentType=WindowsRuntime]
-$null = [Windows.Storage.Streams.IRandomAccessStreamReference,Windows.Storage.Streams,ContentType=WindowsRuntime]
-$null = [Windows.Storage.Streams.IRandomAccessStreamWithContentType,Windows.Storage.Streams,ContentType=WindowsRuntime]
-$null = [Windows.Media.Control.GlobalSystemMediaTransportControlsSessionMediaProperties,Windows.Media.Control,ContentType=WindowsRuntime]
-
+const VOLUME_BLOCK = String.raw`
 # System master volume (what the Windows volume flyout controls) via Core Audio COM interop.
 $hasVol = $true
 try {
@@ -65,6 +56,24 @@ public static class SysVol {
   $hasVol = $false
   [Console]::Error.WriteLine('volume support disabled: ' + $_.Exception.Message)
 }
+`
+
+/**
+ * `withVolume` adds a runtime-compiled Core Audio helper. Some antivirus engines flag that pattern, so it is opt-in.
+ */
+export function smtcScript(withVolume: boolean): string {
+  const volumeBlock = withVolume ? VOLUME_BLOCK : '$hasVol = $false'
+  return String.raw`
+$ErrorActionPreference = 'Stop'
+[Console]::OutputEncoding = New-Object System.Text.UTF8Encoding($false)
+Add-Type -AssemblyName System.Runtime.WindowsRuntime
+$null = [Windows.Media.Control.GlobalSystemMediaTransportControlsSessionManager,Windows.Media.Control,ContentType=WindowsRuntime]
+$null = [Windows.Storage.Streams.IInputStream,Windows.Storage.Streams,ContentType=WindowsRuntime]
+$null = [Windows.Storage.Streams.IRandomAccessStreamReference,Windows.Storage.Streams,ContentType=WindowsRuntime]
+$null = [Windows.Storage.Streams.IRandomAccessStreamWithContentType,Windows.Storage.Streams,ContentType=WindowsRuntime]
+$null = [Windows.Media.Control.GlobalSystemMediaTransportControlsSessionMediaProperties,Windows.Media.Control,ContentType=WindowsRuntime]
+
+${volumeBlock}
 
 $opName = 'IAsyncOperation' + [char]96 + '1'
 $asTask = ([System.WindowsRuntimeSystemExtensions].GetMethods() | Where-Object {
@@ -196,3 +205,4 @@ while ($true) {
   Start-Sleep -Milliseconds 500
 }
 `
+}

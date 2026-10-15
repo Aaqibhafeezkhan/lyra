@@ -135,6 +135,8 @@ export interface Settings {
   hideOnScreenShare: boolean
   launchAtStartup: boolean
   globalShortcuts: boolean
+  /** Windows source only: control the system volume (loads a helper some antivirus tools flag). */
+  systemVolume: boolean
   trackNotifications: boolean
   theme: ThemeMode
   lyricFont: LyricFont
@@ -157,6 +159,7 @@ export const DEFAULT_SETTINGS: Settings = {
   hideOnScreenShare: false,
   launchAtStartup: false,
   globalShortcuts: true,
+  systemVolume: false,
   trackNotifications: false,
   theme: 'adaptive',
   lyricFont: 'sans',
