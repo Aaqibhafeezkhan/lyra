@@ -97,7 +97,9 @@ class WindowManager extends EventEmitter {
 
     // Hard-lock navigation: the renderer is a single local page.
     win.webContents.setWindowOpenHandler(({ url }) => {
-      if (/^https:\/\/(open\.spotify\.com|accounts\.spotify\.com|developer\.spotify\.com)\//.test(url)) void shell.openExternal(url)
+      // Only a short allow-list of https hosts may be opened in the user's browser.
+      const allowed = /^https:\/\/(open\.spotify\.com|accounts\.spotify\.com|developer\.spotify\.com|lrclib\.net|musicbrainz\.org)(\/|$)|^https:\/\/github\.com\/DhruvHarani1(\/|$)/
+      if (allowed.test(url)) void shell.openExternal(url)
       return { action: 'deny' }
     })
     win.webContents.on('will-navigate', (e) => e.preventDefault())

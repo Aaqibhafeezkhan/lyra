@@ -253,7 +253,34 @@ export function SettingsPanel() {
         </button>
       </div>
 
-      <p className="settings__about">Lyra {version} · Lyrics from LRCLIB · Playback via Spotify</p>
+      <section className="about">
+        <h4>About</h4>
+        <p className="about__name">
+          <b>Lyra</b> <span>{version ? `v${version}` : ''}</span>
+        </p>
+        <p>A free, account-free lyrics companion for the Spotify desktop app. Everything runs on your PC.</p>
+        <ul>
+          <li>
+            Lyrics from{' '}
+            <a href="https://lrclib.net" target="_blank" rel="noreferrer">
+              LRCLIB
+            </a>
+            , release years from{' '}
+            <a href="https://musicbrainz.org" target="_blank" rel="noreferrer">
+              MusicBrainz
+            </a>
+            . Lyrics belong to their rights holders.
+          </li>
+          <li>Only the song title, artist, album and length are sent to those services — nothing else leaves your PC. No accounts, no analytics.</li>
+          <li>Lyra is an independent project, not affiliated with or endorsed by Spotify. Spotify is a trademark of Spotify AB.</li>
+        </ul>
+        <p>
+          <a href="https://github.com/DhruvHarani1/lyra" target="_blank" rel="noreferrer">
+            Source code &amp; privacy details
+          </a>{' '}
+          · MIT licensed
+        </p>
+      </section>
     </div>
   )
 }

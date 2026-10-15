@@ -58,3 +58,6 @@ In-app: Space, ←/→ seek, Shift+←/→ tracks, ↑/↓ volume (API source), 
 
 ## Roadmap
 Free replacements for the account-free gaps (see issues), configurable shortcuts, installer icon + autostart polish, history dashboard, audio-reactive visualiser, lyric translation, moments export.
+
+## Legal & privacy
+MIT licensed ([LICENSE](LICENSE)). See [PRIVACY.md](PRIVACY.md) for exactly what leaves your PC and [THIRD_PARTY.md](THIRD_PARTY.md) for credits. Lyra is not affiliated with Spotify; Spotify is a trademark of Spotify AB.

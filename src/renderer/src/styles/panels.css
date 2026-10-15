@@ -372,3 +372,28 @@
 .toast--error svg {
   color: #f0907a;
 }
+
+.about {
+  margin-top: 6px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--fg-2);
+}
+.about p {
+  margin: 6px 0;
+}
+.about ul {
+  margin: 6px 0;
+  padding-left: 16px;
+}
+.about li {
+  margin: 4px 0;
+}
+.about__name {
+  font-size: 13px;
+  color: var(--fg);
+}
+.about__name span {
+  color: var(--fg-3);
+  font-weight: 400;
+}
