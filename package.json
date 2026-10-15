@@ -13,6 +13,7 @@
     "test": "vitest run",
     "build:helper": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-helper.ps1",
     "dist": "npm run build && electron-builder --win nsis",
+    "icons": "node scripts/make-icon.js",
     "dist:local": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/dist-local.ps1"
   },
   "build": {
@@ -29,6 +30,10 @@
       {
         "from": "resources/lyra-media.exe",
         "to": "lyra-media.exe"
+      },
+      {
+        "from": "resources/icon.png",
+        "to": "icon.png"
       }
     ],
     "win": {

@@ -5,6 +5,7 @@ import { EV } from '@shared/ipc'
 import type { ModeEvent, Rect, Settings, ViewMode } from '@shared/types'
 import { createLogger } from './logger'
 import { settings } from './settings'
+import { appIcon } from './tray'
 
 const log = createLogger('window')
 
@@ -79,6 +80,7 @@ class WindowManager extends EventEmitter {
       hasShadow: false,
       skipTaskbar: this.mode !== 'mini',
       title: 'Lyra',
+      icon: appIcon(),
       webPreferences: {
         preload: join(__dirname, '../preload/index.js'),
         contextIsolation: true,

@@ -244,6 +244,15 @@ export function SettingsPanel() {
         </dl>
       </section>
 
+      <div className="srow srow--actions">
+        <button type="button" className="pill" onClick={() => window.lyra.window.hide()}>
+          Hide to tray
+        </button>
+        <button type="button" className="pill" onClick={() => window.lyra.window.quit()}>
+          Quit Lyra
+        </button>
+      </div>
+
       <p className="settings__about">Lyra {version} · Lyrics from LRCLIB · Playback via Spotify</p>
     </div>
   )

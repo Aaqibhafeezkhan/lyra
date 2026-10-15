@@ -27,7 +27,8 @@ export function CompactWidget({ minimal }: { minimal: boolean }) {
           <IconButton icon="external" label="Open in Spotify" size={14} onClick={() => void window.lyra.player.openInSpotify(track)} />
         )}
         <IconButton icon="expand" label="Expand player" size={14} onClick={() => requestMode('mini')} />
-        <IconButton icon="minus" label="Hide widget (restore from tray)" size={14} onClick={() => window.lyra.window.hide()} />
+        <IconButton icon="minus" label="Hide to tray" size={14} onClick={() => window.lyra.window.hide()} />
+        <IconButton icon="close" label="Quit Lyra" size={14} onClick={() => window.lyra.window.quit()} />
       </div>
 
       {view === 'playing' && (

@@ -91,8 +91,12 @@
   translate: 0 -50%;
 }
 .widget--minimal .widget__actions .ibtn {
-  width: 24px;
-  height: 24px;
+  width: 22px;
+  height: 22px;
+}
+.widget__actions .ibtn:last-child:hover {
+  background: rgba(240, 90, 70, 0.28);
+  color: #ffb4a8;
 }
 
 .widget__bar {
@@ -180,7 +184,7 @@
   gap: 12px;
   width: 100%;
   min-width: 0;
-  padding-right: 62px;
+  padding-right: 110px;
 }
 .wstatus__glyph {
   width: 44px;

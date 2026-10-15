@@ -1,4 +1,6 @@
 import { Menu, Tray, app, nativeImage, type NativeImage } from 'electron'
+import { existsSync } from 'node:fs'
+import { join } from 'node:path'
 import { EV } from '@shared/ipc'
 import type { AppCommand } from '@shared/types'
 import { windows } from './window'
@@ -48,7 +50,7 @@ function send(cmd: AppCommand): void {
 }
 
 export function createTray(): Tray {
-  tray = new Tray(makeIcon(32).resize({ width: 16, height: 16 }))
+  tray = new Tray(appIcon().resize({ width: 32, height: 32 }))
   tray.setToolTip('Lyra')
   const rebuild = (): void => {
     const s = settings.get()
@@ -79,6 +81,13 @@ export function createTray(): Tray {
   return tray
 }
 
+/** The real icon (resources/icon.png) when present, else the generated glyph. */
 export function appIcon(): NativeImage {
+  const candidates = [join(process.resourcesPath ?? '', 'icon.png'), join(app.getAppPath(), 'resources', 'icon.png')]
+  const file = candidates.find((p) => existsSync(p))
+  if (file) {
+    const img = nativeImage.createFromPath(file)
+    if (!img.isEmpty()) return img
+  }
   return makeIcon(256)
 }
