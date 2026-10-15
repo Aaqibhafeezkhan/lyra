@@ -50,6 +50,7 @@ export function MiniPlayer() {
           <IconButton icon="bookmark" label="Saved lyric moments" active={panel === 'moments'} size={16} onClick={() => togglePanel('moments')} />
           <IconButton icon="settings" label="Settings" active={panel === 'settings'} size={16} onClick={() => togglePanel('settings')} />
           <IconButton icon="fullscreen" label="Fullscreen lyrics" size={16} onClick={() => requestMode('full')} />
+          <IconButton icon="minus" label="Minimize" size={16} onClick={() => window.lyra.window.minimize()} />
           <IconButton icon="collapse" label="Collapse to widget" size={16} onClick={() => requestMode('compact')} />
           <IconButton icon="close" label="Quit Lyra" size={16} onClick={() => window.lyra.window.quit()} />
         </div>

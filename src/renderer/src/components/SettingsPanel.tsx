@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react'
-import { GLOBAL_SHORTCUTS, LOCAL_SHORTCUTS } from '@shared/shortcuts'
+import { LOCAL_SHORTCUTS } from '@shared/shortcuts'
 import type { Settings } from '@shared/types'
 import { usePlayer } from '@/store/player'
+import { ShortcutEditor } from './ShortcutEditor'
 import { useSettings } from '@/store/settings'
+import { useUi } from '@/store/ui'
 
 function Row({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
   return (
@@ -228,13 +230,8 @@ export function SettingsPanel() {
 
       <section>
         <h4>Shortcuts</h4>
+        <ShortcutEditor />
         <dl className="keys">
-          {GLOBAL_SHORTCUTS.map((k) => (
-            <div key={k.id} className={s.globalShortcuts ? '' : 'is-off'}>
-              <dt>{k.label}</dt>
-              <dd>{k.accel.replace('Control', 'Ctrl')}</dd>
-            </div>
-          ))}
           {LOCAL_SHORTCUTS.map((k) => (
             <div key={k.keys}>
               <dt>{k.label}</dt>
@@ -247,6 +244,19 @@ export function SettingsPanel() {
       <div className="srow srow--actions">
         <button type="button" className="pill" onClick={() => window.lyra.window.hide()}>
           Hide to tray
+        </button>
+        <button
+          type="button"
+          className="pill"
+          onClick={() =>
+            void window.lyra.app
+              .diagnostics()
+              .then((t) => navigator.clipboard.writeText(t))
+              .then(() => useUi.getState().toast('Diagnostics copied — paste it into your bug report'))
+              .catch(() => useUi.getState().toast('Couldn’t copy diagnostics', 'error'))
+          }
+        >
+          Copy diagnostics
         </button>
         <button type="button" className="pill" onClick={() => window.lyra.window.quit()}>
           Quit Lyra

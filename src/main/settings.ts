@@ -1,4 +1,5 @@
 import { EventEmitter } from 'node:events'
+import { ACCEL_PATTERN, GLOBAL_SHORTCUTS } from '@shared/shortcuts'
 import { DEFAULT_SETTINGS, type Settings } from '@shared/types'
 import { JsonStore } from './jsonStore'
 
@@ -16,6 +17,12 @@ function sanitize(s: Settings): Settings {
     lineSpacing: clamp(s.lineSpacing, 1, 2),
     lyricOffsetMs: clamp(s.lyricOffsetMs, -5000, 5000),
     compactWidth: clamp(s.compactWidth, 320, 520),
+    shortcuts: Object.fromEntries(
+      Object.entries(s.shortcuts && typeof s.shortcuts === 'object' ? s.shortcuts : {}).filter(
+        ([id, accel]) => GLOBAL_SHORTCUTS.some((g) => g.id === id) && typeof accel === 'string' && ACCEL_PATTERN.test(accel)
+      )
+    ),
+    onboarded: !!s.onboarded,
     miniSize:
       s.miniSize && Number.isFinite(s.miniSize.width) && Number.isFinite(s.miniSize.height)
         ? { width: Math.round(clamp(s.miniSize.width, 360, 700)), height: Math.round(clamp(s.miniSize.height, 480, 1200)) }

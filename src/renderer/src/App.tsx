@@ -7,6 +7,7 @@ import { MiniPlayer } from '@/components/MiniPlayer'
 import { ResizeGrip } from '@/components/ResizeGrip'
 import { SidePanel } from '@/components/SidePanel'
 import { Toasts } from '@/components/Toasts'
+import { Welcome } from '@/components/Welcome'
 import { useArtwork, usePalette } from '@/hooks/useArtwork'
 import { useReducedMotion } from '@/hooks/useMotion'
 import { NEUTRAL_PALETTE } from '@/lib/palette'
@@ -172,6 +173,12 @@ export default function App() {
     return () => window.removeEventListener('resize', onResize)
   }, [])
 
+  // First run: open the roomy player once so the welcome card has space.
+  const onboarded = settings.onboarded
+  useEffect(() => {
+    if (ready && !onboarded && useUi.getState().mode !== 'mini') requestMode('mini')
+  }, [ready, onboarded])
+
   if (!ready) return null
 
   return (
@@ -204,6 +211,7 @@ export default function App() {
             </motion.div>
           </AnimatePresence>
           {(mode === 'mini' || mode === 'full') && <SidePanel />}
+          {!onboarded && (mode === 'mini' || mode === 'full') && <Welcome />}
           <Toasts />
           {(mode === 'mini' || mode === 'compact' || mode === 'minimal') && <ResizeGrip />}
         </motion.div>

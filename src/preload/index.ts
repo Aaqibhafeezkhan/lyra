@@ -27,6 +27,7 @@ const api: LyraApi = {
     resizeMove: () => ipcRenderer.send(CH.windowResizeMove),
     resizeEnd: () => ipcRenderer.send(CH.windowResizeEnd),
     hide: () => ipcRenderer.send(CH.windowHide),
+    minimize: () => ipcRenderer.send(CH.windowMinimize),
     quit: () => ipcRenderer.send(CH.windowQuit)
   },
   spotify: {
@@ -62,6 +63,8 @@ const api: LyraApi = {
   },
   app: {
     info: () => invoke(CH.appInfo),
+    diagnostics: () => invoke(CH.appDiagnostics),
+    failedShortcuts: () => invoke(CH.appShortcutStatus),
     onCommand: (cb) => subscribe(EV.command, cb)
   }
 }

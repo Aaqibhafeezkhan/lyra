@@ -1,5 +1,5 @@
 import { app } from 'electron'
-import { appendFileSync, mkdirSync, statSync, renameSync } from 'node:fs'
+import { appendFileSync, mkdirSync, readFileSync, statSync, renameSync } from 'node:fs'
 import { join } from 'node:path'
 
 type Level = 'debug' | 'info' | 'warn' | 'error'
@@ -56,5 +56,16 @@ export function createLogger(scope: string) {
     info: (...a: unknown[]) => write('info', scope, a),
     warn: (...a: unknown[]) => write('warn', scope, a),
     error: (...a: unknown[]) => write('error', scope, a)
+  }
+}
+
+/** Last `lines` lines of the log file (secrets are already redacted when written). */
+export function readLogTail(lines = 80): string {
+  const f = logFile()
+  if (!f) return '(no log file)'
+  try {
+    return readFileSync(f, 'utf8').trimEnd().split(/\r?\n/).slice(-lines).join('\n')
+  } catch {
+    return '(log empty)'
   }
 }

@@ -78,7 +78,7 @@ class WindowManager extends EventEmitter {
       minimizable: true,
       fullscreenable: false, // we emulate fullscreen with display bounds (reliable with transparency)
       hasShadow: false,
-      skipTaskbar: this.mode !== 'mini',
+      skipTaskbar: false, // always in the taskbar so a minimized widget can be restored
       title: 'Lyra',
       icon: appIcon(),
       webPreferences: {
@@ -191,7 +191,6 @@ class WindowManager extends EventEmitter {
       const x = prev === 'full' ? a.x : from.x
       const pos = this.clampToDisplay({ x, y: prev === 'full' ? a.y : y, ...size })
       target = { ...pos, ...size }
-      w.setSkipTaskbar(next !== 'mini')
       w.setAlwaysOnTop(s.alwaysOnTop, 'screen-saver')
       if (prev === 'full') w.focus()
     }
@@ -349,6 +348,10 @@ class WindowManager extends EventEmitter {
 
   hide(): void {
     this.window?.hide()
+  }
+
+  minimize(): void {
+    this.window?.minimize()
   }
 
   applySettings(s: Settings): void {

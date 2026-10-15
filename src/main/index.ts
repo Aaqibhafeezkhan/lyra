@@ -49,7 +49,7 @@ if (!app.requestSingleInstanceLock()) {
     registerIpc()
     const win = windows.create()
     createTray()
-    applyShortcuts(settings.get().globalShortcuts)
+    applyShortcuts(settings.get().globalShortcuts, settings.get().shortcuts)
     windows.applySettings(settings.get())
     startPlayback()
 
@@ -59,11 +59,12 @@ if (!app.requestSingleInstanceLock()) {
     win.on('show', () => setBackground(false))
     win.on('restore', () => setBackground(false))
 
-    let shortcutsOn = settings.get().globalShortcuts
+    let shortcutKey = JSON.stringify([settings.get().globalShortcuts, settings.get().shortcuts])
     settings.on('change', (s) => {
-      if (s.globalShortcuts !== shortcutsOn) {
-        shortcutsOn = s.globalShortcuts
-        applyShortcuts(shortcutsOn)
+      const key = JSON.stringify([s.globalShortcuts, s.shortcuts])
+      if (key !== shortcutKey) {
+        shortcutKey = key
+        applyShortcuts(s.globalShortcuts, s.shortcuts)
       }
     })
     log.info(`started v${app.getVersion()}`)

@@ -166,6 +166,10 @@ export interface Settings {
   hideOnScreenShare: boolean
   launchAtStartup: boolean
   globalShortcuts: boolean
+  /** User overrides for global shortcuts: id -> Electron accelerator. */
+  shortcuts: Record<string, string>
+  /** First-run welcome has been dismissed. */
+  onboarded: boolean
   /** Windows source only: control the system volume (loads a helper some antivirus tools flag). */
   systemVolume: boolean
   trackNotifications: boolean
@@ -192,6 +196,8 @@ export const DEFAULT_SETTINGS: Settings = {
   hideOnScreenShare: false,
   launchAtStartup: false,
   globalShortcuts: true,
+  shortcuts: {},
+  onboarded: false,
   systemVolume: false,
   trackNotifications: false,
   theme: 'adaptive',

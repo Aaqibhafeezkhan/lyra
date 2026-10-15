@@ -45,8 +45,15 @@
       ]
     },
     "nsis": {
-      "oneClick": true,
-      "perMachine": false
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "license": "build/license.txt",
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Lyra",
+      "runAfterFinish": true,
+      "deleteAppDataOnUninstall": false
     }
   },
   "dependencies": {

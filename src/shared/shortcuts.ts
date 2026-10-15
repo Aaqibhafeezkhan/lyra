@@ -19,3 +19,13 @@ export const LOCAL_SHORTCUTS = [
   { keys: 'D', label: 'Distraction-free (fullscreen)' },
   { keys: '[ / ]', label: 'Lyrics later / earlier' }
 ] as const
+
+export type ShortcutId = (typeof GLOBAL_SHORTCUTS)[number]['id']
+
+/** The accelerator actually in effect for a shortcut (user override or default). */
+export function effectiveAccel(id: ShortcutId, overrides: Record<string, string>): string {
+  return overrides[id] ?? GLOBAL_SHORTCUTS.find((s) => s.id === id)!.accel
+}
+
+/** Safe shape for an Electron accelerator we are willing to register. */
+export const ACCEL_PATTERN = /^(?:(?:Control|Alt|Shift|Super)\+)+(?:[A-Z0-9]|F(?:[1-9]|1[0-2])|Space|Up|Down|Left|Right)$/

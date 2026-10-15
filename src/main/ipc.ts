@@ -4,8 +4,9 @@ import type { ConnectionStatus, PlaybackSnapshot, PlayerCommand, Settings, Track
 import { getArtwork } from './artwork'
 import { DemoSource } from './demo/source'
 import { lyricsService } from './lyrics/service'
-import { createLogger } from './logger'
+import { createLogger, readLogTail } from './logger'
 import { moments } from './moments'
+import { failedShortcuts } from './shortcuts'
 import { settings } from './settings'
 import type { PlaybackSource } from './source'
 import { SmtcSource } from './smtc/source'
@@ -102,6 +103,7 @@ export function registerIpc(): void {
   on(CH.windowResizeEnd, () => windows.resizeEnd())
   on(CH.windowSettle, () => windows.settle())
   on(CH.windowHide, () => windows.hide())
+  on(CH.windowMinimize, () => windows.minimize())
   on(CH.windowQuit, () => app.quit())
 
   handle(CH.spotifyConnect, async (id?: string) => {
@@ -152,6 +154,20 @@ export function registerIpc(): void {
   handle(CH.momentsAdd, (m: Parameters<typeof moments.add>[0]) => moments.add(m))
   handle(CH.momentsRemove, (id: string) => moments.remove(id))
 
+  handle(CH.appDiagnostics, (): string => {
+    const { spotifyClientId: _id, position, ...safe } = settings.get()
+    void _id
+    return [
+      `Lyra ${app.getVersion()} (${app.isPackaged ? 'installed' : 'dev'})`,
+      `Electron ${process.versions.electron} · Chrome ${process.versions.chrome} · Node ${process.versions.node}`,
+      `Windows ${process.getSystemVersion()} · ${process.arch}`,
+      `Source: ${active?.kind ?? 'none'} · status: ${JSON.stringify(active?.getStatus() ?? {})}`,
+      `Settings: ${JSON.stringify({ ...safe, position: position ? 'set' : null })}`,
+      '--- recent log ---',
+      readLogTail(80)
+    ].join('\n')
+  })
+  handle(CH.appShortcutStatus, () => failedShortcuts())
   handle(CH.appInfo, (): AppInfo => ({ version: app.getVersion(), platform: process.platform, envClientId: !!envClientId() }))
 
   settings.on('change', (next: Settings) => {

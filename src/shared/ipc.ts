@@ -29,6 +29,7 @@ export const CH = {
   windowResizeEnd: 'window:resize-end',
   windowSettle: 'window:settle',
   windowHide: 'window:hide',
+  windowMinimize: 'window:minimize',
   windowQuit: 'window:quit',
   spotifyConnect: 'spotify:connect',
   spotifyDisconnect: 'spotify:disconnect',
@@ -51,7 +52,9 @@ export const CH = {
   momentsList: 'moments:list',
   momentsAdd: 'moments:add',
   momentsRemove: 'moments:remove',
-  appInfo: 'app:info'
+  appInfo: 'app:info',
+  appDiagnostics: 'app:diagnostics',
+  appShortcutStatus: 'app:shortcut-status'
 } as const
 
 /** Push channels (main -> renderer). */
@@ -91,6 +94,8 @@ export interface LyraApi {
     dragMove(): void
     dragEnd(): void
     hide(): void
+    /** Minimize to the taskbar (click its icon to restore). */
+    minimize(): void
     quit(): void
   }
   spotify: {
@@ -132,6 +137,10 @@ export interface LyraApi {
   }
   app: {
     info(): Promise<AppInfo>
+    /** Plain-text report (versions, settings, recent log) safe to paste into a bug report. */
+    diagnostics(): Promise<string>
+    /** Ids of global shortcuts another app already owns. */
+    failedShortcuts(): Promise<string[]>
     onCommand(cb: (c: AppCommand) => void): Unsubscribe
   }
 }
