@@ -1,6 +1,8 @@
 import { app } from 'electron'
 import { autoUpdater } from 'electron-updater'
 import { EventEmitter } from 'node:events'
+import { accessSync, constants, mkdirSync, rmSync } from 'node:fs'
+import { dirname, join } from 'node:path'
 import type { UpdateState } from '@shared/types'
 import { createLogger } from './logger'
 
@@ -35,6 +37,7 @@ class Updater extends EventEmitter {
       this.set({ state: 'disabled', reason: 'Updates are only available in the installed app.' })
       return
     }
+    this.useInstallFolderForDownloads()
     autoUpdater.autoDownload = true
     autoUpdater.autoInstallOnAppQuit = true
     autoUpdater.allowPrerelease = false
@@ -60,6 +63,26 @@ class Updater extends EventEmitter {
 
     setTimeout(() => void this.check(), FIRST_CHECK_MS)
     this.timer = setInterval(() => void this.check(), EVERY_MS)
+  }
+
+  /**
+   * Keep downloaded updates next to the app (the folder the user chose in the installer) instead of
+   * %LOCALAPPDATA% on the system drive. Falls back to electron-updater's default if it isn't writable.
+   */
+  private useInstallFolderForDownloads(): void {
+    try {
+      const dir = join(dirname(process.execPath), 'updates')
+      mkdirSync(dir, { recursive: true })
+      accessSync(dir, constants.W_OK)
+      const adapter = (autoUpdater as unknown as { app: object }).app
+      Object.defineProperty(adapter, 'baseCachePath', { get: () => dir, configurable: true })
+      log.info('update downloads go to', dir)
+      // remove the old default cache once, so an earlier download doesn't linger on the system drive
+      const legacy = join(process.env['LOCALAPPDATA'] ?? '', 'lyra-updater')
+      if (process.env['LOCALAPPDATA']) rmSync(legacy, { recursive: true, force: true })
+    } catch (e) {
+      log.warn('could not use the install folder for updates; using the default cache', (e as Error).message)
+    }
   }
 
   async check(): Promise<void> {
