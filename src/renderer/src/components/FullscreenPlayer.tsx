@@ -4,7 +4,7 @@ import { joinArtists } from '@/lib/format'
 import { usePlayer } from '@/store/player'
 import { requestMode, useUi } from '@/store/ui'
 import { Artwork } from './Artwork'
-import { IconButton, Transport, VolumeControl } from './Controls'
+import { IconButton, Transport, VolumeControl, useCaps } from './Controls'
 import { LyricsView } from './LyricsView'
 import { LikeButton } from './MiniPlayer'
 import { ProgressBar } from './ProgressBar'
@@ -39,6 +39,7 @@ export function FullscreenPlayer() {
   const track = usePlayer((s) => s.snapshot?.track ?? null)
   const device = usePlayer((s) => s.snapshot?.device ?? null)
   const idle = useIdle(3500)
+  const caps = useCaps()
   const panel = useUi((s) => s.panel)
   const togglePanel = useUi((s) => s.togglePanel)
   const df = useUi((s) => s.distractionFree)
@@ -52,7 +53,7 @@ export function FullscreenPlayer() {
         <span className="full__device">{device ? `Playing on ${device.name}` : 'Lyra'}</span>
         <div className="full__tools">
           <IconButton icon="type" label="Distraction-free: artwork and lyrics only" active={df} onClick={toggleDf} />
-          <IconButton icon="queue" label="Queue" active={panel === 'queue'} onClick={() => togglePanel('queue')} />
+          {caps.queue && <IconButton icon="queue" label="Queue" active={panel === 'queue'} onClick={() => togglePanel('queue')} />}
           <IconButton icon="bookmark" label="Saved lyric moments" active={panel === 'moments'} onClick={() => togglePanel('moments')} />
           <IconButton icon="settings" label="Settings" active={panel === 'settings'} onClick={() => togglePanel('settings')} />
           <IconButton icon="exitFullscreen" label="Exit fullscreen (Esc)" onClick={() => requestMode('mini')} />

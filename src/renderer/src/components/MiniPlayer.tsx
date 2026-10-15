@@ -4,7 +4,7 @@ import { joinArtists } from '@/lib/format'
 import { usePlayer } from '@/store/player'
 import { requestMode, useUi } from '@/store/ui'
 import { Artwork } from './Artwork'
-import { IconButton, Transport, VolumeControl } from './Controls'
+import { IconButton, Transport, VolumeControl, useCaps } from './Controls'
 import { LyricsView } from './LyricsView'
 import { ProgressBar } from './ProgressBar'
 import { ConnectScreen, LoadingScreen, NoMusicScreen, OfflineBanner, OfflineScreen } from './StateScreens'
@@ -13,11 +13,12 @@ export function LikeButton({ size = 18 }: { size?: number }) {
   const liked = usePlayer((s) => s.liked)
   const toggle = usePlayer((s) => s.toggleLike)
   const status = usePlayer((s) => s.status)
+  const local = status?.state === 'local'
   const unavailable = liked === null
   return (
     <IconButton
       icon="heart"
-      label={liked ? 'Remove from Liked Songs' : 'Save to Liked Songs'}
+      label={local ? (liked ? 'Remove from Lyra favorites' : 'Save to Lyra favorites') : liked ? 'Remove from Liked Songs' : 'Save to Liked Songs'}
       title={unavailable ? (status?.state === 'demo' ? 'Like' : 'Liking isn’t available for this item') : undefined}
       active={!!liked}
       filled={!!liked}
@@ -36,6 +37,7 @@ export function MiniPlayer() {
   const panel = useUi((s) => s.panel)
   const togglePanel = useUi((s) => s.togglePanel)
   const drag = useWindowDrag()
+  const caps = useCaps()
 
   return (
     <div className="mini">
@@ -44,7 +46,7 @@ export function MiniPlayer() {
           {device ? device.name : 'Lyra'}
         </span>
         <div className="mini__tools" data-nodrag>
-          <IconButton icon="queue" label="Queue" active={panel === 'queue'} size={16} onClick={() => togglePanel('queue')} />
+          {caps.queue && <IconButton icon="queue" label="Queue" active={panel === 'queue'} size={16} onClick={() => togglePanel('queue')} />}
           <IconButton icon="bookmark" label="Saved lyric moments" active={panel === 'moments'} size={16} onClick={() => togglePanel('moments')} />
           <IconButton icon="settings" label="Settings" active={panel === 'settings'} size={16} onClick={() => togglePanel('settings')} />
           <IconButton icon="fullscreen" label="Fullscreen lyrics" size={16} onClick={() => requestMode('full')} />

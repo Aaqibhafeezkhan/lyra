@@ -44,7 +44,15 @@ interface TransportProps {
   extras?: boolean
 }
 
-export function Transport({ size = 'md', extras = false }: TransportProps) {
+/** What the active music source can do. Windows media controls expose no queue / shuffle / repeat. */
+export function useCaps(): { queue: boolean; shuffleRepeat: boolean } {
+  const local = usePlayer((s) => s.status?.state === 'local')
+  return { queue: !local, shuffleRepeat: !local }
+}
+
+export function Transport({ size = 'md', extras: wantExtras = false }: TransportProps) {
+  const caps = useCaps()
+  const extras = wantExtras && caps.shuffleRepeat
   const playing = usePlayer((s) => !!s.snapshot?.isPlaying)
   const shuffle = usePlayer((s) => !!s.snapshot?.shuffle)
   const repeat = usePlayer((s) => s.snapshot?.repeat ?? 'off')

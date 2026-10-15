@@ -13,6 +13,53 @@ $null = [Windows.Storage.Streams.IRandomAccessStreamReference,Windows.Storage.St
 $null = [Windows.Storage.Streams.IRandomAccessStreamWithContentType,Windows.Storage.Streams,ContentType=WindowsRuntime]
 $null = [Windows.Media.Control.GlobalSystemMediaTransportControlsSessionMediaProperties,Windows.Media.Control,ContentType=WindowsRuntime]
 
+# System master volume (what the Windows volume flyout controls) via Core Audio COM interop.
+Add-Type -TypeDefinition @'
+using System;
+using System.Runtime.InteropServices;
+
+public static class SysVol {
+  [ComImport, Guid("BCDE0395-E52F-467C-8E3D-C4579291692E")] class MMDeviceEnumeratorCom { }
+
+  [ComImport, Guid("A95664D2-9614-4F35-A746-DE8DB63617E6"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+  interface IMMDeviceEnumerator {
+    int EnumAudioEndpoints(int dataFlow, int mask, out IntPtr devices);
+    int GetDefaultAudioEndpoint(int dataFlow, int role, out IMMDevice device);
+  }
+  [ComImport, Guid("D666063F-1587-4E43-81F1-B948E807363F"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+  interface IMMDevice {
+    int Activate(ref Guid iid, int ctx, IntPtr p, [MarshalAs(UnmanagedType.IUnknown)] out object o);
+  }
+  [ComImport, Guid("5CDF2C82-841E-4546-9722-0CF74078229A"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+  interface IAudioEndpointVolume {
+    int RegisterControlChangeNotify(IntPtr n);
+    int UnregisterControlChangeNotify(IntPtr n);
+    int GetChannelCount(out uint c);
+    int SetMasterVolumeLevel(float db, ref Guid ctx);
+    int SetMasterVolumeLevelScalar(float level, ref Guid ctx);
+    int GetMasterVolumeLevel(out float db);
+    int GetMasterVolumeLevelScalar(out float level);
+  }
+
+  static IAudioEndpointVolume Endpoint() {
+    var en = (IMMDeviceEnumerator)(new MMDeviceEnumeratorCom());
+    IMMDevice dev; en.GetDefaultAudioEndpoint(0, 1, out dev);
+    Guid iid = typeof(IAudioEndpointVolume).GUID; object o;
+    dev.Activate(ref iid, 23, IntPtr.Zero, out o);
+    return (IAudioEndpointVolume)o;
+  }
+
+  /// <summary>0..1, or -1 when unavailable.</summary>
+  public static float Get() {
+    try { float v; Endpoint().GetMasterVolumeLevelScalar(out v); return v; } catch { return -1f; }
+  }
+
+  public static bool Set(float level) {
+    try { Guid ctx = Guid.Empty; Endpoint().SetMasterVolumeLevelScalar(Math.Max(0f, Math.Min(1f, level)), ref ctx); return true; } catch { return false; }
+  }
+}
+'@
+
 $opName = 'IAsyncOperation' + [char]96 + '1'
 $asTask = ([System.WindowsRuntimeSystemExtensions].GetMethods() | Where-Object {
   $_.Name -eq 'AsTask' -and $_.GetParameters().Count -eq 1 -and $_.GetParameters()[0].ParameterType.Name -eq $opName
@@ -78,6 +125,7 @@ while ($true) {
           '^pause$'  { [void](Await $s.TryPauseAsync() ([bool])) }
           '^next$'   { [void](Await $s.TrySkipNextAsync() ([bool])) }
           '^prev$'   { [void](Await $s.TrySkipPreviousAsync() ([bool])) }
+          '^volume:(\d+)$' { [void][SysVol]::Set([float]([int]$Matches[1] / 100)) }
           '^seek:(\d+)$' { [void](Await $s.TryChangePlaybackPositionAsync([int64]([int64]$Matches[1] * 10000)) ([bool])) }
         }
       }
@@ -129,6 +177,8 @@ while ($true) {
         positionMs = [int64]$pos
         playing = $playing
       }
+      $vol = [SysVol]::Get()
+      if ($vol -ge 0) { $out.volume = [int][Math]::Round($vol * 100) }
       if ($thumb -and $thumbSentKey -ne $key) { $out.thumb = $thumb; $thumbSentKey = $key }
       Emit $out
     }

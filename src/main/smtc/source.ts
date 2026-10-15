@@ -7,6 +7,8 @@ import { createInterface } from 'node:readline'
 import type { CommandResult, PlaybackSnapshot, PlayerCommand, QueueItem, RecentItem, Track } from '@shared/types'
 import { createLogger } from '../logger'
 import { PlaybackSource } from '../source'
+import { favorites } from '../favorites'
+import { releaseYear } from '../meta/musicbrainz'
 import { SMTC_SCRIPT } from './script'
 
 const log = createLogger('smtc')
@@ -23,6 +25,7 @@ interface Msg {
   positionMs?: number
   playing?: boolean
   thumb?: string
+  volume?: number
 }
 
 const UNSUPPORTED = (what: string): CommandResult => ({
@@ -33,7 +36,8 @@ const UNSUPPORTED = (what: string): CommandResult => ({
 
 /**
  * Reads the Spotify desktop app through Windows media controls (SMTC). No account, API key or
- * Premium needed. Limits: no volume, queue, likes or release year.
+ * Premium needed. Volume is the system master volume; likes are Lyra-local favourites; release year
+ * comes from MusicBrainz. No queue, shuffle or repeat.
  */
 export class SmtcSource extends PlaybackSource {
   readonly kind = 'smtc' as const
@@ -42,6 +46,8 @@ export class SmtcSource extends PlaybackSource {
   private restartTimer: NodeJS.Timeout | null = null
   private lastEmitted: PlaybackSnapshot | null = null
   private thumbs = new Map<string, string>()
+  private years = new Map<string, number | null>()
+  private yearRequested = new Set<string>()
   private failures = 0
 
   start(): void {
@@ -109,12 +115,18 @@ export class SmtcSource extends PlaybackSource {
     let snap: PlaybackSnapshot
     const base = {
       sampledAt: now,
-      device: { id: null, name: 'Spotify (Windows)', type: 'Computer', volumePercent: null, supportsVolume: false },
+      device: {
+        id: null,
+        name: 'This PC (system volume)',
+        type: 'Computer',
+        volumePercent: m.volume ?? null,
+        supportsVolume: m.volume !== undefined
+      },
       shuffle: false,
       repeat: 'off' as const
     }
     if (!m.found) {
-      snap = { ...base, track: null, isPlaying: false, positionMs: 0, device: null, isAdOrUnknown: false }
+      snap = { ...base, track: null, isPlaying: false, positionMs: 0, isAdOrUnknown: false }
     } else if (!m.title || m.title === 'Advertisement' || m.title === 'Spotify') {
       snap = { ...base, track: null, isPlaying: !!m.playing, positionMs: 0, isAdOrUnknown: true }
     } else {
@@ -130,13 +142,27 @@ export class SmtcSource extends PlaybackSource {
         title: m.title,
         artists: m.artist ? [m.artist] : [],
         album: m.album ?? '',
-        releaseYear: null,
+        releaseYear: this.years.get(id) ?? null,
         durationMs: dur,
         artworkUrl: this.thumbs.get(id) ?? null,
         explicit: false,
         webUrl: null
       }
       snap = { ...base, track, isPlaying: !!m.playing, positionMs: m.positionMs ?? 0, isAdOrUnknown: false }
+      if (!this.yearRequested.has(id) && track.artists[0]) {
+        this.yearRequested.add(id)
+        void releaseYear(track.title, track.artists[0], dur).then((y) => {
+          if (y === null) return
+          this.years.set(id, y)
+          const cur = this.snapshot
+          if (cur?.track?.id === id) {
+            const next = { ...cur, track: { ...cur.track, releaseYear: y } }
+            this.snapshot = next
+            this.lastEmitted = next
+            this.emit('snapshot', next)
+          }
+        })
+      }
     }
     this.snapshot = snap
     if (this.shouldEmit(snap)) {
@@ -149,7 +175,8 @@ export class SmtcSource extends PlaybackSource {
     const o = this.lastEmitted
     if (!o) return true
     if (o.track?.id !== n.track?.id || o.isPlaying !== n.isPlaying || o.isAdOrUnknown !== n.isAdOrUnknown) return true
-    if (o.track?.artworkUrl !== n.track?.artworkUrl) return true // artwork arrives a tick after the track
+    if (o.track?.artworkUrl !== n.track?.artworkUrl || o.track?.releaseYear !== n.track?.releaseYear) return true // artwork arrives a tick after the track
+    if (o.device?.volumePercent !== n.device?.volumePercent) return true
     const predicted = o.positionMs + (o.isPlaying ? n.sampledAt - o.sampledAt : 0)
     return Math.abs(predicted - n.positionMs) > 1500
   }
@@ -175,7 +202,9 @@ export class SmtcSource extends PlaybackSource {
         this.proc.stdin.write(`seek:${Math.max(0, Math.round(cmd.positionMs))}\n`)
         return { ok: true }
       case 'volume':
-        return UNSUPPORTED('Volume')
+        this.proc.stdin.write(`volume:${Math.min(100, Math.max(0, Math.round(cmd.percent)))}
+`)
+        return { ok: true }
       case 'shuffle':
         return UNSUPPORTED('Shuffle')
       case 'repeat':
@@ -183,11 +212,13 @@ export class SmtcSource extends PlaybackSource {
     }
   }
 
-  async isLiked(): Promise<boolean | null> {
-    return null
+  async isLiked(trackId: string): Promise<boolean | null> {
+    return favorites.has(trackId)
   }
-  async setLiked(): Promise<CommandResult> {
-    return UNSUPPORTED('Liking songs')
+  async setLiked(trackId: string, liked: boolean): Promise<CommandResult> {
+    const t = this.snapshot?.track
+    favorites.set(trackId, liked, { title: t?.title ?? '', artist: t?.artists[0] ?? '' })
+    return { ok: true }
   }
   async queue(): Promise<QueueItem[] | null> {
     return null

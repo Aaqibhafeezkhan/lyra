@@ -3,6 +3,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { createLogger } from './logger'
 import { disposePlayback, registerIpc, setBackground, startPlayback } from './ipc'
+import { favorites } from './favorites'
 import { moments } from './moments'
 import { settings } from './settings'
 import { applyShortcuts, disposeShortcuts } from './shortcuts'
@@ -77,5 +78,6 @@ if (!app.requestSingleInstanceLock()) {
     disposePlayback()
     settings.flush()
     moments.flush()
+    favorites.flush()
   })
 }

@@ -20,11 +20,11 @@ Play a song in Spotify — the widget shows it. Click the widget to expand; full
 ## Music sources
 | Source | Needs | Gives | Missing |
 |---|---|---|---|
-| **Windows (default)** | Spotify desktop app | title, artist, album, artwork, position, play/pause/next/previous/seek | volume, queue, likes, release year, shuffle/repeat |
+| **Windows (default)** | Spotify desktop app | title, artist, album, artwork, position, play/pause/next/previous/seek, **system volume**, release year (MusicBrainz), Lyra-local favorites ♥ | queue, shuffle/repeat (buttons hidden), syncing likes to Spotify |
 | Spotify API (optional) | your own Spotify Developer app (Client ID) | everything above + volume, queue, likes, devices | **Premium** for any control; Dev Mode needs a Premium app owner and your account under *User Management* |
 | Demo | nothing | simulated playback with sample lyrics | — |
 
-How the default works: a hidden PowerShell process (Windows PowerShell 5.1, ships with Windows) talks to the Windows System Media Transport Controls API and streams JSON to the app (`src/main/smtc`). Only a session whose app id contains "Spotify" is used, so YouTube etc. never leak in.
+How the default works: a hidden PowerShell process (Windows PowerShell 5.1, ships with Windows) talks to the Windows System Media Transport Controls API and streams JSON to the app (`src/main/smtc`). Only a session whose app id contains "Spotify" is used, so YouTube etc. never leak in. Volume is the Windows master volume (Core Audio). Release year is looked up once per song on MusicBrainz and cached. Favorites are stored locally in `favorites.json`.
 
 ### Optional: Spotify API setup
 1. https://developer.spotify.com/dashboard → *Create app* (Web API).
