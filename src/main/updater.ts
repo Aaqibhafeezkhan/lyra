@@ -97,7 +97,7 @@ class Updater extends EventEmitter {
   }
 
   install(): void {
-    if (this.current.state === 'ready') autoUpdater.quitAndInstall(false, true)
+    if (this.current.state === 'ready') autoUpdater.quitAndInstall(true, true) // silent install, relaunch afterwards
   }
 
   dispose(): void {
