@@ -14,6 +14,7 @@ npm test           # LRC parser tests
 npm run typecheck
 npm run build && npm start   # production build preview
 npm run dist       # Windows NSIS installer in ./release
+npm run dist:local # same, but works around antivirus EPERM rename failures
 ```
 Play a song in Spotify — the widget shows it. Click the widget to expand; fullscreen button (or `F`) for immersive lyrics. No Spotify handy? *Settings → Music source → Demo*.
 
