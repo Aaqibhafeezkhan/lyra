@@ -43,7 +43,9 @@ export class LyricsProviderError extends Error {
   constructor(
     message: string,
     readonly kind: 'network' | 'rate-limit' | 'server' | 'unknown',
-    readonly retryable = true
+    readonly retryable = true,
+    /** Seconds the provider asked us to wait (rate limits). */
+    readonly retryAfterSec?: number
   ) {
     super(message)
   }

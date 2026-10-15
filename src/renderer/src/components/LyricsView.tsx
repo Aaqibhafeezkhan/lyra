@@ -55,7 +55,7 @@ export function LyricsView({ variant }: Props) {
         <LyricsMessage
           icon={r.error?.kind === 'network' ? 'wifiOff' : 'alert'}
           title={r.error?.kind === 'rate-limit' ? 'Lyrics service is busy' : 'Couldn’t load lyrics'}
-          body={r.error?.message ?? 'Something went wrong while fetching lyrics.'}
+          body={r.error?.kind === 'rate-limit' ? 'The free lyrics service is busy right now. Lyra will keep trying in the background.' : (r.error?.message ?? 'Something went wrong while fetching lyrics.')}
           action={r.error?.retryable === false ? undefined : { label: 'Try again', icon: 'refresh', run: retry }}
         />
       )

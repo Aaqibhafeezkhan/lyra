@@ -170,6 +170,23 @@ class LyricsService {
     return this.get(track, true)
   }
 
+  /**
+   * Rate limits are normal for a free service: wait out the cooldown (the UI just keeps showing its
+   * loading state) instead of surfacing an error. Only give up after a couple of patient retries.
+   */
+  private async fetchPatiently(provider: LyricsProvider, q: LyricsQuery) {
+    for (let attempt = 0; ; attempt++) {
+      try {
+        return await provider.fetch(q, AbortSignal.timeout(20_000))
+      } catch (e) {
+        const wait = e instanceof LyricsProviderError && e.kind === 'rate-limit' ? e.retryAfterSec : undefined
+        if (wait === undefined || attempt >= 2 || wait > 45) throw e
+        log.info(`${provider.id} rate limited; waiting ${wait}s (attempt ${attempt + 1})`)
+        await new Promise((r) => setTimeout(r, (wait + 1) * 1000))
+      }
+    }
+  }
+
   private async lookup(track: Track): Promise<LyricsResult> {
     // Be a polite client: space out requests when skipping through tracks quickly.
     const wait = this.lastCall + 400 - Date.now()
@@ -182,7 +199,7 @@ class LyricsService {
 
     for (const provider of this.providers) {
       try {
-        const r = await provider.fetch(q, AbortSignal.timeout(15_000))
+        const r = await this.fetchPatiently(provider, q)
         answered = true
         if (r.kind !== 'found') continue
         const result = this.build(track.id, provider.id, r)

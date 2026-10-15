@@ -55,7 +55,7 @@ export class LrcLibProvider implements LyricsProvider {
 
   private async get<T>(path: string, signal: AbortSignal): Promise<{ status: number; body: T | null }> {
     const left = Math.ceil((this.cooldownUntil - Date.now()) / 1000)
-    if (left > 0) throw new LyricsProviderError(`The lyrics service asked us to slow down. Retrying in ${left}s.`, 'rate-limit')
+    if (left > 0) throw new LyricsProviderError(`The lyrics service asked us to slow down. Retrying in ${left}s.`, 'rate-limit', true, left)
     await this.throttle()
     let res: Response
     try {
@@ -73,7 +73,7 @@ export class LrcLibProvider implements LyricsProvider {
       const retry = Number(res.headers.get('retry-after'))
       const secs = Number.isFinite(retry) && retry > 0 ? Math.min(retry, 300) : DEFAULT_COOLDOWN_S
       this.cooldownUntil = Date.now() + secs * 1000
-      throw new LyricsProviderError(`The lyrics service is rate limiting requests. Retrying in ${secs}s.`, 'rate-limit')
+      throw new LyricsProviderError(`The lyrics service is rate limiting requests. Retrying in ${secs}s.`, 'rate-limit', true, secs)
     }
     if (res.status >= 500) throw new LyricsProviderError(`Lyrics service error (${res.status}).`, 'server')
     if (!res.ok) throw new LyricsProviderError(`Unexpected lyrics response (${res.status}).`, 'unknown', false)
@@ -91,7 +91,7 @@ export class LrcLibProvider implements LyricsProvider {
     for (const [i, title] of titles.entries()) {
       for (const artist of artists) {
         const key = `${title}|${artist}`
-        if (tried.has(key) || tried.size >= 3) continue
+        if (tried.has(key) || tried.size >= 2) continue
         tried.add(key)
         const params = new URLSearchParams({ track_name: title, artist_name: artist })
         if (dur > 0) params.set('duration', String(dur))
@@ -122,7 +122,7 @@ export class LrcLibProvider implements LyricsProvider {
     for (const path of queries) {
       const r = await this.get<LrcLibRecord[]>(path, signal)
       for (const rec of r.body ?? []) seen.set(rec.id, rec)
-      if (seen.size >= 12) break
+      if (seen.size >= 1) break
     }
     return [...seen.values()]
   }
