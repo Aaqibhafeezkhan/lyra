@@ -26,7 +26,7 @@ Play a song in Spotify — the widget shows it. Click the widget to expand; full
 
 How the default works: a tiny native helper (`resources/lyra-media.exe`, ~14 KB, C#) subscribes to the Windows System Media Transport Controls events and streams JSON to the app (`src/main/smtc`, `native/lyra-media`). It is event-driven (≈0% CPU idle) and only follows a session whose app id contains "Spotify". Rebuild it with `npm run build:helper` (needs the Windows SDK; the built exe is committed). If the exe is missing the app falls back to a PowerShell bridge. Volume (opt-in: *Settings → System → Control system volume*) is the Windows master volume via Core Audio. Release year is looked up once per song on MusicBrainz and cached. Favorites are stored locally in `favorites.json`.
 
-### Optional: Spotify API setup
+### Optional: Spotify API setup (on hold — implemented but not yet tested against a real account)
 1. https://developer.spotify.com/dashboard → *Create app* (Web API).
 2. Redirect URI, exactly: `http://127.0.0.1:53682/callback`
 3. Copy the **Client ID** (PKCE — no secret). Paste it in *Settings → Music source → Spotify API*, or set `SPOTIFY_CLIENT_ID` in `.env` (see `.env.example`).
