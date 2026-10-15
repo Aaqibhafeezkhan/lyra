@@ -5,9 +5,18 @@
   !insertmacro VersionCompare
 !endif
 
-; Refuse to "install again" when this version (or a newer one) is already installed.
-; Silent runs are in-app updates (electron-updater) and must keep working.
 !macro customInit
+  ; Always reinstall/update into the folder Lyra is already installed in (e.g. a drive the user chose),
+  ; never create a second copy in the default location.
+  ReadRegStr $R2 HKCU "${INSTALL_REGISTRY_KEY}" "InstallLocation"
+  ${If} $R2 != ""
+    ${If} ${FileExists} "$R2\${APP_EXECUTABLE_FILENAME}"
+      StrCpy $INSTDIR "$R2"
+    ${EndIf}
+  ${EndIf}
+
+  ; Refuse to "install again" when this version (or a newer one) is already installed.
+  ; Silent runs are in-app updates (electron-updater) and must keep working.
   ${IfNot} ${Silent}
     ReadRegStr $R0 HKCU "${UNINSTALL_REGISTRY_KEY}" "DisplayVersion"
     ${If} $R0 != ""
