@@ -10,6 +10,12 @@ export interface LyricsQuery {
   durationMs: number
 }
 
+export interface Matched {
+  title: string
+  artist: string
+  durationMs: number
+}
+
 export type ProviderResult =
   | {
       kind: 'found'
@@ -17,9 +23,21 @@ export type ProviderResult =
       synced?: string
       plain?: string
       instrumental?: boolean
-      matched: { title: string; artist: string; durationMs: number }
+      matched: Matched
     }
   | { kind: 'none' }
+
+/** A possible match the user can pick when the automatic one is wrong. */
+export interface LyricsCandidate {
+  /** Provider-specific id, passed back to `byId`. */
+  id: string
+  title: string
+  artist: string
+  album: string
+  durationMs: number
+  synced: boolean
+  instrumental: boolean
+}
 
 export class LyricsProviderError extends Error {
   constructor(
@@ -35,13 +53,10 @@ export interface LyricsProvider {
   readonly id: string
   readonly name: string
   fetch(q: LyricsQuery, signal: AbortSignal): Promise<ProviderResult>
+  /** Optional: ranked alternatives for manual correction. */
+  candidates?(q: LyricsQuery, signal: AbortSignal): Promise<LyricsCandidate[]>
+  /** Optional: fetch one specific entry (used for user-pinned matches). */
+  byId?(id: string, signal: AbortSignal): Promise<ProviderResult>
 }
 
-/** Remove noise that makes catalog matching fail: "(feat. X)", "- Remastered 2011", "- Live at ...". */
-export function cleanTitle(title: string): string {
-  return title
-    .replace(/\s*[([](?:feat\.?|ft\.?|with)\b[^)\]]*[)\]]/gi, '')
-    .replace(/\s*-\s*(?:\d{4}\s*)?(?:remaster(?:ed)?|live|mono|stereo|radio edit|single version|album version|bonus track|deluxe)\b.*$/i, '')
-    .replace(/\s*[([](?:\d{4}\s*)?(?:remaster(?:ed)?|live|mono|stereo|radio edit)[^)\]]*[)\]]/gi, '')
-    .trim()
-}
+export { cleanTitle } from './match'

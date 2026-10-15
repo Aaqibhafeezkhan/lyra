@@ -10,6 +10,7 @@ import { useArtwork, usePalette } from '@/hooks/useArtwork'
 import { useReducedMotion } from '@/hooks/useMotion'
 import { NEUTRAL_PALETTE } from '@/lib/palette'
 import { useLyrics } from '@/store/lyrics'
+import { OFFSET_STEP_MS, nudgeSongOffset } from '@/store/offsets'
 import { usePlayer } from '@/store/player'
 import { useSettings } from '@/store/settings'
 import { requestMode, useUi } from '@/store/ui'
@@ -97,8 +98,7 @@ function useHotkeys(): void {
           break
         case '[':
         case ']': {
-          const s = useSettings.getState()
-          s.set({ lyricOffsetMs: s.settings.lyricOffsetMs + (e.key === ']' ? 250 : -250) })
+          nudgeSongOffset(e.key === ']' ? OFFSET_STEP_MS : -OFFSET_STEP_MS)
           break
         }
         case 'Escape':

@@ -7,7 +7,8 @@ import type { LyricsResult, Track } from '@shared/types'
 import { createLogger } from '../logger'
 import { demoLyrics } from '../demo/lyrics'
 import { LrcLibProvider } from './lrclib'
-import { LyricsProviderError, type LyricsProvider, type LyricsQuery } from './provider'
+import { JsonStore } from '../jsonStore'
+import { LyricsProviderError, type LyricsCandidate, type LyricsProvider, type LyricsQuery } from './provider'
 
 const log = createLogger('lyrics')
 
@@ -20,7 +21,13 @@ interface CacheEntry {
   result: LyricsResult
 }
 
+interface Pin {
+  provider: string
+  id: string
+}
+
 class LyricsService {
+  private pinStore: JsonStore<{ pins: Record<string, Pin> }> | null = null
   private readonly providers: LyricsProvider[] = [new LrcLibProvider()]
   private readonly memory = new Map<string, CacheEntry>()
   private readonly inflight = new Map<string, Promise<LyricsResult>>()
@@ -87,6 +94,15 @@ class LyricsService {
     if (track.uri.startsWith('spotify:episode:') || track.uri.startsWith('spotify:local:'))
       return { trackId: track.id, status: 'none', provider: 'none', lines: [] }
 
+    // A match the user picked manually always wins over automatic matching.
+    const pin = this.pins().pins[track.id]
+    if (pin) {
+      const cached = this.readCache(track.id)
+      if (cached && !force) return cached
+      const pinned = await this.fetchPinned(track.id, pin)
+      if (pinned) return pinned
+    }
+
     if (!force) {
       const cached = this.readCache(track.id)
       if (cached) return cached
@@ -98,19 +114,69 @@ class LyricsService {
     return p
   }
 
+  private pins(): { pins: Record<string, Pin> } {
+    return (this.pinStore ??= new JsonStore<{ pins: Record<string, Pin> }>('lyrics-pins.json', { pins: {} })).get()
+  }
+
+  private async fetchPinned(trackId: string, pin: Pin): Promise<LyricsResult | null> {
+    const provider = this.providers.find((p) => p.id === pin.provider)
+    if (!provider?.byId) return null
+    try {
+      const r = await provider.byId(pin.id, AbortSignal.timeout(15_000))
+      if (r.kind !== 'found') return null
+      const result = { ...this.build(trackId, provider.id, r), pinned: true }
+      this.writeCache(trackId, result)
+      return result
+    } catch (e) {
+      log.warn('pinned lookup failed', (e as Error).message)
+      return null
+    }
+  }
+
+  private queryFor(track: Track): LyricsQuery {
+    return { trackId: track.id, title: track.title, artist: track.artists[0] ?? '', album: track.album, durationMs: track.durationMs }
+  }
+
+  /** Ranked alternatives so the user can fix a wrong match. */
+  async candidates(track: Track): Promise<{ items: Array<LyricsCandidate & { provider: string }>; error?: string }> {
+    const items: Array<LyricsCandidate & { provider: string }> = []
+    let error: string | undefined
+    for (const p of this.providers) {
+      if (!p.candidates) continue
+      try {
+        for (const c of await p.candidates(this.queryFor(track), AbortSignal.timeout(30_000))) items.push({ ...c, provider: p.id })
+      } catch (e) {
+        error = (e as Error).message
+        log.warn(`${p.id} candidates failed`, error)
+      }
+    }
+    return { items, error: items.length === 0 ? error : undefined }
+  }
+
+  /** Pin a specific provider entry to this track (remembered across restarts). */
+  async choose(track: Track, provider: string, id: string): Promise<LyricsResult> {
+    const store = (this.pinStore ??= new JsonStore<{ pins: Record<string, Pin> }>('lyrics-pins.json', { pins: {} }))
+    store.set({ pins: { ...store.get().pins, [track.id]: { provider, id } } })
+    const result = await this.fetchPinned(track.id, { provider, id })
+    return result ?? { trackId: track.id, status: 'none', provider, lines: [] }
+  }
+
+  /** Forget a manual pick and go back to automatic matching. */
+  async clearPin(track: Track): Promise<LyricsResult> {
+    const store = (this.pinStore ??= new JsonStore<{ pins: Record<string, Pin> }>('lyrics-pins.json', { pins: {} }))
+    const pins = { ...store.get().pins }
+    delete pins[track.id]
+    store.set({ pins })
+    return this.get(track, true)
+  }
+
   private async lookup(track: Track): Promise<LyricsResult> {
     // Be a polite client: space out requests when skipping through tracks quickly.
     const wait = this.lastCall + 400 - Date.now()
     if (wait > 0) await new Promise((r) => setTimeout(r, wait))
     this.lastCall = Date.now()
 
-    const q: LyricsQuery = {
-      trackId: track.id,
-      title: track.title,
-      artist: track.artists[0] ?? '',
-      album: track.album,
-      durationMs: track.durationMs
-    }
+    const q = this.queryFor(track)
     let firstError: LyricsProviderError | null = null
     let answered = false
 

@@ -45,7 +45,10 @@ const api: LyraApi = {
   },
   lyrics: {
     get: (track) => invoke(CH.lyricsGet, track),
-    refresh: (track) => invoke(CH.lyricsRefresh, track)
+    refresh: (track) => invoke(CH.lyricsRefresh, track),
+    candidates: (track) => invoke(CH.lyricsCandidates, track),
+    choose: (track, provider, id) => invoke(CH.lyricsChoose, track, provider, id),
+    clearPin: (track) => invoke(CH.lyricsClearPin, track)
   },
   art: { get: (url) => invoke(CH.artGet, url) },
   moments: {

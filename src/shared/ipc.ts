@@ -2,6 +2,7 @@ import type {
   AppCommand,
   CommandResult,
   ConnectionStatus,
+  LyricsCandidateInfo,
   LyricsResult,
   PlaybackSnapshot,
   PlayerCommand,
@@ -38,6 +39,9 @@ export const CH = {
   playerOpen: 'player:open',
   lyricsGet: 'lyrics:get',
   lyricsRefresh: 'lyrics:refresh',
+  lyricsCandidates: 'lyrics:candidates',
+  lyricsChoose: 'lyrics:choose',
+  lyricsClearPin: 'lyrics:clear-pin',
   artGet: 'art:get',
   momentsList: 'moments:list',
   momentsAdd: 'moments:add',
@@ -102,6 +106,10 @@ export interface LyraApi {
     get(track: Track): Promise<LyricsResult>
     /** Bypass cache (e.g. after a network error). */
     refresh(track: Track): Promise<LyricsResult>
+    /** Ranked alternatives for fixing a wrong match. */
+    candidates(track: Track): Promise<{ items: LyricsCandidateInfo[]; error?: string }>
+    choose(track: Track, provider: string, id: string): Promise<LyricsResult>
+    clearPin(track: Track): Promise<LyricsResult>
   }
   art: {
     /** Returns a data: URL (cached) so the renderer never needs remote image access. */

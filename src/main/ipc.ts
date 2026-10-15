@@ -139,6 +139,9 @@ export function registerIpc(): void {
 
   handle(CH.lyricsGet, (t: Track) => lyricsService.get(t))
   handle(CH.lyricsRefresh, (t: Track) => lyricsService.get(t, true))
+  handle(CH.lyricsCandidates, (t: Track) => lyricsService.candidates(t))
+  handle(CH.lyricsChoose, (t: Track, provider: string, id: string) => lyricsService.choose(t, provider, id))
+  handle(CH.lyricsClearPin, (t: Track) => lyricsService.clearPin(t))
   handle(CH.artGet, (url: string) => getArtwork(url))
 
   handle(CH.momentsList, () => moments.list())

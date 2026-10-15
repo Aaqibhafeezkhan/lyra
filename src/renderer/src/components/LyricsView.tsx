@@ -6,6 +6,7 @@ import { useReducedMotion } from '@/hooks/useMotion'
 import { clamp } from '@/lib/format'
 import { useLyrics } from '@/store/lyrics'
 import { usePlayer } from '@/store/player'
+import { OFFSET_STEP_MS, nudgeSongOffset, useLyricOffset, useSongOffset } from '@/store/offsets'
 import { useSettings } from '@/store/settings'
 import { useUi } from '@/store/ui'
 import { useControlsLocked } from './Controls'
@@ -65,6 +66,7 @@ export function LyricsView({ variant }: Props) {
           title="No lyrics for this track"
           body="We couldn’t find a match from the lyrics provider. The song may be too new, or listed under a different title."
           action={{ label: 'Search again', icon: 'refresh', run: retry }}
+          secondary={{ label: 'Pick a match manually', run: () => useUi.getState().setPanel('lyrics') }}
         />
       )
   }
@@ -103,7 +105,7 @@ function SyncedLyrics({ result, variant }: { result: LyricsResult; variant: 'min
   const [showReturn, setShowReturn] = useState(false)
   const { locked } = useControlsLocked()
   const seek = usePlayer((s) => s.seek)
-  const offset = useSettings((s) => s.settings.lyricOffsetMs)
+  const offset = useLyricOffset()
   const toast = useUi((s) => s.toast)
 
   const scrollToActive = useCallback(
@@ -256,7 +258,7 @@ const LyricRow = memo(function LyricRow({ line, dist, nextTime, canSeek, onSeek,
 function WordLine({ line, nextTime }: { line: LyricLine; nextTime: number | undefined }) {
   const words = line.words!
   const spans = useRef<Array<HTMLSpanElement | null>>([])
-  const offset = useSettings((s) => s.settings.lyricOffsetMs)
+  const offset = useLyricOffset()
   const end = nextTime ?? words[words.length - 1]!.timeMs + 1500
 
   useFrame(
@@ -330,10 +332,11 @@ interface MsgProps {
   title: string
   body: string
   action?: { label: string; icon: IconName; run(): void }
+  secondary?: { label: string; run(): void }
   visual?: React.ReactNode
 }
 
-function LyricsMessage({ icon, title, body, action, visual }: MsgProps) {
+function LyricsMessage({ icon, title, body, action, secondary, visual }: MsgProps) {
   return (
     <div className="lyrics__message">
       {visual ?? <Icon name={icon} size={26} />}
@@ -345,29 +348,42 @@ function LyricsMessage({ icon, title, body, action, visual }: MsgProps) {
           {action.label}
         </button>
       )}
+      {secondary && (
+        <button type="button" className="linkbtn" onClick={secondary.run}>
+          {secondary.label}
+        </button>
+      )}
     </div>
   )
 }
 
 function LyricsFooter({ result }: { result: LyricsResult }) {
-  const offset = useSettings((s) => s.settings.lyricOffsetMs)
-  const set = useSettings((s) => s.set)
+  const songOffset = useSongOffset()
+  const togglePanel = useUi((s) => s.togglePanel)
   const synced = result.status === 'synced'
   const m = result.matched
   const providerName = result.provider === 'lrclib' ? 'LRCLIB' : result.provider === 'demo' ? 'Demo' : result.provider
   return (
     <div className="lyrics__footer" data-nodrag>
-      <span title={m ? `Matched “${m.title}” by ${m.artist}` : undefined}>
-        {providerName}
-        {synced ? (result.wordSynced ? ' · word-synced' : ' · line-synced') : ' · plain text'}
+      <span className="lyrics__source">
+        <span title={m ? `Matched “${m.title}” by ${m.artist}` : undefined}>
+          {providerName}
+          {synced ? (result.wordSynced ? ' · word-synced' : ' · line-synced') : ' · plain text'}
+          {result.pinned ? ' · your pick' : ''}
+        </span>
+        {result.provider !== 'demo' && (
+          <button type="button" className="linkbtn" onClick={() => togglePanel('lyrics')}>
+            Wrong lyrics?
+          </button>
+        )}
       </span>
       {synced && (
-        <span className="offset" title="Shift lyrics earlier / later if they feel off">
-          <button type="button" aria-label="Show lyrics later" onClick={() => set({ lyricOffsetMs: offset - 250 })}>
+        <span className="offset" title="Shift this song's lyrics earlier / later (remembered per song)">
+          <button type="button" aria-label="Show lyrics later" onClick={() => nudgeSongOffset(-OFFSET_STEP_MS)}>
             −
           </button>
-          <output>{offset === 0 ? 'sync' : `${offset > 0 ? '+' : ''}${(offset / 1000).toFixed(2)}s`}</output>
-          <button type="button" aria-label="Show lyrics earlier" onClick={() => set({ lyricOffsetMs: offset + 250 })}>
+          <output>{songOffset === 0 ? 'sync' : `${songOffset > 0 ? '+' : ''}${(songOffset / 1000).toFixed(2)}s`}</output>
+          <button type="button" aria-label="Show lyrics earlier" onClick={() => nudgeSongOffset(OFFSET_STEP_MS)}>
             +
           </button>
         </span>

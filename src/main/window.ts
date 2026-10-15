@@ -128,7 +128,8 @@ class WindowManager extends EventEmitter {
   private reassertTop(): void {
     const w = this.window
     if (!w || !w.isVisible() || w.isMinimized() || this.drag) return
-    if (this.mode === 'full' || settings.get().alwaysOnTop) {
+    // Fullscreen is a normal window: Alt+Tab to another app must show that app.
+    if (this.mode !== 'full' && settings.get().alwaysOnTop) {
       w.setAlwaysOnTop(true, 'screen-saver')
       w.moveTop()
     }
@@ -160,9 +161,10 @@ class WindowManager extends EventEmitter {
 
     let target: Rectangle
     if (next === 'full') {
-      target = screen.getDisplayMatching(w.getBounds()).bounds
+      // Work area (not full bounds): without topmost the taskbar would otherwise cover the bottom controls.
+      target = screen.getDisplayMatching(w.getBounds()).workArea
       w.setSkipTaskbar(false)
-      w.setAlwaysOnTop(true, 'screen-saver')
+      w.setAlwaysOnTop(false)
     } else {
       const size = sizeFor(next, s)
       const a = this.anchor ?? this.initialPosition(size)

@@ -105,6 +105,17 @@ export interface LyricLine {
 
 export type LyricsStatus = 'synced' | 'plain' | 'instrumental' | 'none' | 'error'
 
+export interface LyricsCandidateInfo {
+  provider: string
+  id: string
+  title: string
+  artist: string
+  album: string
+  durationMs: number
+  synced: boolean
+  instrumental: boolean
+}
+
 export interface LyricsResult {
   trackId: string
   status: LyricsStatus
@@ -112,6 +123,8 @@ export interface LyricsResult {
   lines: LyricLine[]
   plain?: string
   wordSynced?: boolean
+  /** True when the user manually picked this match. */
+  pinned?: boolean
   /** What the provider matched, so the UI can reveal wrong matches. */
   matched?: { title: string; artist: string; durationMs: number }
   error?: { kind: 'network' | 'rate-limit' | 'server' | 'unknown'; message: string; retryable: boolean }

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { findActiveLine } from '@shared/lrc'
 import type { LyricLine } from '@shared/types'
 import { getPosition } from '@/store/player'
-import { useSettings } from '@/store/settings'
+import { useLyricOffset } from '@/store/offsets'
 
 /** Live position in ms with the user's lyric offset applied. */
 export function lyricPosition(offsetMs: number): number {
@@ -14,7 +14,7 @@ export function lyricPosition(offsetMs: number): number {
  * (checked ~12x/s, and skipped entirely while the window is hidden).
  */
 export function useActiveLine(lines: readonly LyricLine[], enabled = true): number {
-  const offset = useSettings((s) => s.settings.lyricOffsetMs)
+  const offset = useLyricOffset()
   const [idx, setIdx] = useState(() => findActiveLine(lines, lyricPosition(offset)))
   const linesRef = useRef(lines)
   linesRef.current = lines

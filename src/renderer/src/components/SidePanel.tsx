@@ -6,9 +6,10 @@ import { useUi, type Panel } from '@/store/ui'
 import { Artwork } from './Artwork'
 import { IconButton } from './Controls'
 import { Icon } from './Icon'
+import { LyricsMatchPanel } from './LyricsMatchPanel'
 import { SettingsPanel } from './SettingsPanel'
 
-const TITLES: Record<Exclude<Panel, 'none'>, string> = { queue: 'Queue', moments: 'Moments', settings: 'Settings' }
+const TITLES: Record<Exclude<Panel, 'none'>, string> = { queue: 'Queue', moments: 'Moments', settings: 'Settings', lyrics: 'Lyrics match' }
 
 export function SidePanel() {
   const panel = useUi((s) => s.panel)
@@ -45,6 +46,7 @@ export function SidePanel() {
               {panel === 'queue' && <QueuePanel />}
               {panel === 'moments' && <MomentsPanel />}
               {panel === 'settings' && <SettingsPanel />}
+              {panel === 'lyrics' && <LyricsMatchPanel />}
             </div>
           </motion.aside>
         </>

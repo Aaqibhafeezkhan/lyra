@@ -177,7 +177,7 @@ export function SettingsPanel() {
             ]}
           />
         </Row>
-        <Row label="Sync offset" hint="Positive shows lines earlier">
+        <Row label="Default sync offset" hint="Applied to every song. Fine-tune per song under the lyrics">
           <Slider label="Sync offset" value={s.lyricOffsetMs} min={-3000} max={3000} step={50} onChange={up('lyricOffsetMs')} format={(v) => `${v > 0 ? '+' : ''}${(v / 1000).toFixed(2)}s`} />
         </Row>
       </section>

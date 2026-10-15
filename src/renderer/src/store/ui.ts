@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import type { ViewMode } from '@shared/types'
 
-export type Panel = 'none' | 'queue' | 'moments' | 'settings'
+export type Panel = 'none' | 'queue' | 'moments' | 'settings' | 'lyrics'
 export interface Toast {
   id: number
   message: string
