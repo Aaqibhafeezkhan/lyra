@@ -1,7 +1,7 @@
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
 import { app } from 'electron'
 import { createHash } from 'node:crypto'
-import { mkdirSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { createInterface } from 'node:readline'
 import type { CommandResult, PlaybackSnapshot, PlayerCommand, QueueItem, RecentItem, Track } from '@shared/types'
@@ -77,14 +77,22 @@ export class SmtcSource extends PlaybackSource {
   }
 
   private spawn(): void {
-    const dir = join(app.getPath('userData'), 'bridge')
-    mkdirSync(dir, { recursive: true })
-    const file = join(dir, 'smtc.ps1')
-    writeFileSync(file, '﻿' + smtcScript(settings.get().systemVolume), 'utf8')
-
-    const proc = spawn('powershell.exe', ['-NoLogo', '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', file], {
-      windowsHide: true
-    })
+    const withVolume = settings.get().systemVolume
+    const helper = this.helperPath()
+    let proc: ChildProcessWithoutNullStreams
+    if (helper) {
+      // Preferred: tiny event-driven native helper (resources/lyra-media.exe), ~0% CPU while idle.
+      proc = spawn(helper, withVolume ? ['--volume'] : [], { windowsHide: true })
+    } else {
+      log.warn('lyra-media.exe missing; falling back to the PowerShell bridge')
+      const dir = join(app.getPath('userData'), 'bridge')
+      mkdirSync(dir, { recursive: true })
+      const file = join(dir, 'smtc.ps1')
+      writeFileSync(file, '﻿' + smtcScript(withVolume), 'utf8')
+      proc = spawn('powershell.exe', ['-NoLogo', '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', file], {
+        windowsHide: true
+      })
+    }
     this.proc = proc
     createInterface({ input: proc.stdout }).on('line', (l) => this.onLine(l))
     proc.stderr.on('data', (d: Buffer) => {
@@ -93,6 +101,11 @@ export class SmtcSource extends PlaybackSource {
     })
     proc.on('error', (e) => this.onExit(`could not start PowerShell: ${e.message}`))
     proc.on('exit', (code) => this.onExit(`bridge exited (${code})`))
+  }
+
+  private helperPath(): string | null {
+    const candidates = [join(process.resourcesPath ?? '', 'lyra-media.exe'), join(app.getAppPath(), 'resources', 'lyra-media.exe')]
+    return candidates.find((p) => existsSync(p)) ?? null
   }
 
   private onExit(why: string): void {

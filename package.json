@@ -11,6 +11,7 @@
     "start": "electron-vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
     "test": "vitest run",
+    "build:helper": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-helper.ps1",
     "dist": "npm run build && electron-builder --win nsis"
   },
   "build": {
@@ -22,6 +23,12 @@
     "files": [
       "out/**/*",
       "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "resources/lyra-media.exe",
+        "to": "lyra-media.exe"
+      }
     ],
     "win": {
       "target": [
