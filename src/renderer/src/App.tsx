@@ -29,6 +29,9 @@ function useBoot(): boolean {
       useLyrics.getState().init()
       useUi.getState().setMode(await api.window.getMode())
       off = [
+        api.update.onState((u) => {
+          if (u.state === 'ready') useUi.getState().toast(`Lyra ${u.version} is ready — Settings → About → Restart to update`)
+        }),
         api.window.onMode((e) => {
           useUi.getState().setMode(e.mode)
           if (!e.from || !e.to) return fillWindow()

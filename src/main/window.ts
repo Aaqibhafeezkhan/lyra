@@ -359,7 +359,7 @@ class WindowManager extends EventEmitter {
     if (!w) return
     if (this.mode !== 'full') w.setAlwaysOnTop(s.alwaysOnTop, 'screen-saver')
     w.setContentProtection(s.hideOnScreenShare)
-    if (app.isPackaged) app.setLoginItemSettings({ openAtLogin: s.launchAtStartup })
+    if (app.isPackaged) app.setLoginItemSettings({ openAtLogin: s.launchAtStartup, name: 'Lyra', path: process.execPath })
     // Resize resting layouts when width changes
     if (!this.resize && !this.pendingFinal && (this.mode === 'minimal' || this.mode === 'compact' || this.mode === 'mini')) {
       const size = sizeFor(this.mode as Exclude<ViewMode, 'full'>, s)

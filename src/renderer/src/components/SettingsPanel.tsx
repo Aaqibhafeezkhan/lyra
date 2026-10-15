@@ -3,6 +3,7 @@ import { LOCAL_SHORTCUTS } from '@shared/shortcuts'
 import type { Settings } from '@shared/types'
 import { usePlayer } from '@/store/player'
 import { ShortcutEditor } from './ShortcutEditor'
+import { UpdateRow } from './UpdateRow'
 import { useSettings } from '@/store/settings'
 import { useUi } from '@/store/ui'
 
@@ -265,6 +266,7 @@ export function SettingsPanel() {
 
       <section className="about">
         <h4>About</h4>
+        <UpdateRow />
         <p className="about__name">
           <b>Lyra</b> <span>{version ? `v${version}` : ''}</span>
         </p>

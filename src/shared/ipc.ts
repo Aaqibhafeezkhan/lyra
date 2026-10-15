@@ -12,6 +12,7 @@ import type {
   SavedMoment,
   Settings,
   Track,
+  UpdateState,
   ViewMode
 } from './types'
 
@@ -54,7 +55,10 @@ export const CH = {
   momentsRemove: 'moments:remove',
   appInfo: 'app:info',
   appDiagnostics: 'app:diagnostics',
-  appShortcutStatus: 'app:shortcut-status'
+  appShortcutStatus: 'app:shortcut-status',
+  updateGet: 'update:get',
+  updateCheck: 'update:check',
+  updateInstall: 'update:install'
 } as const
 
 /** Push channels (main -> renderer). */
@@ -63,7 +67,8 @@ export const EV = {
   status: 'ev:status',
   playback: 'ev:playback',
   mode: 'ev:mode',
-  command: 'ev:command'
+  command: 'ev:command',
+  update: 'ev:update'
 } as const
 
 export interface AppInfo {
@@ -134,6 +139,13 @@ export interface LyraApi {
     list(): Promise<SavedMoment[]>
     add(m: Omit<SavedMoment, 'id' | 'savedAt'>): Promise<SavedMoment[]>
     remove(id: string): Promise<SavedMoment[]>
+  }
+  update: {
+    get(): Promise<UpdateState>
+    check(): Promise<void>
+    /** Restart and install a downloaded update. */
+    install(): Promise<void>
+    onState(cb: (s: UpdateState) => void): Unsubscribe
   }
   app: {
     info(): Promise<AppInfo>

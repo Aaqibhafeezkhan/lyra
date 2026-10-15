@@ -7,6 +7,7 @@ import { lyricsService } from './lyrics/service'
 import { createLogger, readLogTail } from './logger'
 import { moments } from './moments'
 import { failedShortcuts } from './shortcuts'
+import { updater } from './updater'
 import { settings } from './settings'
 import type { PlaybackSource } from './source'
 import { SmtcSource } from './smtc/source'
@@ -168,6 +169,10 @@ export function registerIpc(): void {
     ].join('\n')
   })
   handle(CH.appShortcutStatus, () => failedShortcuts())
+  handle(CH.updateGet, () => updater.state)
+  handle(CH.updateCheck, () => updater.check())
+  handle(CH.updateInstall, () => updater.install())
+  updater.on('state', (st) => send(EV.update, st))
   handle(CH.appInfo, (): AppInfo => ({ version: app.getVersion(), platform: process.platform, envClientId: !!envClientId() }))
 
   settings.on('change', (next: Settings) => {

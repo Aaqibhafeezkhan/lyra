@@ -513,3 +513,28 @@
   gap: 8px;
   margin-top: 14px;
 }
+
+.updaterow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 8px 0;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: var(--glass);
+  border: 1px solid var(--line);
+}
+.updaterow__text {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--fg-2);
+}
+.updaterow__text[data-state='ready'] {
+  color: var(--fg);
+}
+.updaterow__text[data-state='error'] {
+  color: #e8b56a;
+}

@@ -231,3 +231,12 @@ export type AppCommand =
   | 'toggle-expand'
   | 'toggle-fullscreen'
   | 'open-settings'
+
+export type UpdateState =
+  | { state: 'disabled'; reason: string }
+  | { state: 'idle' }
+  | { state: 'checking' }
+  | { state: 'none' } // up to date
+  | { state: 'downloading'; version: string; percent: number }
+  | { state: 'ready'; version: string }
+  | { state: 'error'; message: string }

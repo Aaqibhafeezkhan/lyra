@@ -61,6 +61,12 @@ const api: LyraApi = {
     add: (m) => invoke(CH.momentsAdd, m),
     remove: (id) => invoke(CH.momentsRemove, id)
   },
+  update: {
+    get: () => invoke(CH.updateGet),
+    check: () => invoke(CH.updateCheck),
+    install: () => invoke(CH.updateInstall),
+    onState: (cb) => subscribe(EV.update, cb)
+  },
   app: {
     info: () => invoke(CH.appInfo),
     diagnostics: () => invoke(CH.appDiagnostics),

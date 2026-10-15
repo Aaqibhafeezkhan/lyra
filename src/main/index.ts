@@ -8,6 +8,7 @@ import { moments } from './moments'
 import { settings } from './settings'
 import { applyShortcuts, disposeShortcuts } from './shortcuts'
 import { createTray } from './tray'
+import { updater } from './updater'
 import { windows } from './window'
 
 const log = createLogger('main')
@@ -52,6 +53,7 @@ if (!app.requestSingleInstanceLock()) {
     applyShortcuts(settings.get().globalShortcuts, settings.get().shortcuts)
     windows.applySettings(settings.get())
     startPlayback()
+    updater.start()
 
     // Slow polling while the widget isn't visible.
     win.on('hide', () => setBackground(true))
@@ -80,5 +82,6 @@ if (!app.requestSingleInstanceLock()) {
     settings.flush()
     moments.flush()
     favorites.flush()
+    updater.dispose()
   })
 }
