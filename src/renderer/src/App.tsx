@@ -76,7 +76,7 @@ function useThemeVars(): void {
 function useHotkeys(): void {
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
-      const t = e.target as HTMLElement
+      const t = e.target instanceof Element ? e.target : document.body
       if (t.closest('input[type="text"], textarea') || e.ctrlKey || e.metaKey || e.altKey) return
       const onControl = !!t.closest('button, [role="slider"], input[type="range"]')
       const p = usePlayer.getState()

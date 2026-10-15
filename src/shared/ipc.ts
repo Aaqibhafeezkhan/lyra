@@ -56,6 +56,7 @@ export const CH = {
   momentsRemove: 'moments:remove',
   appInfo: 'app:info',
   appDiagnostics: 'app:diagnostics',
+  appCopy: 'app:copy',
   appShortcutStatus: 'app:shortcut-status',
   updateGet: 'update:get',
   updateCheck: 'update:check',
@@ -157,6 +158,8 @@ export interface LyraApi {
     info(): Promise<AppInfo>
     /** Plain-text report (versions, settings, recent log) safe to paste into a bug report. */
     diagnostics(): Promise<string>
+    /** Copy plain text to the system clipboard. */
+    copy(text: string): Promise<boolean>
     /** Ids of global shortcuts another app already owns. */
     failedShortcuts(): Promise<string[]>
     onCommand(cb: (c: AppCommand) => void): Unsubscribe

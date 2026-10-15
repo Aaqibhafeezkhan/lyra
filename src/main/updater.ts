@@ -71,12 +71,16 @@ class Updater extends EventEmitter {
    */
   private useInstallFolderForDownloads(): void {
     try {
-      const dir = join(dirname(process.execPath), 'updates')
+      // A SIBLING of the install folder (same drive): the downloaded installer must not live inside the folder
+      // the old uninstaller deletes during an update, or that delete fails on the running installer.
+      const dir = `${dirname(process.execPath)}-updates`
       mkdirSync(dir, { recursive: true })
       accessSync(dir, constants.W_OK)
       const adapter = (autoUpdater as unknown as { app: object }).app
       Object.defineProperty(adapter, 'baseCachePath', { get: () => dir, configurable: true })
       log.info('update downloads go to', dir)
+      // an earlier build cached inside the install folder; drop it so it can never block an uninstall
+      rmSync(join(dirname(process.execPath), 'updates'), { recursive: true, force: true })
       // remove the old default cache once, so an earlier download doesn't linger on the system drive
       const legacy = join(process.env['LOCALAPPDATA'] ?? '', 'lyra-updater')
       if (process.env['LOCALAPPDATA']) rmSync(legacy, { recursive: true, force: true })

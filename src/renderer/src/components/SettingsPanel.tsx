@@ -205,7 +205,7 @@ export function SettingsPanel() {
             ]}
           />
         </Row>
-        <Row label="Default sync offset" hint="Applied to every song. Fine-tune per song under the lyrics">
+        <Row label="Default sync offset" hint="Every song. Fine-tune under the lyrics">
           <Slider label="Sync offset" value={s.lyricOffsetMs} min={-3000} max={3000} step={50} onChange={up('lyricOffsetMs')} format={(v) => `${v > 0 ? '+' : ''}${(v / 1000).toFixed(2)}s`} />
         </Row>
       </section>
@@ -277,7 +277,7 @@ export function SettingsPanel() {
           onClick={() =>
             void window.lyra.app
               .diagnostics()
-              .then((t) => navigator.clipboard.writeText(t))
+              .then((t) => window.lyra.app.copy(t))
               .then(() => useUi.getState().toast('Diagnostics copied — paste it into your bug report'))
               .catch(() => useUi.getState().toast('Couldn’t copy diagnostics', 'error'))
           }

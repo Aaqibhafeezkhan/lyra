@@ -31,6 +31,11 @@
 !macroend
 
 !macro customUnInstall
+  ; Downloaded updates live next to the install folder (not inside it). Remove them on a real uninstall,
+  ; but not during an update, when the running installer is in there.
+  ${ifNot} ${isUpdated}
+    RMDir /r "$INSTDIR-updates"
+  ${endIf}
   ; Remove the "launch at startup" entry Electron writes, so uninstalling leaves nothing running at login.
   DeleteRegValue HKCU "Software\Microsoft\Windows\CurrentVersion\Run" "Lyra"
   DeleteRegValue HKCU "Software\Microsoft\Windows\CurrentVersion\Run" "lyra"

@@ -41,7 +41,7 @@ export function ConnectScreen() {
 
   const copy = async (): Promise<void> => {
     try {
-      await navigator.clipboard.writeText(REDIRECT_URI)
+      if (!(await window.lyra.app.copy(REDIRECT_URI))) throw new Error('copy failed')
       setCopied(true)
       setTimeout(() => setCopied(false), 1600)
     } catch {

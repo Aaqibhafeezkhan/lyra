@@ -148,7 +148,7 @@ function MomentsPanel() {
               icon="copy"
               label="Copy line"
               size={14}
-              onClick={() => void navigator.clipboard.writeText(m.text).then(() => toast('Copied'))}
+              onClick={() => void window.lyra.app.copy(m.text).then(() => toast('Copied'))}
             />
             <IconButton icon="trash" label="Remove moment" size={14} onClick={() => void window.lyra.moments.remove(m.id).then(setItems)} />
           </footer>

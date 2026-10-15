@@ -1,4 +1,4 @@
-import { Notification, app, ipcMain, shell, type IpcMainInvokeEvent } from 'electron'
+import { Notification, app, clipboard, ipcMain, shell, type IpcMainInvokeEvent } from 'electron'
 import { CH, EV, type AppInfo } from '@shared/ipc'
 import type { ConnectionStatus, PlaybackSnapshot, PlayerCommand, Settings, Track, ViewMode } from '@shared/types'
 import { getArtwork } from './artwork'
@@ -181,6 +181,11 @@ export function registerIpc(): void {
     ].join('\n')
   })
   handle(CH.appShortcutStatus, () => failedShortcuts())
+  handle(CH.appCopy, (text: string) => {
+    if (typeof text !== 'string' || text.length > 200_000) return false
+    clipboard.writeText(text)
+    return true
+  })
   handle(CH.updateGet, () => updater.state)
   handle(CH.updateCheck, () => updater.check())
   handle(CH.updateInstall, () => updater.install())

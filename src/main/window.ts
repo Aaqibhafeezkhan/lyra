@@ -53,6 +53,7 @@ class WindowManager extends EventEmitter {
   private fadeTimer: NodeJS.Timeout | null = null
   private outsideSince: number | null = null
   private faded = false
+  private quitting = false
 
   get window(): BrowserWindow | null {
     return this.win && !this.win.isDestroyed() ? this.win : null
@@ -112,6 +113,15 @@ class WindowManager extends EventEmitter {
       this.broadcastMode()
     })
     win.on('moved', () => this.onMoved())
+    // The X buttons in the UI quit explicitly; a system "close" (Alt+F4, taskbar) just hides to the tray.
+    win.on('close', (e) => {
+      if (this.quitting) return
+      e.preventDefault()
+      win.hide()
+    })
+    app.on('before-quit', () => {
+      this.quitting = true
+    })
     // Windows silently drops TOPMOST when other topmost windows take focus; re-assert it.
     win.on('blur', () => this.reassertTop())
     win.on('show', () => this.reassertTop())
