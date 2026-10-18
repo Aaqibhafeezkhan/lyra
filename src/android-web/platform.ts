@@ -1,5 +1,5 @@
 import { setPlatform, type BlobCache, type CorePlatform, type Logger, type SecretStore, type Store } from '@core/platform'
-import { nativeFetch } from './rpc'
+import { nativeFetch, rpc } from './rpc'
 
 /** A small JSON document kept in the WebView's localStorage (written a moment after the last change). */
 export class LocalStore<T extends object> implements Store<T> {
@@ -88,8 +88,23 @@ class LocalBlobCache implements BlobCache {
   }
 }
 
-/** Secrets are not stored yet on Android (the YouTube key needs Keystore support), so keys are refused rather than kept in the clear. */
-const noSecrets: SecretStore = { available: () => false, load: () => null, save: () => undefined, clear: () => undefined }
+/** Secrets live encrypted in the Android Keystore. The page reads them once at startup (the core asks synchronously). */
+const secretCache = new Map<string, string | null>()
+export async function preloadSecrets(names: string[]): Promise<void> {
+  await Promise.all(names.map(async (n) => secretCache.set(n, await rpc<string | null>('secretLoad', n).catch(() => null))))
+}
+const secretStore = (name: string): SecretStore => ({
+  available: () => true,
+  load: () => secretCache.get(name) ?? null,
+  save: (v) => {
+    secretCache.set(name, v)
+    void rpc('secretSave', name, v)
+  },
+  clear: () => {
+    secretCache.set(name, null)
+    void rpc('secretClear', name)
+  }
+})
 
 function consoleLogger(scope: string): Logger {
   const tag = `[${scope}]`
@@ -111,7 +126,7 @@ export function installAndroidPlatform(): void {
     fetch: (url, init) => nativeFetch(url, init),
     store: (name, defaults) => new LocalStore(name, defaults),
     blobCache: (name, max) => new LocalBlobCache(name, max),
-    secret: () => noSecrets,
+    secret: secretStore,
     log: consoleLogger,
     get appVersion() {
       return version

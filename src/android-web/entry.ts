@@ -1,5 +1,7 @@
 // Android entry: install the phone's `window.lyra` first, then start the same React app as on Windows.
-import './api'
+import { ready } from './api'
+
+await ready
 
 document.documentElement.dataset.platform = 'android'
 

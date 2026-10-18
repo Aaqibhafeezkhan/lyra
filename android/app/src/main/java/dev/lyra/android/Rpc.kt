@@ -21,7 +21,7 @@ import java.util.concurrent.Executors
  * The only door between the web UI and Android. It is restricted to Lyra's own page (a YouTube iframe on the
  * same screen cannot call it) and answers a small fixed set of methods; nothing here runs arbitrary code.
  */
-class Rpc(private val activity: Activity, private val web: WebView) {
+class Rpc(private val activity: Activity, private val web: LyraWebView) {
     private val io = Executors.newCachedThreadPool()
     private val listener = { pushState() }
 
@@ -73,6 +73,33 @@ class Rpc(private val activity: Activity, private val web: WebView) {
             "openSpotify" -> activity.runOnUiThread { MediaMonitor.openSpotify(activity); ok(true) }
             "copy" -> activity.runOnUiThread {
                 (activity.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager).setPrimaryClip(ClipData.newPlainText("Lyra", args.getString(0)))
+                ok(true)
+            }
+            "secretLoad" -> ok(SecretStore.load(activity, args.getString(0)))
+            "secretSave" -> { SecretStore.save(activity, args.getString(0), args.getString(1)); ok(true) }
+            "secretClear" -> { SecretStore.clear(activity, args.getString(0)); ok(true) }
+            "keepScreenOn" -> activity.runOnUiThread {
+                val on = args.getBoolean(0)
+                web.userKeepsScreenOn = on
+                web.keepScreenOn = on
+                if (on) activity.window.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                else activity.window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                ok(true)
+            }
+            "keepRunning" -> activity.runOnUiThread {
+                val on = args.getBoolean(0)
+                if (on && android.os.Build.VERSION.SDK_INT >= 33 &&
+                    activity.checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED
+                ) activity.requestPermissions(arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), 7)
+                try {
+                    KeepAliveService.set(activity, on)
+                    ok(true)
+                } catch (e: Exception) {
+                    fail(e.message ?: "could not start the service")
+                }
+            }
+            "openBatterySettings" -> activity.runOnUiThread {
+                activity.startActivity(android.content.Intent(android.provider.Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
                 ok(true)
             }
             "version" -> ok(activity.packageManager.getPackageInfo(activity.packageName, 0).versionName)

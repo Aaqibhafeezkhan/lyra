@@ -181,6 +181,7 @@ export interface LyraApi {
   android?: {
     hasAccess(): Promise<boolean>
     openAccessSettings(): Promise<void>
+    openBatterySettings(): Promise<void>
   }
   app: {
     info(): Promise<AppInfo>

@@ -23,7 +23,7 @@ import java.net.URL
 
 /** Hosts Lyra's web UI. All data comes through [Rpc]; the UI itself is the same React app as on Windows. */
 class MainActivity : ComponentActivity() {
-    private var web: WebView? = null
+    private var web: LyraWebView? = null
     private var rpc: Rpc? = null
 
     @SuppressLint("SetJavaScriptEnabled")
@@ -33,7 +33,7 @@ class MainActivity : ComponentActivity() {
         if (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0) WebView.setWebContentsDebuggingEnabled(true)
 
         val root = FrameLayout(this).apply { setBackgroundColor(Color.BLACK) }
-        val view = WebView(this).apply {
+        val view = LyraWebView(this).apply {
             setBackgroundColor(Color.BLACK)
             layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
             settings.javaScriptEnabled = true

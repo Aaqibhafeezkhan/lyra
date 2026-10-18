@@ -27,6 +27,8 @@ function sanitize(s: Settings): Settings {
     backgroundDim: clamp(s.backgroundDim, 0.2, 0.9),
     backgroundInMini: !!s.backgroundInMini,
     wordByWord: s.wordByWord !== false,
+    keepScreenOn: !!s.keepScreenOn,
+    keepRunning: !!s.keepRunning,
     autoDim: s.autoDim !== false,
     customBackground:
       s.customBackground && /^[a-f0-9]{16}\.(mp4|webm|gif|png|jpe?g|webp|apng)$/i.test(s.customBackground.file ?? '')

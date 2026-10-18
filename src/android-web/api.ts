@@ -4,7 +4,7 @@ import { youtube } from '@core/background/youtube'
 import { lyricsService } from '@core/lyrics/service'
 import type { LyraApi, Unsubscribe } from '@shared/ipc'
 import { DEFAULT_SETTINGS, type ConnectionStatus, type ModeEvent, type PlaybackSnapshot, type SavedMoment, type Settings, type ViewMode } from '@shared/types'
-import { installAndroidPlatform, LocalStore, setAppVersion } from './platform'
+import { installAndroidPlatform, LocalStore, preloadSecrets, setAppVersion } from './platform'
 import { nativeFetch, rpc } from './rpc'
 
 /**
@@ -14,6 +14,8 @@ import { nativeFetch, rpc } from './rpc'
 
 installAndroidPlatform()
 void rpc<string>('version').then(setAppVersion).catch(() => undefined)
+/** resolves once secrets are loaded; the UI starts after this */
+export const ready: Promise<void> = preloadSecrets(['youtube-key'])
 
 function emitter<T>(): { on(cb: (v: T) => void): Unsubscribe; emit(v: T): void } {
   const set = new Set<(v: T) => void>()
@@ -51,6 +53,22 @@ function sanitize(s: Settings): Settings {
   }
 }
 
+// ---------------- phone switches (screen stays on while playing / background service)
+let lastScreenOn: boolean | null = null
+let lastRunning: boolean | null = null
+function syncPhone(): void {
+  const s = settingsStore.get()
+  const screenOn = !!s.keepScreenOn && !!snapshot?.isPlaying
+  if (screenOn !== lastScreenOn) {
+    lastScreenOn = screenOn
+    void rpc('keepScreenOn', screenOn).catch(() => undefined)
+  }
+  if (!!s.keepRunning !== lastRunning) {
+    lastRunning = !!s.keepRunning
+    void rpc('keepRunning', lastRunning).catch(() => undefined)
+  }
+}
+
 // ---------------- window / mode (the phone has one screen: expanded player or the full cinema layout)
 let mode: ViewMode = 'mini'
 const modeChanged = emitter<ModeEvent>()
@@ -71,6 +89,7 @@ function receive(snapJson: string, statusJson: string): void {
     const snap = JSON.parse(snapJson) as PlaybackSnapshot | null
     snapshot = snap
     if (snap) playbackChanged.emit(snap)
+    syncPhone()
   } catch (e) {
     console.warn('bad native push', e)
   }
@@ -132,6 +151,7 @@ export const androidApi: LyraApi & { android: NonNullable<LyraApi['android']> } 
       const next = sanitize({ ...settingsStore.get(), ...patch })
       settingsStore.set(next)
       settingsChanged.emit(next)
+      syncPhone()
       return next
     },
     reset: async () => {
@@ -249,11 +269,13 @@ export const androidApi: LyraApi & { android: NonNullable<LyraApi['android']> } 
   },
   android: {
     hasAccess: () => rpc<boolean>('hasAccess'),
-    openAccessSettings: async () => void (await rpc('openAccessSettings'))
+    openAccessSettings: async () => void (await rpc('openAccessSettings')),
+    openBatterySettings: async () => void (await rpc('openBatterySettings'))
   }
 }
 
 window.lyra = androidApi
+syncPhone()
 window.__lyraNative = {
   push: receive,
   back: () => false // replaced by entry.ts once the UI stores exist

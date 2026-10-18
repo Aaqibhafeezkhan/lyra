@@ -277,7 +277,35 @@ function BackgroundSection() {
   )
 }
 
+/** Android only: keep the screen on / keep Lyra from being closed while you listen. */
+function PhoneSection() {
+  const s = useSettings((x) => x.settings)
+  const set = useSettings((x) => x.set)
+  return (
+    <section>
+      <h4>Phone</h4>
+      <Row label="Keep screen on while playing" info="Stops the screen from turning off while a song is playing and Lyra is open, so the lyrics stay visible. Uses more battery." hint="Only while music plays">
+        <Toggle label="Keep screen on while playing" checked={s.keepScreenOn} onChange={(v) => set({ keepScreenOn: v })} />
+      </Row>
+      <Row label="Keep Lyra running" info="Runs a small background service (with one quiet notification) so Android doesn’t close Lyra while you listen. Turn it off any time." hint="Shows a notification">
+        <Toggle label="Keep Lyra running" checked={s.keepRunning} onChange={(v) => set({ keepRunning: v })} />
+      </Row>
+      <Row label="Battery" info="Samsung and other phones may still close apps to save power. Set Lyra to “Unrestricted” (or choose “Don’t optimise”) so it keeps working with the screen off." hint="Allow background use">
+        <button type="button" className="pill" onClick={() => void window.lyra.android?.openBatterySettings()}>
+          Open
+        </button>
+      </Row>
+      <Row label="Notification access" hint="Lets Lyra see what is playing">
+        <button type="button" className="pill" onClick={() => void window.lyra.android?.openAccessSettings()}>
+          Open
+        </button>
+      </Row>
+    </section>
+  )
+}
+
 export function SettingsPanel() {
+  const android = document.documentElement.dataset.platform === 'android'
   const s = useSettings((x) => x.settings)
   const set = useSettings((x) => x.set)
   const status = usePlayer((x) => x.status)
@@ -302,6 +330,9 @@ export function SettingsPanel() {
 
   return (
     <div className="settings" data-nodrag>
+      {android && <PhoneSection />}
+
+      {!android && (
       <section>
         <h4>Music source</h4>
         <Segmented
@@ -331,7 +362,9 @@ export function SettingsPanel() {
           <span className="value">{account}</span>
         </Row>
       </section>
+      )}
 
+      {!android && (
       <section>
         <h4>Widget</h4>
         <Row label="Resting size">
@@ -365,6 +398,7 @@ export function SettingsPanel() {
           <Toggle label="Hide while screen sharing" checked={s.hideOnScreenShare} onChange={up('hideOnScreenShare')} />
         </Row>
       </section>
+      )}
 
       <section>
         <h4>Lyrics</h4>
@@ -441,6 +475,7 @@ export function SettingsPanel() {
 
       <BackgroundSection />
 
+      {!android && (
       <section>
         <h4>System</h4>
         <Row label="Launch at startup" hint="Applies to installed builds">
@@ -456,7 +491,9 @@ export function SettingsPanel() {
           <Toggle label="Track change notifications" checked={s.trackNotifications} onChange={up('trackNotifications')} />
         </Row>
       </section>
+      )}
 
+      {!android && (
       <section>
         <h4>Shortcuts</h4>
         <ShortcutEditor />
@@ -469,6 +506,7 @@ export function SettingsPanel() {
           ))}
         </dl>
       </section>
+      )}
 
       <div className="srow srow--actions">
         <button type="button" className="pill" onClick={() => window.lyra.window.hide()}>

@@ -234,6 +234,10 @@ export interface Settings {
   lyricAnimation: LyricAnimation
   /** highlight each word as it is sung (estimated unless the source has real word timing) */
   wordByWord: boolean
+  /** Android: keep the screen on while a song plays */
+  keepScreenOn: boolean
+  /** Android: run a small foreground service so the system does not close Lyra */
+  keepRunning: boolean
   lyricOffsetMs: number
   reducedMotion: 'system' | 'on' | 'off'
   compactWidth: number
@@ -267,6 +271,8 @@ export const DEFAULT_SETTINGS: Settings = {
   lineSpacing: 1.35,
   lyricAnimation: 'glide',
   wordByWord: true,
+  keepScreenOn: false,
+  keepRunning: false,
   lyricOffsetMs: 0,
   reducedMotion: 'system',
   compactWidth: 380,
