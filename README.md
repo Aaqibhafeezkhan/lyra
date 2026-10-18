@@ -39,7 +39,7 @@ Tokens are encrypted with Windows DPAPI (`safeStorage`); passwords are never see
 **LRCLIB** (free, keyless, timestamped LRC; descriptive User-Agent; no scraping). Line-synced; word-level timing is supported by the engine (enhanced LRC) but LRCLIB rarely has it — the demo shows it. Results are cached on disk. Plain-only lyrics are shown unsynced, with a notice. Use the `−`/`+` footer (or `[` `]`) to nudge sync. Providers are pluggable: implement `LyricsProvider` in `src/main/lyrics/provider.ts`, add it to the chain in `service.ts`.
 
 ## Animated backgrounds (cinematic mode)
-Spotify's own looping "Canvas" videos have no public API, so Lyra offers three legitimate sources, all optional (Settings → Background):
+Spotify's own looping "Canvas" videos have no public API, so Lyra offers three legitimate sources, all optional (Settings → Background, one on/off switch):
 1. **Living artwork** (default) — the cover art drifts and breathes with the palette. No network, no key.
 2. **Your own file** — a GIF, image, MP4 or WebM, for every song or just one song. Copied into Lyra's folder.
 3. **Official video** — paste a free YouTube Data API v3 key and the official music video plays muted behind the lyrics (cached per song to save quota; pick another video if it guessed wrong).

@@ -62,6 +62,7 @@ export function MiniPlayer() {
           <div className="mini__art" {...drag}>
             <Artwork url={track.artworkUrl} size="min(232px, 31vh)" radius={14} className="artwork--lift" />
           </div>
+          <div className="mini__card">
           <div className="mini__info">
             <div className="mini__text">
               <h1 title={track.title}>
@@ -82,6 +83,7 @@ export function MiniPlayer() {
           </div>
           <div className="mini__volume" data-nodrag>
             <VolumeControl wide />
+          </div>
           </div>
           <div className="mini__lyrics">
             <LyricsView variant="mini" />

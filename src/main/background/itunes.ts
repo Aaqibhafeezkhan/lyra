@@ -9,7 +9,7 @@ const log = createLogger('itunes')
 const HIT_TTL = 30 * 24 * 3600_000
 const MISS_TTL = 7 * 24 * 3600_000
 /** Apple preview clips are served from these hosts only; anything else is ignored. */
-const HOST_RE = /^https:\/\/[a-z0-9-]+\.itunes\.apple\.com\//i
+export const HOST_RE = /^https:\/\/[a-z0-9-]+\.itunes\.apple\.com\//i
 
 interface Entry {
   at: number

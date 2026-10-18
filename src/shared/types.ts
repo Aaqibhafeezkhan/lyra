@@ -178,7 +178,7 @@ export type BackgroundSpec =
   | { kind: 'living' }
   | { kind: 'still' }
   | { kind: 'media'; url: string; media: 'video' | 'image'; name: string; scope: 'song' | 'global' }
-  | { kind: 'youtube'; videoId: string; title: string; channel: string; scope: 'song' | 'auto' }
+  | { kind: 'youtube'; videoId: string; title: string; channel: string; durationSec: number | null; scope: 'song' | 'auto' }
   /** free 30s music-video preview from Apple's public iTunes Search API (no key needed) */
   | { kind: 'preview'; url: string; title: string }
 
@@ -198,6 +198,8 @@ export interface Settings {
   backgroundDim: number
   /** Also use the video/GIF background in the expanded player (fullscreen always does). */
   backgroundInMini: boolean
+  /** adapt the dim to how bright the video is */
+  autoDim: boolean
   /** Used for every song that has no media of its own. */
   customBackground: BackgroundMedia | null
   /** Where playback info comes from: Windows media controls (default, no account) or Spotify Web API. */
@@ -234,6 +236,7 @@ export const DEFAULT_SETTINGS: Settings = {
   backgroundStyle: 'auto',
   backgroundDim: 0.5,
   backgroundInMini: false,
+  autoDim: true,
   customBackground: null,
   source: 'local',
   defaultMode: 'compact',

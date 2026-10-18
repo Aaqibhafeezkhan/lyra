@@ -536,3 +536,68 @@ p {
     transform: scale(1.12) translate3d(4%, -4%, 0) rotate(-2deg);
   }
 }
+
+/* ================= premium video background ================= */
+
+.backdrop__stage {
+  position: absolute;
+  inset: -3%;
+  transform: translate3d(calc(var(--px, 0) * -14px), calc(var(--py, 0) * -9px), 0);
+  transition: transform 0.9s cubic-bezier(0.2, 0.7, 0.2, 1);
+  will-change: transform;
+}
+.backdrop__media {
+  inset: 0;
+  background: none;
+  filter: brightness(1.1) saturate(1.2) contrast(1.05);
+  transition:
+    opacity 1.1s ease,
+    filter 1.2s ease;
+  animation: bg-zoom 60s ease-in-out infinite alternate;
+  transition-property: opacity, filter, object-view-box;
+}
+.backdrop[data-paused] .backdrop__media,
+.backdrop[data-paused] .backdrop__yt {
+  filter: brightness(0.8) saturate(0.85);
+  animation-play-state: paused;
+}
+@keyframes bg-zoom {
+  from {
+    transform: scale(1);
+  }
+  to {
+    transform: scale(1.08);
+  }
+}
+.backdrop__ytwrap {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+.backdrop__yt {
+  inset: auto;
+  left: 50%;
+  top: 50%;
+  width: 1920px;
+  height: 1080px;
+  max-width: none;
+  background: none;
+  transform-origin: center;
+  filter: brightness(1.08) saturate(1.15);
+}
+.backdrop__dim {
+  transition: opacity 1.4s ease;
+}
+.backdrop__grade {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(120% 100% at 50% 40%, transparent 55%, rgba(0, 0, 0, 0.32)),
+    linear-gradient(90deg, rgba(0, 0, 0, 0.06), rgba(0, 0, 0, 0.3) 58%, rgba(0, 0, 0, 0.42));
+}
+.backdrop:not(.backdrop--rich) .backdrop__grade {
+  background:
+    radial-gradient(130% 90% at 50% 30%, transparent 50%, rgba(0, 0, 0, 0.3)),
+    linear-gradient(180deg, rgba(0, 0, 0, 0.3), transparent 28%, transparent 42%, rgba(0, 0, 0, 0.42));
+}

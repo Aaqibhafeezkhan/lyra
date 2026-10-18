@@ -102,6 +102,8 @@ function BackgroundSection() {
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState<string | null>(null)
   const [cands, setCands] = useState<YoutubeVideo[] | null>(null)
+  const videoOn = s.backgroundStyle !== 'still'
+  const motionBlocked = s.reducedMotion === 'on' || (s.reducedMotion === 'system' && window.matchMedia('(prefers-reduced-motion: reduce)').matches)
 
   useEffect(() => {
     void window.lyra.background.hasYoutubeKey().then(setHasKey)
@@ -124,22 +126,30 @@ function BackgroundSection() {
   return (
     <section>
       <h4>Background</h4>
-      <Row label="Style" info="What plays behind the lyrics in cinematic mode. Auto: your own file, else a free 30 s official clip from Apple, else YouTube (needs your key), else animated cover art. Living: animated cover art only. My file: your own GIF/video. Video: YouTube first. Still: no motion." hint="Cinematic mode (and mini player if enabled)">
-        <Segmented
-          label="Background style"
-          value={s.backgroundStyle}
-          onChange={(v) => set({ backgroundStyle: v })}
-          options={[
-            { v: 'auto', label: 'Auto' },
-            { v: 'living', label: 'Living' },
-            { v: 'custom', label: 'My file' },
-            { v: 'youtube', label: 'Video' },
-            { v: 'still', label: 'Still' }
-          ]}
-        />
+      <Row
+        label="Video background"
+        info="Plays a looping video behind the lyrics in cinematic mode. Lyra tries, in order: your own file, a free 30 s official clip from Apple, YouTube (only if you add a key), then animated cover art. Off = plain blurred cover."
+        hint="Cinematic mode (mini player optional)"
+      >
+        <Toggle label="Video background" checked={videoOn} onChange={(v) => set({ backgroundStyle: v ? 'auto' : 'still' })} />
       </Row>
+      {videoOn && motionBlocked && (
+        <Row label="Reduce motion is on" hint="Videos can't play while it's on">
+          <button type="button" className="pill" onClick={() => set({ reducedMotion: 'off' })}>
+            Turn it off
+          </button>
+        </Row>
+      )}
+      {videoOn && (
+        <>
+          <small style={{ opacity: 0.7, display: 'block', padding: '2px 0 8px' }}>
+            Order: your file for this song → your file for all songs → Apple clip (free) → YouTube (needs key) → animated cover art
+          </small>
       <Row label="Dim" info="Darkens the video so lyrics stay readable. Lower = brighter video." hint="Keeps lyrics readable over video">
         <Slider label="Background dim" value={s.backgroundDim} min={0.2} max={0.9} step={0.02} onChange={(v) => set({ backgroundDim: v })} format={(v) => `${Math.round(v * 100)}%`} />
+      </Row>
+      <Row label="Auto dim" info="Lets Lyra darken bright scenes and ease off on dark ones, using the dim level above as the starting point, so lyrics stay readable without a dull picture.">
+        <Toggle label="Auto dim" checked={s.autoDim} onChange={(v) => set({ autoDim: v })} />
       </Row>
       <Row label="Also in mini player" info="Show the animated background in the mini player too, not only in cinematic mode. Uses a little more CPU/GPU.">
         <Toggle label="Animated background in mini player" checked={s.backgroundInMini} onChange={(v) => set({ backgroundInMini: v })} />
@@ -252,6 +262,8 @@ function BackgroundSection() {
             Use automatic pick
           </button>
         </div>
+      )}
+        </>
       )}
       {msg && (
         <small role="alert" style={{ color: 'var(--danger, #ff8a8a)' }}>

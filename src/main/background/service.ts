@@ -7,7 +7,7 @@ import type { BackgroundMedia, BackgroundResolution, BackgroundSpec, Track, Yout
 import { JsonStore } from '../jsonStore'
 import { createLogger } from '../logger'
 import { settings } from '../settings'
-import { itunes } from './itunes'
+import { HOST_RE, itunes } from './itunes'
 import { youtube } from './youtube'
 
 const log = createLogger('background')
@@ -25,7 +25,7 @@ interface SongBg {
 
 /** Must run before app is ready. */
 export function registerBackgroundScheme(): void {
-  protocol.registerSchemesAsPrivileged([{ scheme: BG_SCHEME, privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true } }])
+  protocol.registerSchemesAsPrivileged([{ scheme: BG_SCHEME, privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true, corsEnabled: true } }])
 }
 
 class BackgroundService {
@@ -43,16 +43,41 @@ class BackgroundService {
     this.store!.set({ songs })
   }
 
-  /** Serves ONLY files from userData/backgrounds, by their hashed names, with range support for video. */
+  /**
+   * lyra-media://bg/<hash>.<ext>   -> a file Lyra copied into userData/backgrounds
+   * lyra-media://preview/<base64url> -> a streamed (never stored) Apple preview clip, host-checked
+   * Both answer with CORS headers so the renderer may read frames (brightness / letterbox detection).
+   */
   registerProtocol(): void {
-    protocol.handle(BG_SCHEME, (req) => {
+    const cors = (res: Response): Response => {
+      const h = new Headers()
+      for (const k of ['content-type', 'content-length', 'content-range', 'accept-ranges']) {
+        const v = res.headers.get(k)
+        if (v) h.set(k, v)
+      }
+      h.set('Access-Control-Allow-Origin', '*')
+      return new Response(res.body, { status: res.status, headers: h })
+    }
+    const range = (req: Request): Record<string, string> => {
+      const r = req.headers.get('range')
+      return r ? { range: r } : {}
+    }
+    protocol.handle(BG_SCHEME, async (req) => {
       try {
         const u = new URL(req.url)
         const name = decodeURIComponent(u.pathname.replace(/^\//, ''))
-        if (u.hostname !== 'bg' || !NAME_RE.test(name)) return new Response('not found', { status: 404 })
-        const file = join(this.dir, name)
-        if (!existsSync(file)) return new Response('not found', { status: 404 })
-        return net.fetch(pathToFileURL(file).toString(), { headers: req.headers })
+        if (u.hostname === 'bg') {
+          if (!NAME_RE.test(name)) return new Response('not found', { status: 404 })
+          const file = join(this.dir, name)
+          if (!existsSync(file)) return new Response('not found', { status: 404 })
+          return cors(await net.fetch(pathToFileURL(file).toString(), { headers: range(req) }))
+        }
+        if (u.hostname === 'preview') {
+          const target = Buffer.from(name, 'base64url').toString('utf8')
+          if (!HOST_RE.test(target)) return new Response('forbidden', { status: 403 })
+          return cors(await net.fetch(target, { headers: range(req) }))
+        }
+        return new Response('not found', { status: 404 })
       } catch {
         return new Response('bad request', { status: 400 })
       }
@@ -71,7 +96,7 @@ class BackgroundService {
     const globalSpec = s.customBackground ? this.mediaSpec(s.customBackground, 'global') : null
     const base = { hasSongMedia: !!songSpec, hasGlobalMedia: !!globalSpec }
     const living: BackgroundSpec = { kind: 'living' }
-    const ytSpec = (v: YoutubeVideo, scope: 'song' | 'auto'): BackgroundSpec => ({ kind: 'youtube', videoId: v.videoId, title: v.title, channel: v.channel, scope })
+    const ytSpec = (v: YoutubeVideo, scope: 'song' | 'auto'): BackgroundSpec => ({ kind: 'youtube', videoId: v.videoId, title: v.title, channel: v.channel, durationSec: v.durationSec, scope })
 
     if (s.backgroundStyle === 'still') return { ...base, spec: { kind: 'still' }, youtube: 'off' }
     if (s.backgroundStyle === 'living') return { ...base, spec: living, youtube: 'off' }
@@ -83,7 +108,7 @@ class BackgroundService {
 
     const asClip = async (): Promise<BackgroundSpec | null> => {
       const clip = await itunes.find(track)
-      return clip ? { kind: 'preview', url: clip.url, title: clip.title } : null
+      return clip ? { kind: 'preview', url: `${BG_SCHEME}://preview/${Buffer.from(clip.url).toString('base64url')}`, title: clip.title } : null
     }
     const yt = (): ReturnType<typeof youtube.find> => youtube.find(track)
     const report = (r: Awaited<ReturnType<typeof youtube.find>>): Pick<BackgroundResolution, 'youtube' | 'youtubeMessage'> =>

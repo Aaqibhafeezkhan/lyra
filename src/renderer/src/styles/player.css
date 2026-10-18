@@ -430,3 +430,68 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+/* ---------- glass panels over a video background ---------- */
+
+.mini__card {
+  display: contents;
+}
+[data-bg-media] .full__side,
+[data-bg-media] .full__lyrics,
+[data-bg-media] .mini__card,
+[data-bg-media] .mini__lyrics {
+  -webkit-backdrop-filter: blur(24px) saturate(1.35);
+  backdrop-filter: blur(24px) saturate(1.35);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  box-shadow:
+    0 22px 56px rgba(0, 0, 0, 0.34),
+    inset 0 1px 0 rgba(255, 255, 255, 0.09);
+}
+[data-bg-media='full'] .full__side {
+  --pad: clamp(16px, 2.2vh, 28px);
+  box-sizing: border-box;
+  width: calc(min(34vw, 46vh, 460px) + var(--pad) * 2);
+  padding: var(--pad);
+  border-radius: 30px;
+  background: rgba(12, 12, 16, 0.3);
+}
+[data-bg-media='full'] .full__lyrics {
+  align-self: stretch;
+  margin-bottom: 0;
+  padding: 0 clamp(14px, 2vw, 34px);
+  border-radius: 30px;
+  background: rgba(8, 8, 12, 0.24);
+  overflow: hidden;
+}
+[data-bg-media='mini'] .mini__card {
+  display: block;
+  margin-top: 8px;
+  padding: 4px 16px 8px;
+  border-radius: 22px;
+  background: rgba(12, 12, 16, 0.32);
+}
+[data-bg-media='mini'] .mini__card .mini__info {
+  margin-top: 10px;
+}
+[data-bg-media='mini'] .mini__lyrics {
+  margin: 10px 0 0;
+  padding: 0 16px;
+  border-radius: 22px;
+  background: rgba(8, 8, 12, 0.26);
+  overflow: hidden;
+}
+
+[data-bg-media] .full__side {
+  transition:
+    background 0.5s var(--ease),
+    border-color 0.5s var(--ease),
+    box-shadow 0.5s var(--ease),
+    backdrop-filter 0.5s var(--ease);
+}
+[data-bg-media] .full.is-idle .full__side {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}

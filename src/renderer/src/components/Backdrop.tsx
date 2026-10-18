@@ -1,13 +1,13 @@
 import { AnimatePresence, motion } from 'framer-motion'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type MutableRefObject } from 'react'
 import type { BackgroundSpec } from '@shared/types'
 import { useArtwork } from '@/hooks/useArtwork'
 import { useBackground } from '@/hooks/useBackground'
 import { useReducedMotion } from '@/hooks/useMotion'
-import { usePlayer } from '@/store/player'
+import { getPosition, usePlayer } from '@/store/player'
 import { useSettings } from '@/store/settings'
 
-/** True while the window is actually on screen, so hidden windows spend no CPU/GPU on video. */
+/** True while the window is actually on screen (not minimised / fully covered). */
 function usePageVisible(): boolean {
   const [v, setV] = useState(!document.hidden)
   useEffect(() => {
@@ -18,21 +18,210 @@ function usePageVisible(): boolean {
   return v
 }
 
-function MediaLayer({ spec, onFail }: { spec: Extract<BackgroundSpec, { kind: 'media' | 'preview' }>; onFail: () => void }) {
-  const isVideo = spec.kind === 'preview' || spec.media === 'video'
-  return isVideo ? (
-    <video key={spec.url} className="backdrop__media" src={spec.url} autoPlay muted loop playsInline disablePictureInPicture onError={onFail} />
-  ) : (
-    <img key={spec.url} className="backdrop__media" src={spec.url} alt="" draggable={false} onError={onFail} />
+interface Crop {
+  t: number
+  r: number
+  b: number
+  l: number
+}
+const NO_CROP: Crop = { t: 0, r: 0, b: 0, l: 0 }
+const MAX_BAR = 0.3
+
+/**
+ * Samples the playing video a few times a second (tiny canvas) to learn
+ *  - how bright it is (drives the auto-dim), and
+ *  - whether the clip itself has black letterbox / pillarbox bars (they get cropped away).
+ * Bars must persist across several samples, so a genuinely dark scene is never mistaken for one.
+ */
+function useFrameStats(video: MutableRefObject<HTMLVideoElement | null>, active: boolean, resetKey: string): { luma: number; crop: Crop } {
+  const [stats, setStats] = useState({ luma: 0.35, crop: NO_CROP })
+  useEffect(() => {
+    setStats({ luma: 0.35, crop: NO_CROP })
+    if (!active) return
+    const W = 64
+    const H = 36
+    const canvas = document.createElement('canvas')
+    canvas.width = W
+    canvas.height = H
+    const ctx = canvas.getContext('2d', { willReadFrequently: true })
+    if (!ctx) return
+    const history: Crop[] = []
+    let luma = 0.35
+    let dead = false
+    const tick = (): void => {
+      const v = video.current
+      if (dead || !v || v.readyState < 2 || v.paused) return
+      let data: Uint8ClampedArray
+      try {
+        ctx.drawImage(v, 0, 0, W, H)
+        data = ctx.getImageData(0, 0, W, H).data
+      } catch {
+        dead = true // tainted: no sampling for this source
+        return
+      }
+      const lum = (x: number, y: number): number => {
+        const i = (y * W + x) * 4
+        return (0.2126 * data[i]! + 0.7152 * data[i + 1]! + 0.0722 * data[i + 2]!) / 255
+      }
+      const rowDark = (y: number): boolean => {
+        let sum = 0
+        let max = 0
+        for (let x = 0; x < W; x++) {
+          const l = lum(x, y)
+          sum += l
+          if (l > max) max = l
+        }
+        return sum / W < 0.045 && max < 0.14
+      }
+      const colDark = (x: number): boolean => {
+        let sum = 0
+        let max = 0
+        for (let y = 0; y < H; y++) {
+          const l = lum(x, y)
+          sum += l
+          if (l > max) max = l
+        }
+        return sum / H < 0.045 && max < 0.14
+      }
+      let t = 0
+      while (t < H * MAX_BAR && rowDark(t)) t++
+      let b = 0
+      while (b < H * MAX_BAR && rowDark(H - 1 - b)) b++
+      let l = 0
+      while (l < W * MAX_BAR && colDark(l)) l++
+      let r = 0
+      while (r < W * MAX_BAR && colDark(W - 1 - r)) r++
+      history.push({ t: t / H, b: b / H, l: l / W, r: r / W })
+      if (history.length > 5) history.shift()
+      // a bar only counts if it was there in every recent sample
+      const agreed: Crop = {
+        t: Math.min(...history.map((h) => h.t)),
+        b: Math.min(...history.map((h) => h.b)),
+        l: Math.min(...history.map((h) => h.l)),
+        r: Math.min(...history.map((h) => h.r))
+      }
+      // brightness of the visible part only
+      let sum = 0
+      let n = 0
+      for (let y = t; y < H - b; y += 2) for (let x = l; x < W - r; x += 2) (sum += lum(x, y)), n++
+      if (n) luma = luma * 0.6 + (sum / n) * 0.4
+      setStats((s) => {
+        const same = (['t', 'b', 'l', 'r'] as const).every((k) => Math.abs(s.crop[k] - agreed[k]) < 0.012)
+        return { luma: Math.round(luma * 100) / 100, crop: history.length >= 3 && !same ? agreed : s.crop }
+      })
+    }
+    const id = window.setInterval(tick, 650)
+    return () => {
+      dead = true
+      window.clearInterval(id)
+    }
+  }, [video, active, resetKey])
+  return stats
+}
+
+/** Two stacked copies of the clip that cross-fade into each other, so a short clip loops without a visible jump. */
+function LoopVideo({ url, run, crop, videoRef, onFail }: { url: string; run: boolean; crop: Crop; videoRef: MutableRefObject<HTMLVideoElement | null>; onFail: () => void }) {
+  const refA = useRef<HTMLVideoElement>(null)
+  const refB = useRef<HTMLVideoElement>(null)
+  const els = [refA, refB] as const
+  const [front, setFront] = useState<0 | 1>(0)
+  const frontRef = useRef<0 | 1>(0)
+  const swapping = useRef(false)
+  const runRef = useRef(run)
+  runRef.current = run
+
+  useEffect(() => {
+    videoRef.current = els[front]!.current
+  }, [front, videoRef]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    const cur = els[frontRef.current]!.current
+    if (run) void cur?.play().catch(() => undefined)
+    else els.forEach((e) => e.current?.pause())
+  }, [run]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      const cur = els[frontRef.current]!.current
+      const next = els[1 - frontRef.current]!.current
+      if (!cur || !next || swapping.current || !runRef.current) return
+      if (cur.duration > 4 && cur.duration - cur.currentTime < 1.3) {
+        swapping.current = true
+        next.currentTime = 0
+        void next.play().catch(() => undefined)
+        const old = frontRef.current
+        frontRef.current = (1 - old) as 0 | 1
+        setFront(frontRef.current)
+        window.setTimeout(() => {
+          els[old]!.current?.pause()
+          swapping.current = false
+        }, 1500)
+      }
+    }, 200)
+    return () => window.clearInterval(id)
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const view = `inset(${crop.t * 100}% ${crop.r * 100}% ${crop.b * 100}% ${crop.l * 100}%)`
+  const common = {
+    className: 'backdrop__media',
+    src: url,
+    muted: true,
+    playsInline: true,
+    preload: 'auto' as const,
+    crossOrigin: 'anonymous' as const,
+    disablePictureInPicture: true,
+    onError: onFail
+  }
+  return (
+    <>
+      {[0, 1].map((i) => (
+        <video
+          key={i}
+          ref={els[i]!}
+          {...common}
+          autoPlay={i === 0}
+          style={{ opacity: front === i ? 1 : 0, ['objectViewBox' as string]: view }}
+          onLoadedMetadata={(e) => {
+            // very short clips just loop natively
+            if (i === 0 && e.currentTarget.duration <= 4) e.currentTarget.loop = true
+          }}
+        />
+      ))}
+    </>
   )
 }
 
-function YoutubeLayer({ videoId, onFail }: { videoId: string; onFail: () => void }) {
+function ImageLayer({ url, onFail }: { url: string; onFail: () => void }) {
+  return <img className="backdrop__media" src={url} alt="" draggable={false} onError={onFail} />
+}
+
+function YoutubeLayer({ spec, run, onFail }: { spec: Extract<BackgroundSpec, { kind: 'youtube' }>; run: boolean; onFail: () => void }) {
   const frame = useRef<HTMLIFrameElement>(null)
+  const wrap = useRef<HTMLDivElement>(null)
   const [ready, setReady] = useState(false)
+  const [scale, setScale] = useState(1)
   const onFailRef = useRef(onFail)
   onFailRef.current = onFail
   const timer = useRef(0)
+  const runRef = useRef(run)
+  runRef.current = run
+  const [start] = useState(() => {
+    // join the video roughly where the song is, when the lengths plausibly match
+    const pos = getPosition() / 1000
+    return spec.durationSec && pos > 3 && pos < spec.durationSec - 8 ? Math.floor(pos) : 0
+  })
+
+  const cmd = (func: string, args: unknown[] = []): void =>
+    frame.current?.contentWindow?.postMessage(JSON.stringify({ event: 'command', func, args }), 'https://www.youtube-nocookie.com')
+
+  // always render the embed at 1080p and scale it down/up to cover, so YouTube serves its best stream even in the small mini player
+  useEffect(() => {
+    const el = wrap.current
+    if (!el) return
+    const ro = new ResizeObserver(() => setScale(Math.max(el.clientWidth / 1920, el.clientHeight / 1080) * 1.16))
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
 
   useEffect(() => {
     setReady(false)
@@ -45,36 +234,45 @@ function YoutubeLayer({ videoId, onFail }: { videoId: string; onFail: () => void
         return
       }
       if (d?.event === 'onError') onFailRef.current()
-      else if (d?.event === 'infoDelivery' && d.info?.playerState === 1) {
+      else if (d?.event === 'onReady') {
+        cmd('setPlaybackQuality', ['hd1080'])
+        if (!runRef.current) cmd('pauseVideo')
+      } else if (d?.event === 'infoDelivery' && d.info?.playerState === 1) {
         window.clearTimeout(timer.current)
         setReady(true)
       }
     }
     window.addEventListener('message', onMsg)
-    // if it never starts playing (blocked embed, offline) fall back instead of showing a black box
-    const t = window.setTimeout(() => onFailRef.current(), 15_000)
-    timer.current = t
+    // if it never starts (blocked embed, offline) fall back instead of showing a black box
+    timer.current = window.setTimeout(() => onFailRef.current(), 15_000)
     return () => {
       window.removeEventListener('message', onMsg)
-      window.clearTimeout(t)
+      window.clearTimeout(timer.current)
     }
-  }, [videoId])
+  }, [spec.videoId])
+
+  useEffect(() => {
+    if (ready) cmd(run ? 'playVideo' : 'pauseVideo')
+  }, [run, ready])
 
   const src =
-    `https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&mute=1&controls=0&loop=1&playlist=${videoId}` +
-    '&modestbranding=1&playsinline=1&disablekb=1&rel=0&fs=0&iv_load_policy=3&enablejsapi=1'
+    `https://www.youtube-nocookie.com/embed/${spec.videoId}?autoplay=1&mute=1&controls=0&loop=1&playlist=${spec.videoId}&start=${start}` +
+    '&modestbranding=1&playsinline=1&disablekb=1&rel=0&fs=0&iv_load_policy=3&enablejsapi=1&vq=hd1080'
   return (
-    <iframe
-      ref={frame}
-      className="backdrop__media backdrop__yt"
-      data-ready={ready || undefined}
-      src={src}
-      title="Background video"
-      allow="autoplay; encrypted-media"
-      referrerPolicy="strict-origin-when-cross-origin"
-      tabIndex={-1}
-      onLoad={() => frame.current?.contentWindow?.postMessage(JSON.stringify({ event: 'listening', id: 1, channel: 'widget' }), 'https://www.youtube-nocookie.com')}
-    />
+    <div ref={wrap} className="backdrop__ytwrap">
+      <iframe
+        ref={frame}
+        className="backdrop__yt"
+        data-ready={ready || undefined}
+        style={{ transform: `translate(-50%, -50%) scale(${scale})` }}
+        src={src}
+        title="Background video"
+        allow="autoplay; encrypted-media"
+        referrerPolicy="strict-origin-when-cross-origin"
+        tabIndex={-1}
+        onLoad={() => frame.current?.contentWindow?.postMessage(JSON.stringify({ event: 'listening', id: 1, channel: 'widget' }), 'https://www.youtube-nocookie.com')}
+      />
+    </div>
   )
 }
 
@@ -88,23 +286,73 @@ export function Backdrop({ rich = false, animated = false }: { rich?: boolean; a
   const playing = usePlayer((s) => s.snapshot?.isPlaying ?? false)
   const src = useArtwork(url)
   const dim = useSettings((s) => s.settings.backgroundDim)
+  const autoDim = useSettings((s) => s.settings.autoDim)
   const reduced = useReducedMotion()
   const visible = usePageVisible()
   const res = useBackground(animated)
   const [failed, setFailed] = useState<string | null>(null)
+  const root = useRef<HTMLDivElement>(null)
+  const videoRef = useRef<HTMLVideoElement | null>(null)
 
   const spec = res?.spec ?? null
   const specKey = spec?.kind === 'youtube' ? `yt:${spec.videoId}` : spec && 'url' in spec ? spec.url : (spec?.kind ?? '')
   useEffect(() => setFailed(null), [specKey])
   const fail = (): void => setFailed(specKey)
 
-  const live = animated && visible && !reduced && !(failed && failed === specKey)
-  const showMedia = live && spec && (spec.kind === 'media' || spec.kind === 'preview')
-  const showYt = live && spec?.kind === 'youtube'
-  const alive = animated && !reduced && spec?.kind !== 'still' // "living artwork": slow pan + colour drift
+  const usable = animated && !reduced && !(failed && failed === specKey)
+  const isVideoFile = !!spec && (spec.kind === 'preview' || (spec.kind === 'media' && spec.media === 'video'))
+  const isImage = !!spec && spec.kind === 'media' && spec.media === 'image'
+  const isYt = spec?.kind === 'youtube'
+  const mediaUrl = spec && 'url' in spec ? spec.url : null
+  const showMedia = usable && (isVideoFile || isImage)
+  const showYt = usable && isYt
+  const hasMedia = showMedia || showYt
+  const run = visible && playing // pause (never unmount) when the window is hidden or the song is paused
+  const alive = animated && !reduced && spec?.kind !== 'still'
+
+  const stats = useFrameStats(videoRef, usable && isVideoFile && run, specKey)
+
+  // let the rest of the UI know a video is behind it, so it can switch to glass panels
+  useEffect(() => {
+    if (hasMedia) document.documentElement.dataset.bgMedia = rich ? 'full' : 'mini'
+    else delete document.documentElement.dataset.bgMedia
+    return () => {
+      delete document.documentElement.dataset.bgMedia
+    }
+  }, [hasMedia, rich])
+
+  // gentle parallax: the picture drifts against the cursor
+  useEffect(() => {
+    if (!hasMedia) return
+    let raf = 0
+    const move = (e: PointerEvent): void => {
+      cancelAnimationFrame(raf)
+      raf = requestAnimationFrame(() => {
+        const el = root.current
+        if (!el) return
+        el.style.setProperty('--px', String((e.clientX / window.innerWidth - 0.5) * 2))
+        el.style.setProperty('--py', String((e.clientY / window.innerHeight - 0.5) * 2))
+      })
+    }
+    window.addEventListener('pointermove', move, { passive: true })
+    return () => {
+      window.removeEventListener('pointermove', move)
+      cancelAnimationFrame(raf)
+    }
+  }, [hasMedia])
+
+  // dim: your slider is the base; the auto part lifts it for bright scenes and eases it for dark ones
+  const base = rich ? dim : dim * 0.78
+  const factor = autoDim && isVideoFile ? Math.min(1.45, Math.max(0.6, 0.62 + stats.luma * 1.5)) : 1
+  const dimNow = Math.min(0.9, Math.max(0.1, base * factor)) + (playing ? 0 : 0.12)
 
   return (
-    <div className={`backdrop ${rich ? 'backdrop--rich' : ''} ${alive ? 'backdrop--alive' : ''} ${showMedia || showYt ? 'backdrop--media' : ''}`} aria-hidden="true" data-paused={!playing || undefined}>
+    <div
+      ref={root}
+      className={`backdrop ${rich ? 'backdrop--rich' : ''} ${alive ? 'backdrop--alive' : ''} ${hasMedia ? 'backdrop--media' : ''}`}
+      aria-hidden="true"
+      data-paused={!playing || undefined}
+    >
       <div className="backdrop__field" />
       <AnimatePresence initial={false}>
         {src && (
@@ -121,8 +369,14 @@ export function Backdrop({ rich = false, animated = false }: { rich?: boolean; a
           />
         )}
       </AnimatePresence>
-      {showMedia && <MediaLayer spec={spec as Extract<BackgroundSpec, { kind: 'media' | 'preview' }>} onFail={fail} />}
-      {showYt && <YoutubeLayer videoId={(spec as Extract<BackgroundSpec, { kind: 'youtube' }>).videoId} onFail={fail} />}
+      <AnimatePresence initial={false}>
+        {hasMedia && spec && (
+          <motion.div key={specKey} className="backdrop__stage" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 1 }}>
+            {showMedia && mediaUrl && (isImage ? <ImageLayer url={mediaUrl} onFail={fail} /> : <LoopVideo url={mediaUrl} run={run} crop={stats.crop} videoRef={videoRef} onFail={fail} />)}
+            {showYt && spec.kind === 'youtube' && <YoutubeLayer spec={spec} run={run} onFail={fail} />}
+          </motion.div>
+        )}
+      </AnimatePresence>
       {rich && (
         <>
           <i className="backdrop__blob backdrop__blob--a" />
@@ -130,7 +384,8 @@ export function Backdrop({ rich = false, animated = false }: { rich?: boolean; a
         </>
       )}
       <div className="backdrop__shade" />
-      {(showMedia || showYt) && <div className="backdrop__dim" style={{ opacity: dim }} />}
+      {hasMedia && <div className="backdrop__dim" style={{ opacity: dimNow }} />}
+      {hasMedia && <div className="backdrop__grade" />}
     </div>
   )
 }
