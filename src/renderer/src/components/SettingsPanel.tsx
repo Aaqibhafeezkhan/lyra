@@ -399,6 +399,13 @@ export function SettingsPanel() {
             ]}
           />
         </Row>
+        <Row
+          label="Word by word"
+          info="Highlights each word as it is sung. Free lyrics only have one time per line, so Lyra estimates the word timing from syllables and pauses: close, but not perfect. If a source has real word timing, that is used instead."
+          hint="Estimated timing"
+        >
+          <Toggle label="Word by word" checked={s.wordByWord} onChange={up('wordByWord')} />
+        </Row>
         <Row label="Default sync offset" hint="Every song. Fine-tune under the lyrics">
           <Slider label="Sync offset" value={s.lyricOffsetMs} min={-3000} max={3000} step={50} onChange={up('lyricOffsetMs')} format={(v) => `${v > 0 ? '+' : ''}${(v / 1000).toFixed(2)}s`} />
         </Row>

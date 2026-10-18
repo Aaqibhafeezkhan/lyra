@@ -1,9 +1,10 @@
-import { memo, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { memo, useMemo, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import type { LyricLine, LyricsResult } from '@shared/types'
 import { useActiveLine, useFrame, lyricPosition } from '@/hooks/useLyricsSync'
 import { useReducedMotion } from '@/hooks/useMotion'
 import { clamp } from '@/lib/format'
+import { estimateWords } from '@shared/wordTiming'
 import { useLyrics } from '@/store/lyrics'
 import { usePlayer } from '@/store/player'
 import { OFFSET_STEP_MS, nudgeSongOffset, useLyricOffset, useSongOffset } from '@/store/offsets'
@@ -95,7 +96,10 @@ export function LyricsView({ variant }: Props) {
 // ---------------------------------------------------------------------------------------------
 
 function SyncedLyrics({ result, variant }: { result: LyricsResult; variant: 'mini' | 'full' }) {
-  const { lines } = result
+  const wordByWord = useSettings((x) => x.settings.wordByWord)
+  const durationMs = usePlayer((x) => x.snapshot?.track?.durationMs)
+  const estimated = wordByWord && !result.wordSynced
+  const lines = useMemo(() => (estimated ? estimateWords(result.lines, durationMs) : result.lines), [estimated, result.lines, durationMs])
   const active = useActiveLine(lines)
   const reduced = useReducedMotion()
   const scroller = useRef<HTMLDivElement>(null)
@@ -259,7 +263,7 @@ function WordLine({ line, nextTime }: { line: LyricLine; nextTime: number | unde
   const words = line.words!
   const spans = useRef<Array<HTMLSpanElement | null>>([])
   const offset = useLyricOffset()
-  const end = nextTime ?? words[words.length - 1]!.timeMs + 1500
+  const end = line.endMs ?? nextTime ?? words[words.length - 1]!.timeMs + 1500
 
   useFrame(
     () => {
@@ -360,6 +364,7 @@ function LyricsMessage({ icon, title, body, action, secondary, visual }: MsgProp
 function LyricsFooter({ result }: { result: LyricsResult }) {
   const songOffset = useSongOffset()
   const togglePanel = useUi((s) => s.togglePanel)
+  const wordByWord = useSettings((s) => s.settings.wordByWord)
   const synced = result.status === 'synced'
   const m = result.matched
   const providerName = result.provider === 'lrclib' ? 'LRCLIB' : result.provider === 'demo' ? 'Demo' : result.provider
@@ -369,7 +374,7 @@ function LyricsFooter({ result }: { result: LyricsResult }) {
         <span title={m ? `Matched “${m.title}” by ${m.artist}` : undefined}>
           {providerName}
           <span className="lyrics__kind">
-            {synced ? (result.wordSynced ? ' · word-synced' : ' · line-synced') : ' · plain text'}
+            {synced ? (result.wordSynced ? ' · word-synced' : wordByWord ? ' · words estimated' : ' · line-synced') : ' · plain text'}
             {result.pinned ? ' · your pick' : ''}
           </span>
         </span>

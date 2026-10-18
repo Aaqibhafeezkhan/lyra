@@ -119,6 +119,8 @@ export interface LyricLine {
   text: string
   /** Only present when the source supplied word-level timing. */
   words?: LyricWord[]
+  /** When the last word ends (set for estimated timing so it does not stretch across a long gap). */
+  endMs?: number
 }
 
 export type LyricsStatus = 'synced' | 'plain' | 'instrumental' | 'none' | 'error'
@@ -230,6 +232,8 @@ export interface Settings {
   lyricFontSize: number // px, fullscreen base
   lineSpacing: number // 1 - 2
   lyricAnimation: LyricAnimation
+  /** highlight each word as it is sung (estimated unless the source has real word timing) */
+  wordByWord: boolean
   lyricOffsetMs: number
   reducedMotion: 'system' | 'on' | 'off'
   compactWidth: number
@@ -262,6 +266,7 @@ export const DEFAULT_SETTINGS: Settings = {
   lyricFontSize: 40,
   lineSpacing: 1.35,
   lyricAnimation: 'glide',
+  wordByWord: true,
   lyricOffsetMs: 0,
   reducedMotion: 'system',
   compactWidth: 380,

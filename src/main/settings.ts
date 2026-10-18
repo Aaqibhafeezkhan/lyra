@@ -26,6 +26,7 @@ function sanitize(s: Settings): Settings {
     backgroundStyle: (['auto', 'living', 'custom', 'youtube', 'still'] as const).includes(s.backgroundStyle) ? s.backgroundStyle : d.backgroundStyle,
     backgroundDim: clamp(s.backgroundDim, 0.2, 0.9),
     backgroundInMini: !!s.backgroundInMini,
+    wordByWord: s.wordByWord !== false,
     autoDim: s.autoDim !== false,
     customBackground:
       s.customBackground && /^[a-f0-9]{16}\.(mp4|webm|gif|png|jpe?g|webp|apng)$/i.test(s.customBackground.file ?? '')
