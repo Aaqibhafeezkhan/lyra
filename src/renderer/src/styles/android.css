@@ -21,3 +21,46 @@
   min-width: 44px;
   min-height: 44px;
 }
+
+/* ---------- cinema layout on a phone: video full-bleed, lyrics in the lower half, compact dock at the bottom ---------- */
+[data-platform='android'] .full.is-cinema .full__top {
+  height: 56px;
+  padding: 0 6px 0 16px;
+}
+[data-platform='android'] .full.is-cinema .full__body {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 0 14px 10px;
+}
+[data-platform='android'] .full.is-cinema .full__lyrics {
+  grid-column: auto;
+  flex: 0 1 44%;
+  min-height: 160px;
+  padding: 0 2px;
+}
+[data-platform='android'] .full.is-cinema .full__side {
+  position: static;
+  width: auto;
+  min-width: 0;
+  flex-shrink: 0;
+  padding: 10px 12px;
+  border-radius: 22px;
+  gap: 12px;
+}
+[data-platform='android'] .lyrics--full {
+  --lyric-size: 30px !important;
+}
+
+/* lyrics above, dock at the very bottom; a little smaller so more of the video shows */
+[data-platform='android'] .full.is-cinema .full__lyrics {
+  order: 1;
+  flex-basis: 40%;
+}
+[data-platform='android'] .full.is-cinema .full__side {
+  order: 2;
+}
+[data-platform='android'] .lyrics--full {
+  --lyric-size: 27px !important;
+}

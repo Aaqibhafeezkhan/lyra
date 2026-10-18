@@ -197,8 +197,11 @@ object MediaMonitor {
             scaled.compress(Bitmap.CompressFormat.JPEG, 86, bos)
             "data:image/jpeg;base64," + Base64.encodeToString(bos.toByteArray(), Base64.NO_WRAP)
         }
-        artKey = key
-        artData = out
+        // only remember a real picture: the bitmap often arrives a moment after the title, so retry until it does
+        if (out != null) {
+            artKey = key
+            artData = out
+        }
         return out
     }
 

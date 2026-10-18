@@ -22,6 +22,17 @@ export type YoutubeResult =
   | { state: 'no-key' }
   | { state: 'error'; message: string }
 
+/** The YouTube API returns HTML-escaped text (&amp; &quot; &#39;). */
+function decodeEntities(t: string): string {
+  return t
+    .replace(/&#(\d+);/g, (_, n: string) => String.fromCodePoint(Number(n)))
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'")
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&amp;/g, '&')
+}
+
 class YoutubeService {
   private cache: Store<{ entries: Record<string, Entry> }> | null = null
   private cooldownUntil = 0
@@ -124,7 +135,7 @@ class YoutubeService {
       const id = i.id?.videoId
       if (!id) return []
       const info = details.get(id)
-      return [{ videoId: id, title: i.snippet?.title ?? '', channel: i.snippet?.channelTitle ?? '', durationSec: info?.sec ?? null, embeddable: info ? info.embeddable : true }]
+      return [{ videoId: id, title: decodeEntities(i.snippet?.title ?? ''), channel: decodeEntities(i.snippet?.channelTitle ?? ''), durationSec: info?.sec ?? null, embeddable: info ? info.embeddable : true }]
     })
     const ranked = rankVideos({ title: track.title, artist, durationMs: track.durationMs }, candidates)
     const list: YoutubeVideo[] = ranked.map((r) => ({ videoId: r.videoId, title: r.title, channel: r.channel, durationSec: r.durationSec }))
