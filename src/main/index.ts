@@ -7,6 +7,7 @@ import { favorites } from './favorites'
 import { moments } from './moments'
 import { settings } from './settings'
 import { applyShortcuts, disposeShortcuts } from './shortcuts'
+import { BG_SCHEME, background, registerBackgroundScheme } from './background/service'
 import { createTray } from './tray'
 import { updater } from './updater'
 import { windows } from './window'
@@ -26,13 +27,24 @@ function loadDotEnv(): void {
   }
 }
 
+registerBackgroundScheme()
+
 function installCsp(): void {
   const dev = !app.isPackaged
+  const media = `${BG_SCHEME}:`
+  const embed = 'https://www.youtube-nocookie.com'
   const csp = dev
-    ? "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self' ws: http://localhost:*"
-    : "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'"
+    ? `default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: ${media}; media-src 'self' ${media} https://*.itunes.apple.com; frame-src ${embed}; font-src 'self' data:; connect-src 'self' ws: http://localhost:*`
+    : `default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: ${media}; media-src 'self' ${media} https://*.itunes.apple.com; frame-src ${embed}; font-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'`
   session.defaultSession.webRequest.onHeadersReceived((details, cb) => {
-    cb({ responseHeaders: { ...details.responseHeaders, 'Content-Security-Policy': [csp] } })
+    // Only OUR pages get our policy. Third-party documents (the YouTube player) keep their own headers,
+    // otherwise our "default-src 'self'" would block their scripts.
+    const ours = details.url.startsWith('file://') || details.url.startsWith('http://localhost') || details.url.startsWith(`${media}//`)
+    cb(ours ? { responseHeaders: { ...details.responseHeaders, 'Content-Security-Policy': [csp] } } : {})
+  })
+  // YouTube's embedded player refuses to run without a Referer; our pages are file:// so supply an https one.
+  session.defaultSession.webRequest.onBeforeSendHeaders({ urls: ['https://www.youtube-nocookie.com/*', 'https://www.youtube.com/*'] }, (details, cb) => {
+    cb({ requestHeaders: { ...details.requestHeaders, Referer: 'https://github.com/DhruvHarani1/lyra' } })
   })
   // The renderer never needs device permissions.
   session.defaultSession.setPermissionRequestHandler((_wc, _perm, cb) => cb(false))
@@ -47,6 +59,8 @@ if (!app.requestSingleInstanceLock()) {
     app.setAppUserModelId('dev.lyra.companion')
     loadDotEnv()
     installCsp()
+    background.registerProtocol()
+    background.collectGarbage()
     registerIpc()
     const win = windows.create()
     createTray()

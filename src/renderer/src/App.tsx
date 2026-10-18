@@ -177,7 +177,7 @@ export default function App() {
         style={{ ['--alpha' as string]: mode === 'full' ? 1 : settings.opacity }}
       >
         <motion.div className="shell" style={{ x: shell.x, y: shell.y, width: shell.width, height: shell.height }}>
-          <Backdrop rich={mode === 'full'} />
+          <Backdrop rich={mode === 'full'} animated={mode === 'full' || (mode === 'mini' && settings.backgroundInMini)} />
           <AnimatePresence mode="wait" initial={false}>
             <motion.div
               key={mode === 'minimal' || mode === 'compact' ? 'widget' : mode}

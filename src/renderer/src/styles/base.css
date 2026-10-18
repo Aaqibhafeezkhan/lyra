@@ -458,3 +458,57 @@ p {
 .grip:hover {
   color: var(--fg-2);
 }
+
+/* ---------- animated backgrounds (video / GIF / YouTube / living artwork) ---------- */
+
+.backdrop__media {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border: 0;
+  background: #000;
+  pointer-events: none;
+}
+/* the embed is scaled up so YouTube's own edge UI is cropped out of view */
+.backdrop__yt {
+  inset: -14%;
+  width: 128%;
+  height: 128%;
+  opacity: 0;
+  transition: opacity 0.8s ease;
+}
+.backdrop__yt[data-ready] {
+  opacity: 1;
+}
+.backdrop__dim {
+  position: absolute;
+  inset: 0;
+  background: #000;
+  pointer-events: none;
+}
+.backdrop--alive .backdrop__img {
+  animation: art-drift 42s ease-in-out infinite alternate;
+  will-change: transform;
+}
+.backdrop--alive[data-paused] .backdrop__img,
+.backdrop--alive[data-paused] .backdrop__blob {
+  animation-play-state: paused;
+}
+@keyframes art-drift {
+  from {
+    transform: scale(1) translate3d(0, 0, 0) rotate(0deg);
+  }
+  to {
+    transform: scale(1.14) translate3d(-3%, 2%, 0) rotate(2deg);
+  }
+}
+
+.backdrop--media .backdrop__shade,
+.backdrop--media.backdrop--rich .backdrop__shade {
+  background: radial-gradient(90% 70% at 50% 45%, transparent, rgba(0, 0, 0, 0.25));
+}
+.backdrop--media .backdrop__blob {
+  display: none;
+}

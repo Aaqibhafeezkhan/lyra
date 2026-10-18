@@ -1,0 +1,70 @@
+import { artistVariants, cleanTitle, normalize, similarity } from '../lyrics/match'
+
+/** Pure ranking of YouTube search results for "the official video of this song". No Electron / network. */
+
+export interface VideoCandidate {
+  videoId: string
+  title: string
+  channel: string
+  durationSec: number | null
+  embeddable: boolean
+}
+
+export interface Wanted {
+  title: string
+  artist: string
+  durationMs: number
+}
+
+const BAD = /\b(lyrics?|lyrical|audio|cover|karaoke|reaction|remix|slowed|reverb|8d|nightcore|instrumental|tutorial|status|shorts?|mashup|sped\s*up|reprise)\b/i
+const GOOD = /\b(official|vevo|music video|video song|full video|official video)\b/i
+
+/** Remove "(Official Video)", "[HD]", "| T-Series" style noise so the song name is comparable. */
+export function cleanVideoTitle(t: string): string {
+  return t
+    .replace(/[([](?:[^)\]]*?(?:official|video|audio|lyric|hd|4k|full song|music)[^)\]]*?)[)\]]/gi, ' ')
+    .replace(/\s*[|–—-]\s*(?:official|full|new|latest).*$/i, '')
+    .replace(/\bft\.?\b.*$/i, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+export function scoreVideo(want: Wanted, v: VideoCandidate): { score: number; acceptable: boolean } {
+  if (!v.embeddable) return { score: -1, acceptable: false }
+  const wantTitle = cleanTitle(want.title)
+  const vTitle = cleanVideoTitle(v.title)
+  const nTitle = normalize(v.title)
+
+  // song title: compare against the cleaned title, and also check it appears inside the raw one
+  const titleSim = Math.max(similarity(wantTitle, vTitle), nTitle.includes(normalize(wantTitle)) ? 0.9 : 0)
+
+  const artists = artistVariants(want.artist).map(normalize).filter(Boolean)
+  const hay = `${nTitle} ${normalize(v.channel)}`
+  const artistHit = artists.some((a) => a.split(' ').every((tok) => tok.length < 3 || hay.includes(tok)))
+
+  let score = 0.5 * titleSim + (artistHit ? 0.25 : 0)
+  if (GOOD.test(v.title) || /vevo|records|music|films|entertainment/i.test(v.channel)) score += 0.08
+  // penalise variants unless the user's own song title says so
+  if (BAD.test(v.title) && !BAD.test(want.title)) score -= 0.3
+
+  if (v.durationSec && want.durationMs > 0) {
+    const diff = Math.abs(v.durationSec - want.durationMs / 1000)
+    score += diff <= 20 ? 0.2 : diff <= 60 ? 0.1 : diff > 150 ? -0.2 : 0
+  }
+  return { score, acceptable: titleSim >= 0.6 && artistHit && score >= 0.55 }
+}
+
+/** Best-first. `acceptable` ones are safe to auto-play; the rest only appear in the "pick one" list. */
+export function rankVideos(want: Wanted, list: VideoCandidate[]): Array<VideoCandidate & { score: number; acceptable: boolean }> {
+  return list
+    .map((v) => ({ ...v, ...scoreVideo(want, v) }))
+    .filter((v) => v.score > -1)
+    .sort((a, b) => b.score - a.score)
+}
+
+/** ISO-8601 duration (PT1H2M3S) → seconds. */
+export function parseIsoDuration(iso: string | undefined): number | null {
+  const m = /^P(?:(\d+)D)?T?(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?$/.exec(iso ?? '')
+  if (!m) return null
+  return (Number(m[1] ?? 0) * 24 + Number(m[2] ?? 0)) * 3600 + Number(m[3] ?? 0) * 60 + Number(m[4] ?? 0)
+}

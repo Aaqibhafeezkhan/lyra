@@ -1,0 +1,76 @@
+import { net } from 'electron'
+import type { Track } from '@shared/types'
+import { JsonStore } from '../jsonStore'
+import { createLogger } from '../logger'
+import { cleanVideoTitle } from './rank'
+
+const log = createLogger('itunes')
+
+const HIT_TTL = 30 * 24 * 3600_000
+const MISS_TTL = 7 * 24 * 3600_000
+/** Apple preview clips are served from these hosts only; anything else is ignored. */
+const HOST_RE = /^https:\/\/[a-z0-9-]+\.itunes\.apple\.com\//i
+
+interface Entry {
+  at: number
+  url: string | null
+  title: string
+}
+
+const norm = (s: string): string =>
+  cleanVideoTitle(s)
+    .toLowerCase()
+    .replace(/\(.*?\)|\[.*?\]/g, ' ')
+    .replace(/[^\p{L}\p{N}]+/gu, ' ')
+    .trim()
+
+class ItunesService {
+  private cache: JsonStore<{ entries: Record<string, Entry> }> | null = null
+  private inflight = new Map<string, Promise<Entry | null>>()
+  private entries(): Record<string, Entry> {
+    return (this.cache ??= new JsonStore<{ entries: Record<string, Entry> }>('itunes-cache.json', { entries: {} })).get().entries
+  }
+
+  /** Free, key-less. Returns a short official clip or null. Network failures are not cached. */
+  async find(track: Track): Promise<{ url: string; title: string } | null> {
+    const hit = this.entries()[track.id]
+    if (hit && Date.now() - hit.at < (hit.url ? HIT_TTL : MISS_TTL)) return hit.url ? { url: hit.url, title: hit.title } : null
+    let p = this.inflight.get(track.id)
+    if (!p) {
+      p = this.search(track).finally(() => this.inflight.delete(track.id))
+      this.inflight.set(track.id, p)
+    }
+    const r = await p
+    return r?.url ? { url: r.url, title: r.title } : null
+  }
+
+  private async search(track: Track): Promise<Entry | null> {
+    const artist = track.artists[0] ?? ''
+    let json: { results?: Array<{ trackName?: string; artistName?: string; previewUrl?: string; trackTimeMillis?: number }> }
+    try {
+      const q = new URLSearchParams({ term: `${artist} ${track.title}`, entity: 'musicVideo', limit: '8' })
+      const res = await net.fetch(`https://itunes.apple.com/search?${q}`, { signal: AbortSignal.timeout(10_000) })
+      if (!res.ok) return null
+      json = (await res.json()) as typeof json
+    } catch (e) {
+      log.warn('search failed', (e as Error).message)
+      return null
+    }
+    const wantT = norm(track.title)
+    const wantA = norm(artist)
+    const best = (json.results ?? []).find((r) => {
+      if (!r.previewUrl || !HOST_RE.test(r.previewUrl)) return false
+      const t = norm(r.trackName ?? '')
+      const a = norm(r.artistName ?? '')
+      return !!wantT && (t === wantT || t.startsWith(wantT) || wantT.startsWith(t)) && !!wantA && (a.includes(wantA) || wantA.includes(a))
+    })
+    const entry: Entry = { at: Date.now(), url: best?.previewUrl ?? null, title: best ? `${best.trackName} — ${best.artistName}` : '' }
+    const entries = this.entries()
+    entries[track.id] = entry
+    this.cache!.set({ entries })
+    return entry
+  }
+}
+
+export const itunes = new ItunesService()
+export const itunesNorm = norm

@@ -63,6 +63,16 @@ const api: LyraApi = {
     add: (m) => invoke(CH.momentsAdd, m),
     remove: (id) => invoke(CH.momentsRemove, id)
   },
+  background: {
+    resolve: (track) => invoke(CH.bgResolve, track),
+    pick: (scope, trackId) => invoke(CH.bgPick, scope, trackId),
+    clear: (scope, trackId) => invoke(CH.bgClear, scope, trackId),
+    hasYoutubeKey: () => invoke(CH.bgKeyHas),
+    setYoutubeKey: (key) => invoke(CH.bgKeySet, key),
+    clearYoutubeKey: () => invoke(CH.bgKeyClear),
+    youtubeCandidates: (track) => invoke(CH.bgYtCandidates, track),
+    youtubeChoose: (trackId, videoId) => invoke(CH.bgYtChoose, trackId, videoId)
+  },
   update: {
     get: () => invoke(CH.updateGet),
     check: () => invoke(CH.updateCheck),

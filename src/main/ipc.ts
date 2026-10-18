@@ -6,6 +6,8 @@ import { DemoSource } from './demo/source'
 import { lyricsService } from './lyrics/service'
 import { createLogger, readLogTail } from './logger'
 import { moments } from './moments'
+import { background } from './background/service'
+import { youtube } from './background/youtube'
 import { failedShortcuts } from './shortcuts'
 import { updater } from './updater'
 import { settings } from './settings'
@@ -95,6 +97,7 @@ export function registerIpc(): void {
   handle(CH.settingsReset, () => {
     const prevVolume = settings.get().systemVolume
     const next = settings.reset()
+    background.collectGarbage()
     windows.resetPlacement()
     if (windows.getMode() !== next.defaultMode) windows.setMode(next.defaultMode)
     // default source is the Windows (no-login) one
@@ -185,6 +188,18 @@ export function registerIpc(): void {
     if (typeof text !== 'string' || text.length > 200_000) return false
     clipboard.writeText(text)
     return true
+  })
+  handle(CH.bgResolve, (t: Track) => background.resolve(t))
+  handle(CH.bgPick, (scope: 'song' | 'global', trackId?: string) => background.pick(scope === 'song' ? 'song' : 'global', trackId))
+  handle(CH.bgClear, (scope: 'song' | 'global', trackId?: string) => background.clear(scope === 'song' ? 'song' : 'global', trackId))
+  handle(CH.bgKeyHas, () => youtube.hasKey())
+  handle(CH.bgKeySet, (key: string) => youtube.setKey(String(key)))
+  handle(CH.bgKeyClear, () => youtube.clearKey())
+  handle(CH.bgYtCandidates, (t: Track) => youtube.candidates(t))
+  handle(CH.bgYtChoose, async (trackId: string, videoId: string | null) => {
+    if (videoId === null) return background.chooseYoutube(trackId, null)
+    if (!/^[A-Za-z0-9_-]{11}$/.test(videoId)) return
+    background.chooseYoutube(trackId, { videoId, title: '', channel: '', durationSec: null })
   })
   handle(CH.updateGet, () => updater.state)
   handle(CH.updateCheck, () => updater.check())

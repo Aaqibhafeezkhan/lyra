@@ -156,7 +156,50 @@ export type LyricAnimation = 'glide' | 'focus' | 'fade'
 
 export type SourceKind = 'local' | 'api'
 
+export type BackgroundStyle = 'auto' | 'living' | 'custom' | 'youtube' | 'still'
+
+/** A user-supplied image / GIF / video that Lyra copied into its own folder. */
+export interface BackgroundMedia {
+  /** file name inside userData/backgrounds (never a user path) */
+  file: string
+  /** original name, for display */
+  name: string
+  kind: 'video' | 'image'
+}
+
+export interface YoutubeVideo {
+  videoId: string
+  title: string
+  channel: string
+  durationSec: number | null
+}
+
+export type BackgroundSpec =
+  | { kind: 'living' }
+  | { kind: 'still' }
+  | { kind: 'media'; url: string; media: 'video' | 'image'; name: string; scope: 'song' | 'global' }
+  | { kind: 'youtube'; videoId: string; title: string; channel: string; scope: 'song' | 'auto' }
+  /** free 30s music-video preview from Apple's public iTunes Search API (no key needed) */
+  | { kind: 'preview'; url: string; title: string }
+
+export interface BackgroundResolution {
+  spec: BackgroundSpec
+  /** why YouTube isn't (or is) being used, for the panel */
+  youtube: 'off' | 'no-key' | 'found' | 'none' | 'error' | 'pinned'
+  youtubeMessage?: string
+  hasSongMedia: boolean
+  hasGlobalMedia: boolean
+}
+
 export interface Settings {
+  /** How the animated background behind the lyrics is chosen. */
+  backgroundStyle: BackgroundStyle
+  /** 0.2–0.9: how much the background is darkened for readability. */
+  backgroundDim: number
+  /** Also use the video/GIF background in the expanded player (fullscreen always does). */
+  backgroundInMini: boolean
+  /** Used for every song that has no media of its own. */
+  customBackground: BackgroundMedia | null
   /** Where playback info comes from: Windows media controls (default, no account) or Spotify Web API. */
   source: SourceKind
   defaultMode: Exclude<ViewMode, 'full'>
@@ -188,6 +231,10 @@ export interface Settings {
 }
 
 export const DEFAULT_SETTINGS: Settings = {
+  backgroundStyle: 'auto',
+  backgroundDim: 0.5,
+  backgroundInMini: false,
+  customBackground: null,
   source: 'local',
   defaultMode: 'compact',
   opacity: 0.94,

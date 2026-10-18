@@ -23,6 +23,13 @@ function sanitize(s: Settings): Settings {
       )
     ),
     onboarded: !!s.onboarded,
+    backgroundStyle: (['auto', 'living', 'custom', 'youtube', 'still'] as const).includes(s.backgroundStyle) ? s.backgroundStyle : d.backgroundStyle,
+    backgroundDim: clamp(s.backgroundDim, 0.2, 0.9),
+    backgroundInMini: !!s.backgroundInMini,
+    customBackground:
+      s.customBackground && /^[a-f0-9]{16}\.(mp4|webm|gif|png|jpe?g|webp|apng)$/i.test(s.customBackground.file ?? '')
+        ? { file: s.customBackground.file, name: String(s.customBackground.name ?? '').slice(0, 120), kind: s.customBackground.kind === 'video' ? 'video' : 'image' }
+        : null,
     miniSize:
       s.miniSize && Number.isFinite(s.miniSize.width) && Number.isFinite(s.miniSize.height)
         ? { width: Math.round(clamp(s.miniSize.width, 360, 700)), height: Math.round(clamp(s.miniSize.height, 480, 1200)) }

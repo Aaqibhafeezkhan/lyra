@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { LOCAL_SHORTCUTS } from '@shared/shortcuts'
-import type { Settings } from '@shared/types'
+import type { Settings, YoutubeVideo } from '@shared/types'
+import { useBackgroundVersion } from '@/hooks/useBackground'
 import { usePlayer } from '@/store/player'
 import { ShortcutEditor } from './ShortcutEditor'
 import { UpdateRow } from './UpdateRow'
@@ -80,6 +81,180 @@ function ResetButton() {
     >
       {armed ? 'Click again to confirm' : 'Reset settings'}
     </button>
+  )
+}
+
+function BackgroundSection() {
+  const s = useSettings((x) => x.settings)
+  const set = useSettings((x) => x.set)
+  const track = usePlayer((x) => x.snapshot?.track ?? null)
+  const bump = useBackgroundVersion((x) => x.bump)
+  const toast = useUi((x) => x.toast)
+  const [hasKey, setHasKey] = useState(false)
+  const [key, setKey] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [msg, setMsg] = useState<string | null>(null)
+  const [cands, setCands] = useState<YoutubeVideo[] | null>(null)
+
+  useEffect(() => {
+    void window.lyra.background.hasYoutubeKey().then(setHasKey)
+  }, [])
+
+  const run = async (fn: () => Promise<{ ok: boolean; error?: string } | void>): Promise<void> => {
+    setBusy(true)
+    setMsg(null)
+    try {
+      const r = await fn()
+      if (r && !r.ok && r.error) setMsg(r.error)
+      bump()
+    } catch {
+      setMsg('Something went wrong. Try again.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <section>
+      <h4>Background</h4>
+      <Row label="Style" hint="Cinematic mode (and mini player if enabled)">
+        <Segmented
+          label="Background style"
+          value={s.backgroundStyle}
+          onChange={(v) => set({ backgroundStyle: v })}
+          options={[
+            { v: 'auto', label: 'Auto' },
+            { v: 'living', label: 'Living' },
+            { v: 'custom', label: 'My file' },
+            { v: 'youtube', label: 'Video' },
+            { v: 'still', label: 'Still' }
+          ]}
+        />
+      </Row>
+      <Row label="Dim" hint="Keeps lyrics readable over video">
+        <Slider label="Background dim" value={s.backgroundDim} min={0.2} max={0.9} step={0.02} onChange={(v) => set({ backgroundDim: v })} format={(v) => `${Math.round(v * 100)}%`} />
+      </Row>
+      <Row label="Also in mini player">
+        <Toggle label="Animated background in mini player" checked={s.backgroundInMini} onChange={(v) => set({ backgroundInMini: v })} />
+      </Row>
+      <Row label="Your file for all songs" hint={s.customBackground ? s.customBackground.name : 'GIF, image, MP4 or WebM · up to 200 MB'}>
+        <button type="button" className="pill" disabled={busy} onClick={() => void run(() => window.lyra.background.pick('global'))}>
+          {s.customBackground ? 'Change' : 'Choose'}
+        </button>
+        {s.customBackground && (
+          <button type="button" className="pill" disabled={busy} onClick={() => void run(() => window.lyra.background.clear('global'))}>
+            Remove
+          </button>
+        )}
+      </Row>
+      <Row label="This song" hint={track ? `${track.title}: a file just for this track` : 'Play a song first'}>
+        <button type="button" className="pill" disabled={busy || !track} onClick={() => track && void run(() => window.lyra.background.pick('song', track.id))}>
+          Choose
+        </button>
+        <button type="button" className="pill" disabled={busy || !track} onClick={() => track && void run(() => window.lyra.background.clear('song', track.id))}>
+          Remove
+        </button>
+      </Row>
+      <Row label="YouTube video" hint={hasKey ? 'API key saved (encrypted). Official video plays muted' : 'Optional. Paste a free YouTube Data API v3 key'}>
+        {hasKey ? (
+          <button
+            type="button"
+            className="pill"
+            disabled={busy}
+            onClick={() =>
+              void run(async () => {
+                await window.lyra.background.clearYoutubeKey()
+                setHasKey(false)
+                toast('YouTube key removed')
+              })
+            }
+          >
+            Remove key
+          </button>
+        ) : (
+          <>
+            <input className="field" type="password" autoComplete="off" spellCheck={false} placeholder="API key" value={key} onChange={(e) => setKey(e.target.value)} style={{ width: 150 }} />
+            <button
+              type="button"
+              className="pill"
+              disabled={busy || key.trim().length < 20}
+              onClick={() =>
+                void run(async () => {
+                  const r = await window.lyra.background.setYoutubeKey(key)
+                  if (r.ok) {
+                    setHasKey(true)
+                    setKey('')
+                    toast('YouTube key saved')
+                  }
+                  return r
+                })
+              }
+            >
+              Save
+            </button>
+          </>
+        )}
+      </Row>
+      {hasKey && track && (
+        <Row label="Wrong video?" hint="Pick another for this song">
+          <button
+            type="button"
+            className="pill"
+            disabled={busy}
+            onClick={() =>
+              void run(async () => {
+                const r = await window.lyra.background.youtubeCandidates(track)
+                setCands(r.items)
+                if (r.error) return { ok: false, error: r.error }
+              })
+            }
+          >
+            Show options
+          </button>
+        </Row>
+      )}
+      {cands && track && (
+        <div className="srow srow--actions" style={{ flexDirection: 'column', alignItems: 'stretch' }}>
+          {cands.length === 0 && <small>No embeddable videos found.</small>}
+          {cands.map((c) => (
+            <button
+              key={c.videoId}
+              type="button"
+              className="pill"
+              style={{ textAlign: 'left', whiteSpace: 'normal' }}
+              onClick={() =>
+                void run(async () => {
+                  await window.lyra.background.youtubeChoose(track.id, c.videoId)
+                  setCands(null)
+                })
+              }
+            >
+              {c.title} · {c.channel}
+            </button>
+          ))}
+          <button
+            type="button"
+            className="pill"
+            onClick={() =>
+              void run(async () => {
+                await window.lyra.background.youtubeChoose(track.id, null)
+                setCands(null)
+              })
+            }
+          >
+            Use automatic pick
+          </button>
+        </div>
+      )}
+      {msg && (
+        <small role="alert" style={{ color: 'var(--danger, #ff8a8a)' }}>
+          {msg}
+        </small>
+      )}
+      <small style={{ opacity: 0.7, display: 'block', paddingTop: 6 }}>
+        Without a key, Lyra uses a free 30-second official clip from Apple when one exists, otherwise a living version of the cover art. Searching sends the song title and artist to Apple or Google.
+      </small>
+    </section>
   )
 }
 
@@ -237,6 +412,8 @@ export function SettingsPanel() {
           />
         </Row>
       </section>
+
+      <BackgroundSection />
 
       <section>
         <h4>System</h4>

@@ -13,6 +13,8 @@ import type {
   Settings,
   Track,
   UpdateState,
+  BackgroundResolution,
+  YoutubeVideo,
   ViewMode
 } from './types'
 
@@ -58,6 +60,14 @@ export const CH = {
   appDiagnostics: 'app:diagnostics',
   appCopy: 'app:copy',
   appShortcutStatus: 'app:shortcut-status',
+  bgResolve: 'bg:resolve',
+  bgPick: 'bg:pick',
+  bgClear: 'bg:clear',
+  bgKeyHas: 'bg:key-has',
+  bgKeySet: 'bg:key-set',
+  bgKeyClear: 'bg:key-clear',
+  bgYtCandidates: 'bg:yt-candidates',
+  bgYtChoose: 'bg:yt-choose',
   updateGet: 'update:get',
   updateCheck: 'update:check',
   updateInstall: 'update:install'
@@ -146,6 +156,19 @@ export interface LyraApi {
     list(): Promise<SavedMoment[]>
     add(m: Omit<SavedMoment, 'id' | 'savedAt'>): Promise<SavedMoment[]>
     remove(id: string): Promise<SavedMoment[]>
+  }
+  background: {
+    /** Decide what to show behind the lyrics for this track. */
+    resolve(track: Track): Promise<BackgroundResolution>
+    /** Open a file picker; scope 'song' attaches to that track, 'global' is the default for all songs. */
+    pick(scope: 'song' | 'global', trackId?: string): Promise<{ ok: boolean; error?: string }>
+    clear(scope: 'song' | 'global', trackId?: string): Promise<void>
+    hasYoutubeKey(): Promise<boolean>
+    setYoutubeKey(key: string): Promise<{ ok: boolean; error?: string }>
+    clearYoutubeKey(): Promise<void>
+    youtubeCandidates(track: Track): Promise<{ items: YoutubeVideo[]; error?: string }>
+    /** Pin a specific video for this song (remembered). null = back to automatic. */
+    youtubeChoose(trackId: string, videoId: string | null): Promise<void>
   }
   update: {
     get(): Promise<UpdateState>
