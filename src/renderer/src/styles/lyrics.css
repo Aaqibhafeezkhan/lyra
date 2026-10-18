@@ -387,5 +387,13 @@
 
 /* word-by-word on the current line: brighter, and no text-shadow (it shows through the transparent glyphs and greys them) */
 .root:not([data-theme='light']) .lyric.is-active .word {
-  --word-dim: rgba(255, 255, 255, 0.58);
+  --word-dim: rgba(255, 255, 255, 0.3);
+}
+
+/* the glow grows with the fill, so the word being sung stands out from the ones already sung and the ones to come */
+.lyric.is-active .word {
+  filter: drop-shadow(0 0 calc(var(--p) * 9px) rgba(255, 255, 255, calc(var(--p) * 0.45)));
+}
+.root:not([data-theme='light']) .lyric.is-active .word {
+  --fg: #fff;
 }
