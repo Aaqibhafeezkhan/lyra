@@ -8,6 +8,7 @@ import './styles/widget.css'
 import './styles/player.css'
 import './styles/lyrics.css'
 import './styles/panels.css'
+import './styles/android.css'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

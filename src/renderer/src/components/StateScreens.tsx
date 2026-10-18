@@ -21,8 +21,33 @@ export function LoadingScreen() {
   )
 }
 
+/** Android: one permission lets Lyra see what any music app is playing. No account, no Spotify login. */
+function AndroidSetup() {
+  return (
+    <div className="screen screen--center">
+      <div className="screen__icon">
+        <Icon name="note" size={26} />
+      </div>
+      <h2 className="screen__title">Let Lyra see what’s playing</h2>
+      <p className="screen__sub">
+        Turn on <strong>Lyra</strong> under “Notification access”. Lyra only reads the now-playing card of your music app (title, artist, position). It never reads your notifications.
+      </p>
+      <div className="screen__actions">
+        <button type="button" className="pill pill--primary" onClick={() => void window.lyra.android?.openAccessSettings()}>
+          Open settings
+        </button>
+      </div>
+    </div>
+  )
+}
+
 /** Spotify sign-in & setup. Guides the user through registering their own Spotify app. */
 export function ConnectScreen() {
+  if (document.documentElement.dataset.platform === 'android') return <AndroidSetup />
+  return <DesktopConnect />
+}
+
+function DesktopConnect() {
   const status = usePlayer((s) => s.status)
   const savedId = useSettings((s) => s.settings.spotifyClientId)
   const [envId, setEnvId] = useState(false)

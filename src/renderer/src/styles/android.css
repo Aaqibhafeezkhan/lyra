@@ -1,0 +1,23 @@
+/* Phone-only tweaks. Everything is scoped to data-platform="android" so the Windows app is unaffected. */
+
+[data-platform='android'] {
+  -webkit-tap-highlight-color: transparent;
+}
+[data-platform='android'] body {
+  overscroll-behavior: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+/* window controls that mean nothing on a phone */
+[data-platform='android'] [aria-label='Minimize'],
+[data-platform='android'] [aria-label='Collapse to widget'],
+[data-platform='android'] [aria-label='Quit Lyra'],
+[data-platform='android'] [aria-label='Resize'],
+[data-platform='android'] .grip {
+  display: none !important;
+}
+/* touch-sized controls */
+[data-platform='android'] .ibtn {
+  min-width: 44px;
+  min-height: 44px;
+}

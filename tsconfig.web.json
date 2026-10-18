@@ -5,5 +5,5 @@
     "skipLibCheck": true, "esModuleInterop": true, "types": ["vite/client"],
     "paths": { "@shared/*": ["./src/shared/*"], "@core/*": ["./src/core/*"], "@/*": ["./src/renderer/src/*"] }
   },
-  "include": ["src/renderer/src/**/*", "src/core/**/*", "src/shared/**/*", "src/preload/*.d.ts"]
+  "include": ["src/renderer/src/**/*", "src/android-web/**/*", "src/core/**/*", "src/shared/**/*", "src/preload/*.d.ts"]
 }

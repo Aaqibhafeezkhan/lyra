@@ -177,6 +177,11 @@ export interface LyraApi {
     install(): Promise<void>
     onState(cb: (s: UpdateState) => void): Unsubscribe
   }
+  /** Only present in the Android app. */
+  android?: {
+    hasAccess(): Promise<boolean>
+    openAccessSettings(): Promise<void>
+  }
   app: {
     info(): Promise<AppInfo>
     /** Plain-text report (versions, settings, recent log) safe to paste into a bug report. */

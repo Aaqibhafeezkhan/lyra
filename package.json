@@ -12,6 +12,8 @@
     "dev": "electron-vite dev",
     "build": "electron-vite build",
     "start": "electron-vite preview",
+    "build:android-ui": "vite build -c vite.android.config.ts",
+    "android:debug": "npm run build:android-ui && cd android && gradlew.bat assembleDebug",
     "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
     "test": "vitest run",
     "build:helper": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-helper.ps1",
