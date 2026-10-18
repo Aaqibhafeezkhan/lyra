@@ -77,21 +77,32 @@ class BackgroundService {
     if (s.backgroundStyle === 'living') return { ...base, spec: living, youtube: 'off' }
     if (s.backgroundStyle === 'custom') return { ...base, spec: songSpec ?? globalSpec ?? living, youtube: 'off' }
 
-    // 'auto' and 'youtube' both consult YouTube; auto prefers the user's own per-song media first
+    // pinned choices first: the user's own file for this song (auto), or the video they picked for it
     if (s.backgroundStyle === 'auto' && songSpec) return { ...base, spec: songSpec, youtube: song?.youtube ? 'pinned' : 'off' }
     if (song?.youtube) return { ...base, spec: ytSpec(song.youtube, 'song'), youtube: 'pinned' }
 
-    const yt = await youtube.find(track)
-    if (yt.state === 'found') return { ...base, spec: ytSpec(yt.video, 'auto'), youtube: 'found' }
-    // free provider: official 30s clip from Apple (no key). A deliberate global background beats it.
-    let fallback: BackgroundSpec = globalSpec ?? living
-    if (!globalSpec || s.backgroundStyle === 'youtube') {
+    const asClip = async (): Promise<BackgroundSpec | null> => {
       const clip = await itunes.find(track)
-      if (clip) fallback = { kind: 'preview', url: clip.url, title: clip.title }
+      return clip ? { kind: 'preview', url: clip.url, title: clip.title } : null
     }
-    if (yt.state === 'none') return { ...base, spec: fallback, youtube: 'none' }
-    if (yt.state === 'no-key') return { ...base, spec: fallback, youtube: 'no-key' }
-    return { ...base, spec: fallback, youtube: 'error', youtubeMessage: yt.message }
+    const yt = (): ReturnType<typeof youtube.find> => youtube.find(track)
+    const report = (r: Awaited<ReturnType<typeof youtube.find>>): Pick<BackgroundResolution, 'youtube' | 'youtubeMessage'> =>
+      r.state === 'error' ? { youtube: 'error', youtubeMessage: r.message } : { youtube: r.state === 'found' ? 'found' : r.state }
+
+    if (s.backgroundStyle === 'youtube') {
+      // "Video": YouTube first, then Apple's clip, then your file, then living artwork
+      const r = await yt()
+      if (r.state === 'found') return { ...base, spec: ytSpec(r.video, 'auto'), youtube: 'found' }
+      return { ...base, spec: (await asClip()) ?? globalSpec ?? living, ...report(r) }
+    }
+
+    // Auto: your global file -> free Apple clip -> YouTube (only with a key) -> living artwork
+    if (globalSpec) return { ...base, spec: globalSpec, youtube: youtube.hasKey() ? 'off' : 'no-key' }
+    const clip = await asClip()
+    if (clip) return { ...base, spec: clip, youtube: youtube.hasKey() ? 'off' : 'no-key' }
+    const r = await yt()
+    if (r.state === 'found') return { ...base, spec: ytSpec(r.video, 'auto'), youtube: 'found' }
+    return { ...base, spec: living, ...report(r) }
   }
 
   /** Let the user choose a file; it is COPIED into Lyra's own folder (nothing outside it is ever read later). */

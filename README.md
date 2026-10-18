@@ -44,7 +44,7 @@ Spotify's own looping "Canvas" videos have no public API, so Lyra offers three l
 2. **Your own file** — a GIF, image, MP4 or WebM, for every song or just one song. Copied into Lyra's folder.
 3. **Official video** — paste a free YouTube Data API v3 key and the official music video plays muted behind the lyrics (cached per song to save quota; pick another video if it guessed wrong).
 
-Auto order: your per-song file → YouTube (if a key is set) → your global file → a free 30 s Apple music-video preview when one exists → living artwork. Videos pause while the window is hidden or reduce-motion is on.
+Auto order: your per-song file → your global file → a free 30 s Apple music-video preview when one exists → YouTube (only if you added a key) → living artwork. Videos pause while the window is hidden or reduce-motion is on.
 
 ## Notes & limits
 - Windows can't blur the desktop behind a transparent window, so "glass" = translucent panel + blurred artwork layer, not true acrylic.

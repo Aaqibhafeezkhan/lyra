@@ -547,3 +547,51 @@
 .srow--actions {
   flex-wrap: wrap;
 }
+
+/* ---------- (i) help bubbles ---------- */
+.info {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  width: 15px;
+  height: 15px;
+  margin-left: 7px;
+  border: 1px solid var(--line-strong, rgba(255, 255, 255, 0.35));
+  border-radius: 50%;
+  font: italic 600 10px/1 Georgia, serif;
+  opacity: 0.6;
+  cursor: help;
+  vertical-align: 1px;
+}
+.info:hover,
+.info:focus-visible {
+  opacity: 1;
+  outline: none;
+}
+.info::after {
+  content: attr(data-tip);
+  position: absolute;
+  left: -10px;
+  top: 22px;
+  z-index: 40;
+  width: 230px;
+  padding: 9px 11px;
+  border-radius: 10px;
+  background: rgba(24, 24, 28, 0.97);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  color: #eee;
+  font: 400 12px/1.4 var(--font);
+  font-style: normal;
+  text-align: left;
+  white-space: normal;
+  opacity: 0;
+  transform: translateY(-3px);
+  pointer-events: none;
+  transition: opacity 0.14s, transform 0.14s;
+}
+.info:hover::after,
+.info:focus-visible::after {
+  opacity: 1;
+  transform: none;
+}

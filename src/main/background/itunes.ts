@@ -60,8 +60,10 @@ class ItunesService {
     const wantA = norm(artist)
     const best = (json.results ?? []).find((r) => {
       if (!r.previewUrl || !HOST_RE.test(r.previewUrl)) return false
-      const t = norm(r.trackName ?? '')
       const a = norm(r.artistName ?? '')
+      // Apple sometimes lists videos as "Artist - Title"
+      let t = norm(r.trackName ?? '')
+      if (a && t.startsWith(a + ' ') && t !== wantT) t = t.slice(a.length).trim()
       return !!wantT && (t === wantT || t.startsWith(wantT) || wantT.startsWith(t)) && !!wantA && (a.includes(wantA) || wantA.includes(a))
     })
     const entry: Entry = { at: Date.now(), url: best?.previewUrl ?? null, title: best ? `${best.trackName} — ${best.artistName}` : '' }

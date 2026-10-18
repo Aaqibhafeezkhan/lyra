@@ -512,3 +512,27 @@ p {
 .backdrop--media .backdrop__blob {
   display: none;
 }
+
+/* living artwork: clearly alive, not just a faint drift */
+.backdrop--alive .backdrop__img {
+  opacity: 0.95;
+  filter: blur(34px) saturate(1.5) brightness(1.1);
+  animation: art-drift 22s ease-in-out infinite alternate;
+}
+.backdrop--alive.backdrop--rich .backdrop__blob {
+  opacity: 0.55;
+}
+.backdrop--alive .backdrop__shade {
+  opacity: 0.55;
+}
+@keyframes art-drift {
+  0% {
+    transform: scale(1) translate3d(0, 0, 0) rotate(0deg);
+  }
+  50% {
+    transform: scale(1.22) translate3d(-5%, 3%, 0) rotate(3deg);
+  }
+  100% {
+    transform: scale(1.12) translate3d(4%, -4%, 0) rotate(-2deg);
+  }
+}

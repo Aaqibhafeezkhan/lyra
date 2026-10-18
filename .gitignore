@@ -10,3 +10,4 @@ dist
 scratch/
 release-st2/
 release-test/
+release_old_*/

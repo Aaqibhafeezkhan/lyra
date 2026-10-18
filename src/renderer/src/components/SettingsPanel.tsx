@@ -8,11 +8,18 @@ import { UpdateRow } from './UpdateRow'
 import { useSettings } from '@/store/settings'
 import { useUi } from '@/store/ui'
 
-function Row({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
+function Row({ label, hint, info, children }: { label: string; hint?: string; info?: string; children: React.ReactNode }) {
   return (
     <div className="srow">
       <div className="srow__label">
-        <span>{label}</span>
+        <span>
+          {label}
+          {info && (
+            <i className="info" tabIndex={0} role="note" aria-label={info} data-tip={info}>
+              i
+            </i>
+          )}
+        </span>
         {hint && <small>{hint}</small>}
       </div>
       <div className="srow__ctl">{children}</div>
@@ -117,7 +124,7 @@ function BackgroundSection() {
   return (
     <section>
       <h4>Background</h4>
-      <Row label="Style" hint="Cinematic mode (and mini player if enabled)">
+      <Row label="Style" info="What plays behind the lyrics in cinematic mode. Auto: your own file, else a free 30 s official clip from Apple, else YouTube (needs your key), else animated cover art. Living: animated cover art only. My file: your own GIF/video. Video: YouTube first. Still: no motion." hint="Cinematic mode (and mini player if enabled)">
         <Segmented
           label="Background style"
           value={s.backgroundStyle}
@@ -131,13 +138,13 @@ function BackgroundSection() {
           ]}
         />
       </Row>
-      <Row label="Dim" hint="Keeps lyrics readable over video">
+      <Row label="Dim" info="Darkens the video so lyrics stay readable. Lower = brighter video." hint="Keeps lyrics readable over video">
         <Slider label="Background dim" value={s.backgroundDim} min={0.2} max={0.9} step={0.02} onChange={(v) => set({ backgroundDim: v })} format={(v) => `${Math.round(v * 100)}%`} />
       </Row>
-      <Row label="Also in mini player">
+      <Row label="Also in mini player" info="Show the animated background in the mini player too, not only in cinematic mode. Uses a little more CPU/GPU.">
         <Toggle label="Animated background in mini player" checked={s.backgroundInMini} onChange={(v) => set({ backgroundInMini: v })} />
       </Row>
-      <Row label="Your file for all songs" hint={s.customBackground ? s.customBackground.name : 'GIF, image, MP4 or WebM · up to 200 MB'}>
+      <Row label="Your file for all songs" info="Pick a GIF, image, MP4 or WebM to use behind every song. A copy is stored in Lyra's folder and never uploaded." hint={s.customBackground ? s.customBackground.name : 'GIF, image, MP4 or WebM · up to 200 MB'}>
         <button type="button" className="pill" disabled={busy} onClick={() => void run(() => window.lyra.background.pick('global'))}>
           {s.customBackground ? 'Change' : 'Choose'}
         </button>
@@ -147,7 +154,7 @@ function BackgroundSection() {
           </button>
         )}
       </Row>
-      <Row label="This song" hint={track ? `${track.title}: a file just for this track` : 'Play a song first'}>
+      <Row label="This song" info="Pick a file used only for the song that is playing now. It beats every other background." hint={track ? `${track.title}: a file just for this track` : 'Play a song first'}>
         <button type="button" className="pill" disabled={busy || !track} onClick={() => track && void run(() => window.lyra.background.pick('song', track.id))}>
           Choose
         </button>
@@ -155,7 +162,7 @@ function BackgroundSection() {
           Remove
         </button>
       </Row>
-      <Row label="YouTube video" hint={hasKey ? 'API key saved (encrypted). Official video plays muted' : 'Optional. Paste a free YouTube Data API v3 key'}>
+      <Row label="YouTube video" info="Optional. A free YouTube Data API v3 key (Google Cloud Console) lets Lyra find the official music video and play it muted. The key is encrypted on this PC. Without it, Lyra uses Apple clips or animated art." hint={hasKey ? 'API key saved (encrypted). Official video plays muted' : 'Optional. Paste a free YouTube Data API v3 key'}>
         {hasKey ? (
           <button
             type="button"
@@ -196,7 +203,7 @@ function BackgroundSection() {
         )}
       </Row>
       {hasKey && track && (
-        <Row label="Wrong video?" hint="Pick another for this song">
+        <Row label="Wrong video?" info="Lyra guesses the official video by title, artist and length. If it picked wrong, choose another here for this song." hint="Pick another for this song">
           <button
             type="button"
             className="pill"
