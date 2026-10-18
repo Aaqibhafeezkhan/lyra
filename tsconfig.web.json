@@ -3,7 +3,7 @@
     "target": "ES2022", "lib": ["ES2022", "DOM", "DOM.Iterable"], "module": "ESNext", "moduleResolution": "Bundler",
     "jsx": "react-jsx", "strict": true, "noUncheckedIndexedAccess": true, "noUnusedLocals": true, "noUnusedParameters": true,
     "skipLibCheck": true, "esModuleInterop": true, "types": ["vite/client"],
-    "paths": { "@shared/*": ["./src/shared/*"], "@/*": ["./src/renderer/src/*"] }
+    "paths": { "@shared/*": ["./src/shared/*"], "@core/*": ["./src/core/*"], "@/*": ["./src/renderer/src/*"] }
   },
-  "include": ["src/renderer/src/**/*", "src/shared/**/*", "src/preload/*.d.ts"]
+  "include": ["src/renderer/src/**/*", "src/core/**/*", "src/shared/**/*", "src/preload/*.d.ts"]
 }

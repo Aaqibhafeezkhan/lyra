@@ -7,10 +7,14 @@ import { favorites } from './favorites'
 import { moments } from './moments'
 import { settings } from './settings'
 import { applyShortcuts, disposeShortcuts } from './shortcuts'
+import { installElectronPlatform } from './platform'
 import { BG_SCHEME, background, registerBackgroundScheme } from './background/service'
 import { createTray } from './tray'
 import { updater } from './updater'
 import { windows } from './window'
+
+// the shared core reaches the OS only through this (fetch, storage, secrets, logging)
+installElectronPlatform()
 
 const log = createLogger('main')
 

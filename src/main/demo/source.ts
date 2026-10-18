@@ -1,6 +1,6 @@
 import type { CommandResult, PlaybackSnapshot, PlayerCommand, QueueItem, RecentItem } from '@shared/types'
 import { PlaybackSource } from '../source'
-import { DEMO_TRACKS } from './data'
+import { DEMO_TRACKS } from '@core/demo/data'
 
 /** Offline playback simulator so the whole UI is usable without Spotify credentials. */
 export class DemoSource extends PlaybackSource {

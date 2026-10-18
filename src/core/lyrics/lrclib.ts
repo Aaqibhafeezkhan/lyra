@@ -1,4 +1,4 @@
-import { app, net } from 'electron'
+import { platform } from '../platform'
 import {
   LyricsProviderError,
   type LyricsCandidate,
@@ -59,8 +59,8 @@ export class LrcLibProvider implements LyricsProvider {
     await this.throttle()
     let res: Response
     try {
-      res = await net.fetch(`${BASE}${path}`, {
-        headers: { 'User-Agent': `Lyra/${app.getVersion()} (https://github.com/DhruvHarani1/lyra)`, Accept: 'application/json' },
+      res = await platform().fetch(`${BASE}${path}`, {
+        headers: { 'User-Agent': `Lyra/${platform().appVersion} (https://github.com/DhruvHarani1/lyra)`, Accept: 'application/json' },
         signal: AbortSignal.any([signal, AbortSignal.timeout(10_000)])
       })
     } catch (e) {

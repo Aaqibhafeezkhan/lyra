@@ -1,10 +1,8 @@
-import { net } from 'electron'
 import type { Track } from '@shared/types'
-import { JsonStore } from '../jsonStore'
-import { createLogger } from '../logger'
+import { logger, platform, type Store } from '../platform'
 import { cleanVideoTitle } from './rank'
 
-const log = createLogger('itunes')
+const log = logger('itunes')
 
 const HIT_TTL = 30 * 24 * 3600_000
 const MISS_TTL = 7 * 24 * 3600_000
@@ -27,10 +25,10 @@ const norm = (s: string): string =>
     .trim()
 
 class ItunesService {
-  private cache: JsonStore<{ entries: Record<string, Entry> }> | null = null
+  private cache: Store<{ entries: Record<string, Entry> }> | null = null
   private inflight = new Map<string, Promise<Entry | null>>()
   private entries(): Record<string, Entry> {
-    return (this.cache ??= new JsonStore<{ entries: Record<string, Entry> }>('itunes-cache.json', { entries: {} })).get().entries
+    return (this.cache ??= platform().store<{ entries: Record<string, Entry> }>('itunes-cache.json', { entries: {} })).get().entries
   }
 
   /** Free, key-less. Returns a short official clip or null. Network failures are not cached. */
@@ -51,7 +49,7 @@ class ItunesService {
     let json: { results?: Array<{ trackName?: string; artistName?: string; previewUrl?: string; trackTimeMillis?: number }> }
     try {
       const q = new URLSearchParams({ term: `${artist} ${track.title}`, entity: 'musicVideo', limit: '8' })
-      const res = await net.fetch(`https://itunes.apple.com/search?${q}`, { signal: AbortSignal.timeout(10_000) })
+      const res = await platform().fetch(`https://itunes.apple.com/search?${q}`, { signal: AbortSignal.timeout(10_000) })
       if (!res.ok) return null
       json = (await res.json()) as typeof json
     } catch (e) {

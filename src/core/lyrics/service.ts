@@ -1,16 +1,11 @@
-import { app } from 'electron'
-import { createHash } from 'node:crypto'
-import { mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs'
-import { join } from 'node:path'
 import { parseLrc, stripLrc } from '@shared/lrc'
 import type { LyricsResult, Track } from '@shared/types'
-import { createLogger } from '../logger'
+import { logger, platform, type BlobCache, type Store } from '../platform'
 import { demoLyrics } from '../demo/lyrics'
 import { LrcLibProvider } from './lrclib'
-import { JsonStore } from '../jsonStore'
 import { LyricsProviderError, type LyricsCandidate, type LyricsProvider, type LyricsQuery } from './provider'
 
-const log = createLogger('lyrics')
+const log = logger('lyrics')
 
 const FOUND_TTL = 30 * 24 * 3600_000
 const NONE_TTL = 12 * 3600_000
@@ -27,24 +22,15 @@ interface Pin {
 }
 
 class LyricsService {
-  private pinStore: JsonStore<{ pins: Record<string, Pin> }> | null = null
+  private pinStore: Store<{ pins: Record<string, Pin> }> | null = null
   private readonly providers: LyricsProvider[] = [new LrcLibProvider()]
   private readonly memory = new Map<string, CacheEntry>()
   private readonly inflight = new Map<string, Promise<LyricsResult>>()
-  private dir: string | null = null
+  private blob: BlobCache | null = null
   private lastCall = 0
 
-  private cacheDir(): string {
-    if (!this.dir) {
-      this.dir = join(app.getPath('userData'), 'lyrics-cache')
-      mkdirSync(this.dir, { recursive: true })
-      this.prune()
-    }
-    return this.dir
-  }
-
-  private fileFor(id: string): string {
-    return join(this.cacheDir(), createHash('sha1').update(id).digest('hex') + '.json')
+  private disk(): BlobCache {
+    return (this.blob ??= platform().blobCache('lyrics-cache', MAX_DISK_ENTRIES))
   }
 
   private readCache(id: string): LyricsResult | null {
@@ -60,7 +46,8 @@ class LyricsService {
 
   private readDisk(id: string): CacheEntry | null {
     try {
-      return JSON.parse(readFileSync(this.fileFor(id), 'utf8')) as CacheEntry
+      const raw = this.disk().read(id)
+      return raw ? (JSON.parse(raw) as CacheEntry) : null
     } catch {
       return null
     }
@@ -71,20 +58,9 @@ class LyricsService {
     const entry = { at: Date.now(), result }
     this.memory.set(id, entry)
     try {
-      writeFileSync(this.fileFor(id), JSON.stringify(entry))
+      this.disk().write(id, JSON.stringify(entry))
     } catch (e) {
       log.warn('cache write failed', e)
-    }
-  }
-
-  private prune(): void {
-    try {
-      const files = readdirSync(this.dir!)
-        .map((f) => ({ f, t: statSync(join(this.dir!, f)).mtimeMs }))
-        .sort((a, b) => b.t - a.t)
-      files.slice(MAX_DISK_ENTRIES).forEach(({ f }) => rmSync(join(this.dir!, f), { force: true }))
-    } catch {
-      /* best effort */
     }
   }
 
@@ -115,7 +91,7 @@ class LyricsService {
   }
 
   private pins(): { pins: Record<string, Pin> } {
-    return (this.pinStore ??= new JsonStore<{ pins: Record<string, Pin> }>('lyrics-pins.json', { pins: {} })).get()
+    return (this.pinStore ??= platform().store<{ pins: Record<string, Pin> }>('lyrics-pins.json', { pins: {} })).get()
   }
 
   private async fetchPinned(trackId: string, pin: Pin): Promise<LyricsResult | null> {
@@ -155,7 +131,7 @@ class LyricsService {
 
   /** Pin a specific provider entry to this track (remembered across restarts). */
   async choose(track: Track, provider: string, id: string): Promise<LyricsResult> {
-    const store = (this.pinStore ??= new JsonStore<{ pins: Record<string, Pin> }>('lyrics-pins.json', { pins: {} }))
+    const store = (this.pinStore ??= platform().store<{ pins: Record<string, Pin> }>('lyrics-pins.json', { pins: {} }))
     store.set({ pins: { ...store.get().pins, [track.id]: { provider, id } } })
     const result = await this.fetchPinned(track.id, { provider, id })
     return result ?? { trackId: track.id, status: 'none', provider, lines: [] }
@@ -163,7 +139,7 @@ class LyricsService {
 
   /** Forget a manual pick and go back to automatic matching. */
   async clearPin(track: Track): Promise<LyricsResult> {
-    const store = (this.pinStore ??= new JsonStore<{ pins: Record<string, Pin> }>('lyrics-pins.json', { pins: {} }))
+    const store = (this.pinStore ??= platform().store<{ pins: Record<string, Pin> }>('lyrics-pins.json', { pins: {} }))
     const pins = { ...store.get().pins }
     delete pins[track.id]
     store.set({ pins })

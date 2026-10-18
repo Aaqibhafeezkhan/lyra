@@ -3,7 +3,7 @@
     "target": "ES2022", "module": "ESNext", "moduleResolution": "Bundler",
     "strict": true, "noUncheckedIndexedAccess": true, "noUnusedLocals": true, "noUnusedParameters": true,
     "skipLibCheck": true, "esModuleInterop": true, "types": ["node"],
-    "paths": { "@shared/*": ["./src/shared/*"] }
+    "paths": { "@shared/*": ["./src/shared/*"], "@core/*": ["./src/core/*"] }
   },
-  "include": ["src/main/**/*", "src/preload/**/*", "src/shared/**/*", "electron.vite.config.ts"]
+  "include": ["src/main/**/*", "src/core/**/*", "src/preload/**/*", "src/shared/**/*", "electron.vite.config.ts"]
 }

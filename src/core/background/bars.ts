@@ -1,27 +1,35 @@
-import { nativeImage, net } from 'electron'
 import type { VideoCrop } from '@shared/types'
-import { createLogger } from '../logger'
+import { logger, platform } from '../platform'
 
-const log = createLogger('thumbcrop')
+const log = logger('thumbcrop')
 const cache = new Map<string, VideoCrop | null>()
 const MAX_BAR = 0.3
+
+/** A decoded image: raw pixels in 4 bytes each, either blue-green-red-alpha or red-green-blue-alpha order. */
+export interface DecodedImage {
+  width: number
+  height: number
+  pixels: Uint8Array | Uint8ClampedArray
+  order: 'bgra' | 'rgba'
+}
 
 /**
  * The YouTube embed is a sealed box we can't read pixels from, but the video's thumbnail is a frame of the same
  * picture. If that frame has black bars (letterbox / pillarbox) at the edges, report how much to trim.
  * Conservative: bars must be symmetric and the picture inside must not itself be dark.
+ *
+ * `decode` is supplied by the host (Electron: nativeImage; Android: a canvas), so this file stays platform-free.
  */
-export async function thumbCrop(videoId: string): Promise<VideoCrop | null> {
+export async function thumbCrop(videoId: string, decode: (bytes: ArrayBuffer) => Promise<DecodedImage | null>): Promise<VideoCrop | null> {
   if (!/^[A-Za-z0-9_-]{11}$/.test(videoId)) return null
   if (cache.has(videoId)) return cache.get(videoId) ?? null
   let crop: VideoCrop | null = null
   try {
     // mqdefault is 16:9 (hqdefault adds its own bars), so any bars we see belong to the video
-    const res = await net.fetch(`https://i.ytimg.com/vi/${videoId}/mqdefault.jpg`, { signal: AbortSignal.timeout(8000) })
+    const res = await platform().fetch(`https://i.ytimg.com/vi/${videoId}/mqdefault.jpg`, { signal: AbortSignal.timeout(8000) })
     if (res.ok) {
-      const img = nativeImage.createFromBuffer(Buffer.from(await res.arrayBuffer()))
-      const { width: W, height: H } = img.getSize()
-      if (W > 0 && H > 0) crop = detect(img.toBitmap(), W, H)
+      const img = await decode(await res.arrayBuffer())
+      if (img && img.width > 0 && img.height > 0) crop = detectBars(img)
     }
   } catch (e) {
     log.warn('thumbnail check failed', (e as Error).message)
@@ -30,10 +38,11 @@ export async function thumbCrop(videoId: string): Promise<VideoCrop | null> {
   return crop
 }
 
-function detect(bgra: Buffer, W: number, H: number): VideoCrop | null {
+export function detectBars({ pixels, width: W, height: H, order }: DecodedImage): VideoCrop | null {
+  const [ri, bi] = order === 'bgra' ? [2, 0] : [0, 2]
   const lum = (x: number, y: number): number => {
     const i = (y * W + x) * 4
-    return (0.2126 * bgra[i + 2]! + 0.7152 * bgra[i + 1]! + 0.0722 * bgra[i]!) / 255
+    return (0.2126 * pixels[i + ri]! + 0.7152 * pixels[i + 1]! + 0.0722 * pixels[i + bi]!) / 255
   }
   const dark = (fixed: number, vertical: boolean): boolean => {
     const n = vertical ? H : W

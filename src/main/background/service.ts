@@ -1,4 +1,5 @@
 import { BrowserWindow, app, dialog, net, protocol } from 'electron'
+import { nativeImage } from 'electron'
 import { createHash } from 'node:crypto'
 import { copyFileSync, createReadStream, existsSync, mkdirSync, readdirSync, rmSync, statSync } from 'node:fs'
 import { extname, join } from 'node:path'
@@ -7,9 +8,9 @@ import type { BackgroundMedia, BackgroundResolution, BackgroundSpec, Track, Yout
 import { JsonStore } from '../jsonStore'
 import { createLogger } from '../logger'
 import { settings } from '../settings'
-import { HOST_RE, itunes } from './itunes'
-import { thumbCrop } from './thumbcrop'
-import { youtube } from './youtube'
+import { thumbCrop } from '@core/background/bars'
+import { HOST_RE } from '@core/background/itunes'
+import { createBackgroundResolver, type SongBg } from '@core/background/resolver'
 
 const log = createLogger('background')
 
@@ -18,11 +19,6 @@ const MAX_BYTES = 200 * 1024 * 1024
 const VIDEO = new Set(['.mp4', '.webm'])
 const IMAGE = new Set(['.gif', '.png', '.jpg', '.jpeg', '.webp', '.apng'])
 const NAME_RE = /^[a-f0-9]{16}\.(mp4|webm|gif|png|jpe?g|webp|apng)$/i
-
-interface SongBg {
-  media?: BackgroundMedia
-  youtube?: YoutubeVideo
-}
 
 /** Must run before app is ready. */
 export function registerBackgroundScheme(): void {
@@ -90,50 +86,21 @@ class BackgroundService {
     return { kind: 'media', url: `${BG_SCHEME}://bg/${m.file}`, media: m.kind, name: m.name, scope }
   }
 
-  async resolve(track: Track): Promise<BackgroundResolution> {
-    const s = settings.get()
-    const song = this.songs()[track.id]
-    const songSpec = song?.media ? this.mediaSpec(song.media, 'song') : null
-    const globalSpec = s.customBackground ? this.mediaSpec(s.customBackground, 'global') : null
-    const base = { hasSongMedia: !!songSpec, hasGlobalMedia: !!globalSpec }
-    const living: BackgroundSpec = { kind: 'living' }
-    const ytSpec = async (v: YoutubeVideo, scope: 'song' | 'auto'): Promise<BackgroundSpec> => ({ kind: 'youtube', videoId: v.videoId, title: v.title, channel: v.channel, durationSec: v.durationSec, crop: await thumbCrop(v.videoId), scope })
+  private readonly resolver = createBackgroundResolver({
+    settings: () => settings.get(),
+    songs: () => this.songs(),
+    mediaSpec: (m, scope) => this.mediaSpec(m, scope),
+    clipUrl: (url) => `${BG_SCHEME}://preview/${Buffer.from(url).toString('base64url')}`,
+    crop: (videoId) =>
+      thumbCrop(videoId, async (bytes) => {
+        const img = nativeImage.createFromBuffer(Buffer.from(bytes))
+        const { width, height } = img.getSize()
+        return width > 0 ? { width, height, pixels: img.toBitmap(), order: 'bgra' as const } : null
+      })
+  })
 
-    if (s.backgroundStyle === 'still') return { ...base, spec: { kind: 'still' }, youtube: 'off' }
-    if (s.backgroundStyle === 'living') return { ...base, spec: living, youtube: 'off' }
-    if (s.backgroundStyle === 'custom') return { ...base, spec: songSpec ?? globalSpec ?? living, youtube: 'off' }
-
-    // pinned choices first: the user's own file for this song (auto), or the video they picked for it
-    if (s.backgroundStyle === 'auto' && songSpec) return { ...base, spec: songSpec, youtube: song?.youtube ? 'pinned' : 'off' }
-    if (song?.youtube) return { ...base, spec: await ytSpec(song.youtube, 'song'), youtube: 'pinned' }
-
-    const asClip = async (): Promise<BackgroundSpec | null> => {
-      const clip = await itunes.find(track)
-      return clip ? { kind: 'preview', url: `${BG_SCHEME}://preview/${Buffer.from(clip.url).toString('base64url')}`, title: clip.title, width: clip.width } : null
-    }
-    const yt = (): ReturnType<typeof youtube.find> => youtube.find(track)
-    const report = (r: Awaited<ReturnType<typeof youtube.find>>): Pick<BackgroundResolution, 'youtube' | 'youtubeMessage'> =>
-      r.state === 'error' ? { youtube: 'error', youtubeMessage: r.message } : { youtube: r.state === 'found' ? 'found' : r.state }
-
-    if (s.backgroundStyle === 'youtube') {
-      // "Video": YouTube first, then Apple's clip, then your file, then living artwork
-      const r = await yt()
-      if (r.state === 'found') return { ...base, spec: await ytSpec(r.video, 'auto'), youtube: 'found' }
-      return { ...base, spec: (await asClip()) ?? globalSpec ?? living, ...report(r) }
-    }
-
-    // Auto: your global file -> free Apple clip -> YouTube (only with a key) -> living artwork
-    if (globalSpec) return { ...base, spec: globalSpec, youtube: youtube.hasKey() ? 'off' : 'no-key' }
-    const clip = await asClip()
-    // a 640p clip looks soft on a big screen: prefer a 1080p YouTube video when the user has a key
-    if (clip && clip.kind === 'preview' && clip.width < 1280 && youtube.hasKey()) {
-      const hd = await yt()
-      if (hd.state === 'found') return { ...base, spec: await ytSpec(hd.video, 'auto'), youtube: 'found' }
-    }
-    if (clip) return { ...base, spec: clip, youtube: youtube.hasKey() ? 'off' : 'no-key' }
-    const r = await yt()
-    if (r.state === 'found') return { ...base, spec: await ytSpec(r.video, 'auto'), youtube: 'found' }
-    return { ...base, spec: living, ...report(r) }
+  resolve(track: Track): Promise<BackgroundResolution> {
+    return this.resolver(track)
   }
 
   /** Let the user choose a file; it is COPIED into Lyra's own folder (nothing outside it is ever read later). */

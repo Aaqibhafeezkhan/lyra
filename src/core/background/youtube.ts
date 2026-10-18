@@ -1,12 +1,8 @@
-import { app, net, safeStorage } from 'electron'
-import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
-import { join } from 'node:path'
 import type { Track, YoutubeVideo } from '@shared/types'
-import { JsonStore } from '../jsonStore'
-import { createLogger } from '../logger'
+import { logger, platform, type Store } from '../platform'
 import { parseIsoDuration, rankVideos, type VideoCandidate } from './rank'
 
-const log = createLogger('youtube')
+const log = logger('youtube')
 
 const API = 'https://www.googleapis.com/youtube/v3'
 const MISS_TTL = 14 * 24 * 3600_000
@@ -27,23 +23,20 @@ export type YoutubeResult =
   | { state: 'error'; message: string }
 
 class YoutubeService {
-  private cache: JsonStore<{ entries: Record<string, Entry> }> | null = null
+  private cache: Store<{ entries: Record<string, Entry> }> | null = null
   private cooldownUntil = 0
   private key: string | null | undefined // undefined = not loaded yet
   private inflight = new Map<string, Promise<YoutubeResult>>()
 
-  private get keyFile(): string {
-    return join(app.getPath('userData'), 'youtube-key.bin')
-  }
   private entries(): Record<string, Entry> {
-    return (this.cache ??= new JsonStore<{ entries: Record<string, Entry> }>('youtube-cache-v2.json', { entries: {} })).get().entries
+    return (this.cache ??= platform().store<{ entries: Record<string, Entry> }>('youtube-cache-v2.json', { entries: {} })).get().entries
   }
 
-  /** The key is encrypted with the OS credential store and is never sent to the renderer. */
+  /** The key is encrypted by the host (never sent to the interface). */
   private loadKey(): string | null {
     if (this.key !== undefined) return this.key
     try {
-      this.key = existsSync(this.keyFile) && safeStorage.isEncryptionAvailable() ? safeStorage.decryptString(readFileSync(this.keyFile)) : null
+      this.key = platform().secret('youtube-key').load()
     } catch {
       this.key = null
     }
@@ -56,17 +49,18 @@ class YoutubeService {
   async setKey(raw: string): Promise<{ ok: boolean; error?: string }> {
     const key = raw.trim()
     if (!/^[A-Za-z0-9_-]{20,80}$/.test(key)) return { ok: false, error: 'That doesn’t look like a YouTube API key (letters, numbers, - and _ only).' }
-    if (!safeStorage.isEncryptionAvailable()) return { ok: false, error: 'Windows secure storage isn’t available, so the key can’t be saved safely.' }
+    const secret = platform().secret('youtube-key')
+    if (!secret.available()) return { ok: false, error: 'Secure storage isn’t available on this device, so the key can’t be saved safely.' }
     // cheapest possible call (1 quota unit) to prove the key works
     const probe = await this.call('videos', { part: 'id', id: 'dQw4w9WgXcQ' }, key)
     if (!probe.ok) return { ok: false, error: probe.message }
-    writeFileSync(this.keyFile, safeStorage.encryptString(key))
+    secret.save(key)
     this.key = key
     this.cooldownUntil = 0
     return { ok: true }
   }
   clearKey(): void {
-    rmSync(this.keyFile, { force: true })
+    platform().secret('youtube-key').clear()
     this.key = null
   }
 
@@ -74,7 +68,7 @@ class YoutubeService {
     const url = `${API}/${path}?${new URLSearchParams({ ...params, key })}`
     let res: Response
     try {
-      res = await net.fetch(url, { signal: AbortSignal.timeout(12_000) })
+      res = await platform().fetch(url, { signal: AbortSignal.timeout(12_000) })
     } catch (e) {
       return { ok: false, message: `Couldn’t reach YouTube: ${(e as Error).message}` }
     }
