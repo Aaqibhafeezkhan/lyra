@@ -384,3 +384,8 @@
 .linkbtn:hover {
   color: var(--fg);
 }
+
+/* word-by-word on the current line: brighter, and no text-shadow (it shows through the transparent glyphs and greys them) */
+.root:not([data-theme='light']) .lyric.is-active .word {
+  --word-dim: rgba(255, 255, 255, 0.58);
+}

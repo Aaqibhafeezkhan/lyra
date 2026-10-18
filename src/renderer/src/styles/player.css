@@ -699,3 +699,10 @@
   backdrop-filter: none;
   overflow: hidden;
 }
+
+/* readability shadow as a drop-shadow so it works with the word fill and never dims the text */
+.full.is-cinema .lyric__text,
+[data-bg-media='mini'] .mini__lyrics .lyric__text {
+  text-shadow: none;
+  filter: drop-shadow(0 2px 10px rgba(0, 0, 0, 0.65));
+}
