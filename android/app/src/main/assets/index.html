@@ -1,0 +1,21 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    html, body { margin: 0; height: 100%; background: #0b0b10; color: #fff; font-family: system-ui, sans-serif; }
+    body { display: grid; place-items: center; text-align: center; }
+    h1 { font-size: 34px; letter-spacing: -0.03em; margin: 0 0 6px; }
+    p { margin: 4px 0; color: #aab; }
+  </style>
+</head>
+<body>
+  <div>
+    <h1>Hello Lyra</h1>
+    <p>Android shell is running.</p>
+    <p id="ua"></p>
+  </div>
+  <script>document.getElementById('ua').textContent = navigator.userAgent.split(') ')[0].replace('Mozilla/5.0 (', '')</script>
+</body>
+</html>

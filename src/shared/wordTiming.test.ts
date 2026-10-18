@@ -12,6 +12,8 @@ describe('syllables', () => {
     expect(syllables('little')).toBe(2)
     expect(syllables('oh,')).toBe(1)
     expect(syllables('2am')).toBe(1)
+    expect(syllables('ਸੋਹਣਿਆਂ')).toBe(4) // Gurmukhi: 4 base letters
+    expect(syllables('ਤੇ')).toBe(1)
   })
 })
 

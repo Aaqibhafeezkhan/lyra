@@ -10,6 +10,9 @@ import type { LyricLine, LyricWord } from './types'
 
 /** Rough English syllable count (vowel groups, minus silent final "e"). Non-words (digits, symbols) count as one. */
 export function syllables(word: string): number {
+  // Indic scripts, Arabic, CJK...: each base letter carries about one syllable (vowel signs are separate marks)
+  const letters = word.replace(/[^\p{L}]/gu, '')
+  if (letters && !/[a-z]/i.test(letters)) return Math.max(1, [...letters].length)
   const w = word.toLowerCase().replace(/[^a-z']/g, '')
   if (!w) return 1
   let n = (w.replace(/'/g, '').match(/[aeiouy]+/g) ?? []).length
