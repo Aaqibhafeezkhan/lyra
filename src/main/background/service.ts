@@ -8,6 +8,7 @@ import { JsonStore } from '../jsonStore'
 import { createLogger } from '../logger'
 import { settings } from '../settings'
 import { HOST_RE, itunes } from './itunes'
+import { thumbCrop } from './thumbcrop'
 import { youtube } from './youtube'
 
 const log = createLogger('background')
@@ -96,7 +97,7 @@ class BackgroundService {
     const globalSpec = s.customBackground ? this.mediaSpec(s.customBackground, 'global') : null
     const base = { hasSongMedia: !!songSpec, hasGlobalMedia: !!globalSpec }
     const living: BackgroundSpec = { kind: 'living' }
-    const ytSpec = (v: YoutubeVideo, scope: 'song' | 'auto'): BackgroundSpec => ({ kind: 'youtube', videoId: v.videoId, title: v.title, channel: v.channel, durationSec: v.durationSec, scope })
+    const ytSpec = async (v: YoutubeVideo, scope: 'song' | 'auto'): Promise<BackgroundSpec> => ({ kind: 'youtube', videoId: v.videoId, title: v.title, channel: v.channel, durationSec: v.durationSec, crop: await thumbCrop(v.videoId), scope })
 
     if (s.backgroundStyle === 'still') return { ...base, spec: { kind: 'still' }, youtube: 'off' }
     if (s.backgroundStyle === 'living') return { ...base, spec: living, youtube: 'off' }
@@ -104,7 +105,7 @@ class BackgroundService {
 
     // pinned choices first: the user's own file for this song (auto), or the video they picked for it
     if (s.backgroundStyle === 'auto' && songSpec) return { ...base, spec: songSpec, youtube: song?.youtube ? 'pinned' : 'off' }
-    if (song?.youtube) return { ...base, spec: ytSpec(song.youtube, 'song'), youtube: 'pinned' }
+    if (song?.youtube) return { ...base, spec: await ytSpec(song.youtube, 'song'), youtube: 'pinned' }
 
     const asClip = async (): Promise<BackgroundSpec | null> => {
       const clip = await itunes.find(track)
@@ -117,7 +118,7 @@ class BackgroundService {
     if (s.backgroundStyle === 'youtube') {
       // "Video": YouTube first, then Apple's clip, then your file, then living artwork
       const r = await yt()
-      if (r.state === 'found') return { ...base, spec: ytSpec(r.video, 'auto'), youtube: 'found' }
+      if (r.state === 'found') return { ...base, spec: await ytSpec(r.video, 'auto'), youtube: 'found' }
       return { ...base, spec: (await asClip()) ?? globalSpec ?? living, ...report(r) }
     }
 
@@ -126,7 +127,7 @@ class BackgroundService {
     const clip = await asClip()
     if (clip) return { ...base, spec: clip, youtube: youtube.hasKey() ? 'off' : 'no-key' }
     const r = await yt()
-    if (r.state === 'found') return { ...base, spec: ytSpec(r.video, 'auto'), youtube: 'found' }
+    if (r.state === 'found') return { ...base, spec: await ytSpec(r.video, 'auto'), youtube: 'found' }
     return { ...base, spec: living, ...report(r) }
   }
 

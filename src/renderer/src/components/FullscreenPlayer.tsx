@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { usePlayerView } from '@/hooks/usePlayerView'
 import { joinArtists } from '@/lib/format'
+import { useBgState } from '@/store/bgState'
 import { usePlayer } from '@/store/player'
 import { requestMode, useUi } from '@/store/ui'
 import { Artwork } from './Artwork'
@@ -8,6 +9,7 @@ import { IconButton, Transport, VolumeControl, useCaps } from './Controls'
 import { LyricsView } from './LyricsView'
 import { LikeButton } from './MiniPlayer'
 import { ProgressBar } from './ProgressBar'
+import { VideoPicker } from './VideoPicker'
 import { ConnectScreen, LoadingScreen, NoMusicScreen, OfflineBanner, OfflineScreen } from './StateScreens'
 
 /** Hide chrome and the cursor after a few seconds without mouse movement. */
@@ -46,12 +48,16 @@ export function FullscreenPlayer() {
   const toggleDf = useUi((s) => s.toggleDistractionFree)
 
   const quiet = idle && panel === 'none'
+  // cinema layout: a video is playing, so get the UI out of its way
+  const cinema = useBgState((s) => s.media === 'full')
+  const ytVideo = useBgState((s) => s.kind === 'youtube')
 
   return (
-    <div className={`full ${quiet ? 'is-idle' : ''} ${df ? 'is-df' : ''}`}>
+    <div className={`full ${quiet ? 'is-idle' : ''} ${df ? 'is-df' : ''} ${cinema ? 'is-cinema' : ''}`}>
       <header className="full__top">
         <span className="full__device">{device ? `Playing on ${device.name}` : 'Lyra'}</span>
         <div className="full__tools">
+          {cinema && ytVideo && <VideoPicker />}
           <IconButton icon="type" label="Distraction-free: artwork and lyrics only" active={df} onClick={toggleDf} />
           {caps.queue && <IconButton icon="queue" label="Queue" active={panel === 'queue'} onClick={() => togglePanel('queue')} />}
           <IconButton icon="bookmark" label="Saved lyric moments" active={panel === 'moments'} onClick={() => togglePanel('moments')} />
@@ -63,7 +69,7 @@ export function FullscreenPlayer() {
       {view === 'playing' && track ? (
         <div className="full__body">
           <aside className="full__side">
-            <Artwork url={track.artworkUrl} size="min(34vw, 46vh, 460px)" radius={18} className="artwork--lift" />
+            <Artwork url={track.artworkUrl} size={cinema ? 'clamp(84px, 12vh, 124px)' : 'min(34vw, 46vh, 460px)'} radius={cinema ? 14 : 18} className="artwork--lift" />
             <div className="full__chrome">
               <div className="full__titlerow">
                 <div className="full__titles">

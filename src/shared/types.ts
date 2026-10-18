@@ -174,11 +174,18 @@ export interface YoutubeVideo {
   durationSec: number | null
 }
 
+/** fractions (0-0.3) of black bars to trim from each edge of a video */
+export interface VideoCrop {
+  t: number
+  r: number
+  b: number
+  l: number
+}
 export type BackgroundSpec =
   | { kind: 'living' }
   | { kind: 'still' }
   | { kind: 'media'; url: string; media: 'video' | 'image'; name: string; scope: 'song' | 'global' }
-  | { kind: 'youtube'; videoId: string; title: string; channel: string; durationSec: number | null; scope: 'song' | 'auto' }
+  | { kind: 'youtube'; videoId: string; title: string; channel: string; durationSec: number | null; crop: VideoCrop | null; scope: 'song' | 'auto' }
   /** free 30s music-video preview from Apple's public iTunes Search API (no key needed) */
   | { kind: 'preview'; url: string; title: string }
 

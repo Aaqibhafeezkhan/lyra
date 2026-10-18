@@ -575,6 +575,7 @@ p {
   overflow: hidden;
 }
 .backdrop__yt {
+  position: absolute;
   inset: auto;
   left: 50%;
   top: 50%;
@@ -600,4 +601,22 @@ p {
   background:
     radial-gradient(130% 90% at 50% 30%, transparent 50%, rgba(0, 0, 0, 0.3)),
     linear-gradient(180deg, rgba(0, 0, 0, 0.3), transparent 28%, transparent 42%, rgba(0, 0, 0, 0.42));
+}
+
+.backdrop--rich .backdrop__grade {
+  background:
+    linear-gradient(0deg, rgba(0, 0, 0, 0.5), transparent 32%),
+    linear-gradient(180deg, rgba(0, 0, 0, 0.34), transparent 20%),
+    linear-gradient(90deg, rgba(0, 0, 0, 0) 18%, rgba(0, 0, 0, 0.3) 52%, rgba(0, 0, 0, 0.58) 100%);
+}
+
+/* full screen: brighter picture, lighter scrim */
+.backdrop--rich .backdrop__media {
+  filter: brightness(1.22) saturate(1.25) contrast(1.06);
+}
+.backdrop--rich .backdrop__grade {
+  background:
+    linear-gradient(0deg, rgba(0, 0, 0, 0.42), transparent 30%),
+    linear-gradient(180deg, rgba(0, 0, 0, 0.3), transparent 18%),
+    linear-gradient(90deg, rgba(0, 0, 0, 0) 18%, rgba(0, 0, 0, 0.26) 52%, rgba(0, 0, 0, 0.5) 100%);
 }

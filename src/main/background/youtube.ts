@@ -36,7 +36,7 @@ class YoutubeService {
     return join(app.getPath('userData'), 'youtube-key.bin')
   }
   private entries(): Record<string, Entry> {
-    return (this.cache ??= new JsonStore<{ entries: Record<string, Entry> }>('youtube-cache.json', { entries: {} })).get().entries
+    return (this.cache ??= new JsonStore<{ entries: Record<string, Entry> }>('youtube-cache-v2.json', { entries: {} })).get().entries
   }
 
   /** The key is encrypted with the OS credential store and is never sent to the renderer. */
@@ -107,7 +107,7 @@ class YoutubeService {
     const artist = track.artists[0] ?? ''
     const s = await this.call(
       'search',
-      { part: 'snippet', type: 'video', videoEmbeddable: 'true', videoCategoryId: '10', maxResults: '6', q: `${artist} ${track.title} official video` },
+      { part: 'snippet', type: 'video', videoEmbeddable: 'true', videoCategoryId: '10', maxResults: '6', q: `${artist} ${track.title} official music video -lyrics` },
       key
     )
     if (!s.ok) {

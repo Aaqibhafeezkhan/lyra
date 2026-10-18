@@ -5,6 +5,7 @@ import { useArtwork } from '@/hooks/useArtwork'
 import { useBackground } from '@/hooks/useBackground'
 import { useReducedMotion } from '@/hooks/useMotion'
 import { getPosition, usePlayer } from '@/store/player'
+import { useBgState } from '@/store/bgState'
 import { useSettings } from '@/store/settings'
 
 /** True while the window is actually on screen (not minimised / fully covered). */
@@ -199,7 +200,7 @@ function YoutubeLayer({ spec, run, onFail }: { spec: Extract<BackgroundSpec, { k
   const frame = useRef<HTMLIFrameElement>(null)
   const wrap = useRef<HTMLDivElement>(null)
   const [ready, setReady] = useState(false)
-  const [scale, setScale] = useState(1)
+  const [xf, setXf] = useState('translate(-50%, -50%) scale(1)')
   const onFailRef = useRef(onFail)
   onFailRef.current = onFail
   const timer = useRef(0)
@@ -218,10 +219,19 @@ function YoutubeLayer({ spec, run, onFail }: { spec: Extract<BackgroundSpec, { k
   useEffect(() => {
     const el = wrap.current
     if (!el) return
-    const ro = new ResizeObserver(() => setScale(Math.max(el.clientWidth / 1920, el.clientHeight / 1080) * 1.16))
+    // trim the video's own black bars (found from its thumbnail), then scale to cover with a little extra to hide the player's edge UI
+    const c = spec.crop ?? { t: 0, r: 0, b: 0, l: 0 }
+    const aw = 1 - c.l - c.r
+    const ah = 1 - c.t - c.b
+    const ro = new ResizeObserver(() => {
+      const k = Math.max(el.clientWidth / (1920 * aw), el.clientHeight / (1080 * ah)) * 1.1
+      const dx = ((c.l - c.r) / 2) * 1920 * k
+      const dy = ((c.t - c.b) / 2) * 1080 * k
+      setXf(`translate(calc(-50% - ${dx}px), calc(-50% - ${dy}px)) scale(${k})`)
+    })
     ro.observe(el)
     return () => ro.disconnect()
-  }, [])
+  }, [spec.crop])
 
   useEffect(() => {
     setReady(false)
@@ -264,7 +274,7 @@ function YoutubeLayer({ spec, run, onFail }: { spec: Extract<BackgroundSpec, { k
         ref={frame}
         className="backdrop__yt"
         data-ready={ready || undefined}
-        style={{ transform: `translate(-50%, -50%) scale(${scale})` }}
+        style={{ transform: xf }}
         src={src}
         title="Background video"
         allow="autoplay; encrypted-media"
@@ -316,10 +326,12 @@ export function Backdrop({ rich = false, animated = false }: { rich?: boolean; a
   useEffect(() => {
     if (hasMedia) document.documentElement.dataset.bgMedia = rich ? 'full' : 'mini'
     else delete document.documentElement.dataset.bgMedia
+    useBgState.getState().set({ media: hasMedia ? (rich ? 'full' : 'mini') : 'none', kind: hasMedia ? (spec?.kind ?? null) : null })
     return () => {
       delete document.documentElement.dataset.bgMedia
+      useBgState.getState().set({ media: 'none', kind: null })
     }
-  }, [hasMedia, rich])
+  }, [hasMedia, rich, spec?.kind])
 
   // gentle parallax: the picture drifts against the cursor
   useEffect(() => {
@@ -342,8 +354,8 @@ export function Backdrop({ rich = false, animated = false }: { rich?: boolean; a
   }, [hasMedia])
 
   // dim: your slider is the base; the auto part lifts it for bright scenes and eases it for dark ones
-  const base = rich ? dim : dim * 0.78
-  const factor = autoDim && isVideoFile ? Math.min(1.45, Math.max(0.6, 0.62 + stats.luma * 1.5)) : 1
+  const base = rich ? dim * 0.8 : dim * 0.78
+  const factor = autoDim && isVideoFile ? Math.min(1.45, Math.max(0.6, 0.62 + stats.luma * 1.5)) : isYt ? 0.7 : 1
   const dimNow = Math.min(0.9, Math.max(0.1, base * factor)) + (playing ? 0 : 0.12)
 
   return (

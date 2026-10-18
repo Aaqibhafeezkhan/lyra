@@ -16,7 +16,7 @@ export interface Wanted {
   durationMs: number
 }
 
-const BAD = /\b(lyrics?|lyrical|audio|cover|karaoke|reaction|remix|slowed|reverb|8d|nightcore|instrumental|tutorial|status|shorts?|mashup|sped\s*up|reprise)\b/i
+const BAD = /\b(lyrics?|lyrical|audio|cover|karaoke|reaction|remix|slowed|reverb|8d|nightcore|instrumental|tutorial|status|shorts?|mashup|sped\s*up|reprise|visuali[sz]er|live|concert|fan\s*made|fanmade|edit|animated|amv|mv\s*reaction|full\s*album|playlist|compilation)\b/i
 const GOOD = /\b(official|vevo|music video|video song|full video|official video)\b/i
 
 /** Remove "(Official Video)", "[HD]", "| T-Series" style noise so the song name is comparable. */
@@ -51,7 +51,15 @@ export function scoreVideo(want: Wanted, v: VideoCandidate): { score: number; ac
     const diff = Math.abs(v.durationSec - want.durationMs / 1000)
     score += diff <= 20 ? 0.2 : diff <= 60 ? 0.1 : diff > 150 ? -0.2 : 0
   }
-  return { score, acceptable: titleSim >= 0.6 && artistHit && score >= 0.55 }
+  // Auto-play only when it is clearly the official video: an "official"-style title, or the artist's own / VEVO channel.
+  // Auto-generated "- Topic" channels are a still image, and lyric/audio/live uploads often have burned-in text.
+  const chan = normalize(v.channel)
+  const ownChannel = artists.some((a) => chan.length > 0 && (chan.includes(a) || a.includes(chan)))
+  const official = GOOD.test(v.title) || ownChannel || /vevo/i.test(v.channel)
+  const topic = /\btopic$/i.test(v.channel.trim())
+  const variant = BAD.test(v.title) && !BAD.test(want.title)
+  if (topic) score -= 0.4
+  return { score, acceptable: titleSim >= 0.6 && artistHit && official && !topic && !variant && score >= 0.62 }
 }
 
 /** Best-first. `acceptable` ones are safe to auto-play; the rest only appear in the "pick one" list. */

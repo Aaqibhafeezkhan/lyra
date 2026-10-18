@@ -40,6 +40,22 @@ describe('rankVideos', () => {
   })
 })
 
+describe('auto-accept is strict', () => {
+  const want = { title: 'Barsaat', artist: 'Banjaare', durationMs: 185_000 }
+  it('rejects lyric videos even from a plausible channel', () => {
+    expect(rankVideos(want, [v('l', 'Banjaare - Barsaat (Lyric Video)', 'Banjaare', 185)])[0]!.acceptable).toBe(false)
+  })
+  it('rejects auto-generated Topic channels', () => {
+    expect(rankVideos(want, [v('t', 'Barsaat', 'Banjaare - Topic', 185)])[0]!.acceptable).toBe(false)
+  })
+  it('rejects live uploads', () => {
+    expect(rankVideos(want, [v('x', 'Banjaare - Barsaat (Live at Wembley)', 'Banjaare', 185)])[0]!.acceptable).toBe(false)
+  })
+  it('accepts an official upload from the artist channel', () => {
+    expect(rankVideos(want, [v('o', 'Banjaare - Barsaat (Official Video)', 'Banjaare', 186)])[0]!.acceptable).toBe(true)
+  })
+})
+
 describe('parseIsoDuration', () => {
   it('parses common shapes', () => {
     expect(parseIsoDuration('PT3M5S')).toBe(185)
