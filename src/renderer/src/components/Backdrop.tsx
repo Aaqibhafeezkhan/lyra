@@ -354,7 +354,7 @@ export function Backdrop({ rich = false, animated = false }: { rich?: boolean; a
   }, [hasMedia])
 
   // dim: your slider is the base; the auto part lifts it for bright scenes and eases it for dark ones
-  const base = rich ? dim * 0.8 : dim * 0.6
+  const base = rich ? dim * 0.8 : dim * 0.3
   const factor = autoDim && isVideoFile ? Math.min(1.45, Math.max(0.6, 0.62 + stats.luma * 1.5)) : isYt ? 0.7 : 1
   const dimNow = Math.min(0.9, Math.max(0.1, base * factor)) + (playing ? 0 : 0.12)
 

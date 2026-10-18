@@ -68,7 +68,7 @@ export function MiniPlayer() {
           )}
           <div className="mini__card">
           <div className="mini__info">
-            {videoBehind && <Artwork url={track.artworkUrl} size="76px" radius={12} className="artwork--lift" />}
+            {videoBehind && <Artwork url={track.artworkUrl} size="58px" radius={11} className="artwork--lift" />}
             <div className="mini__text">
               <h1 title={track.title}>
                 {track.title}

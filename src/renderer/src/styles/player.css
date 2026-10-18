@@ -655,3 +655,47 @@
   gap: 8px;
   min-width: 0;
 }
+
+/* ================= mini v2: the video is the star ================= */
+/* no boxes: the picture shows through; only a soft dark fade at the bottom keeps text readable */
+[data-bg-media='mini'] .mini {
+  padding: 0 18px 12px;
+}
+[data-bg-media='mini'] .mini__card {
+  margin-top: auto;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+[data-bg-media='mini'] .mini__card .mini__text h1,
+[data-bg-media='mini'] .mini__card .mini__text p,
+[data-bg-media='mini'] .mini__device,
+[data-bg-media='mini'] .mini__lyrics .lyric__text {
+  text-shadow:
+    0 1px 14px rgba(0, 0, 0, 0.7),
+    0 0 2px rgba(0, 0, 0, 0.5);
+}
+[data-bg-media='mini'] .mini__volume {
+  display: none;
+}
+[data-bg-media='mini'] .mini__transport {
+  margin-top: 0;
+}
+[data-bg-media='mini'] .mini__lyrics {
+  flex: 0 0 auto;
+  height: clamp(150px, 26vh, 210px);
+  min-height: 0;
+  margin: 4px 0 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  overflow: hidden;
+}
