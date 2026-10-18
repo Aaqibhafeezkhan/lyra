@@ -1,6 +1,7 @@
 import { usePlayerView } from '@/hooks/usePlayerView'
 import { useWindowDrag } from '@/hooks/useWindowDrag'
 import { joinArtists } from '@/lib/format'
+import { useBgState } from '@/store/bgState'
 import { usePlayer } from '@/store/player'
 import { requestMode, useUi } from '@/store/ui'
 import { Artwork } from './Artwork'
@@ -38,6 +39,7 @@ export function MiniPlayer() {
   const togglePanel = useUi((s) => s.togglePanel)
   const drag = useWindowDrag()
   const caps = useCaps()
+  const videoBehind = useBgState((x) => x.media === 'mini')
 
   return (
     <div className="mini">
@@ -59,11 +61,14 @@ export function MiniPlayer() {
       {view === 'playing' && track ? (
         <>
           <OfflineBanner />
-          <div className="mini__art" {...drag}>
-            <Artwork url={track.artworkUrl} size="min(232px, 31vh)" radius={14} className="artwork--lift" />
-          </div>
+          {!videoBehind && (
+            <div className="mini__art" {...drag}>
+              <Artwork url={track.artworkUrl} size="min(232px, 31vh)" radius={14} className="artwork--lift" />
+            </div>
+          )}
           <div className="mini__card">
           <div className="mini__info">
+            {videoBehind && <Artwork url={track.artworkUrl} size="76px" radius={12} className="artwork--lift" />}
             <div className="mini__text">
               <h1 title={track.title}>
                 {track.title}

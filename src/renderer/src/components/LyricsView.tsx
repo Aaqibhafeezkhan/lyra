@@ -368,8 +368,10 @@ function LyricsFooter({ result }: { result: LyricsResult }) {
       <span className="lyrics__source">
         <span title={m ? `Matched “${m.title}” by ${m.artist}` : undefined}>
           {providerName}
-          {synced ? (result.wordSynced ? ' · word-synced' : ' · line-synced') : ' · plain text'}
-          {result.pinned ? ' · your pick' : ''}
+          <span className="lyrics__kind">
+            {synced ? (result.wordSynced ? ' · word-synced' : ' · line-synced') : ' · plain text'}
+            {result.pinned ? ' · your pick' : ''}
+          </span>
         </span>
         {result.provider !== 'demo' && (
           <button type="button" className="linkbtn" onClick={() => togglePanel('lyrics')}>

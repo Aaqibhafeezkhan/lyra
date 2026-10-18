@@ -109,7 +109,7 @@ class BackgroundService {
 
     const asClip = async (): Promise<BackgroundSpec | null> => {
       const clip = await itunes.find(track)
-      return clip ? { kind: 'preview', url: `${BG_SCHEME}://preview/${Buffer.from(clip.url).toString('base64url')}`, title: clip.title } : null
+      return clip ? { kind: 'preview', url: `${BG_SCHEME}://preview/${Buffer.from(clip.url).toString('base64url')}`, title: clip.title, width: clip.width } : null
     }
     const yt = (): ReturnType<typeof youtube.find> => youtube.find(track)
     const report = (r: Awaited<ReturnType<typeof youtube.find>>): Pick<BackgroundResolution, 'youtube' | 'youtubeMessage'> =>
@@ -125,6 +125,11 @@ class BackgroundService {
     // Auto: your global file -> free Apple clip -> YouTube (only with a key) -> living artwork
     if (globalSpec) return { ...base, spec: globalSpec, youtube: youtube.hasKey() ? 'off' : 'no-key' }
     const clip = await asClip()
+    // a 640p clip looks soft on a big screen: prefer a 1080p YouTube video when the user has a key
+    if (clip && clip.kind === 'preview' && clip.width < 1280 && youtube.hasKey()) {
+      const hd = await yt()
+      if (hd.state === 'found') return { ...base, spec: await ytSpec(hd.video, 'auto'), youtube: 'found' }
+    }
     if (clip) return { ...base, spec: clip, youtube: youtube.hasKey() ? 'off' : 'no-key' }
     const r = await yt()
     if (r.state === 'found') return { ...base, spec: await ytSpec(r.video, 'auto'), youtube: 'found' }

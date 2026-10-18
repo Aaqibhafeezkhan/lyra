@@ -187,7 +187,7 @@ export type BackgroundSpec =
   | { kind: 'media'; url: string; media: 'video' | 'image'; name: string; scope: 'song' | 'global' }
   | { kind: 'youtube'; videoId: string; title: string; channel: string; durationSec: number | null; crop: VideoCrop | null; scope: 'song' | 'auto' }
   /** free 30s music-video preview from Apple's public iTunes Search API (no key needed) */
-  | { kind: 'preview'; url: string; title: string }
+  | { kind: 'preview'; url: string; title: string; width: number }
 
 export interface BackgroundResolution {
   spec: BackgroundSpec
