@@ -15,20 +15,19 @@ interface LyricsStore {
 let requestSeq = 0
 let retryTimer: ReturnType<typeof setTimeout> | undefined
 let autoRetries = 0
-const MAX_AUTO_RETRIES = 3
+const MAX_RETRY_DELAY_MS = 120_000
 
-/** Temporary failures (rate limit, offline) heal themselves: retry a few times with growing delay. */
+/** Temporary failures (rate limit, offline) heal themselves: keep retrying (20 s, 40 s, 60 s … at most every 2 min) until the lyrics load or the song changes. */
 function scheduleRetry(track: Track, failed: boolean, set: (s: LyricsState) => void): void {
   clearTimeout(retryTimer)
   if (!failed) {
     autoRetries = 0
     return
   }
-  if (autoRetries >= MAX_AUTO_RETRIES) return
   autoRetries++
   retryTimer = setTimeout(() => {
     if (usePlayer.getState().snapshot?.track?.id === track.id) void load(track, true, set)
-  }, 20_000 * autoRetries)
+  }, Math.min(20_000 * autoRetries, MAX_RETRY_DELAY_MS))
 }
 
 async function load(track: Track, force: boolean, set: (s: LyricsState) => void): Promise<void> {
@@ -52,10 +51,11 @@ async function load(track: Track, force: boolean, set: (s: LyricsState) => void)
         error: { kind: 'unknown', message: (e as Error).message, retryable: true }
       }
     })
+    scheduleRetry(track, true, set)
   }
 }
 
-export const useLyrics = create<LyricsStore>((set) => ({
+export const useLyrics = create<LyricsStore>((set, get) => ({
   state: { phase: 'idle' },
 
   init() {
@@ -73,6 +73,15 @@ export const useLyrics = create<LyricsStore>((set) => ({
     }
     usePlayer.subscribe(check)
     check()
+    // back online: don't wait for the next timer
+    window.addEventListener('online', () => {
+      const track = usePlayer.getState().snapshot?.track
+      const cur = get().state
+      if (track && cur.phase === 'ready' && cur.result.status === 'error') {
+        clearTimeout(retryTimer)
+        void load(track, true, setState)
+      }
+    })
   },
 
   apply(result) {
