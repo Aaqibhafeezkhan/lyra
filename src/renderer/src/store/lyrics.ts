@@ -15,9 +15,9 @@ interface LyricsStore {
 let requestSeq = 0
 let retryTimer: ReturnType<typeof setTimeout> | undefined
 let autoRetries = 0
-const MAX_RETRY_DELAY_MS = 120_000
+const RETRY_DELAY_MS = 5_000
 
-/** Temporary failures (rate limit, offline) heal themselves: keep retrying (20 s, 40 s, 60 s … at most every 2 min) until the lyrics load or the song changes. */
+/** Temporary failures (rate limit, offline) heal themselves: keep retrying every 5 s until the lyrics load or the song changes. */
 function scheduleRetry(track: Track, failed: boolean, set: (s: LyricsState) => void): void {
   clearTimeout(retryTimer)
   if (!failed) {
@@ -27,7 +27,7 @@ function scheduleRetry(track: Track, failed: boolean, set: (s: LyricsState) => v
   autoRetries++
   retryTimer = setTimeout(() => {
     if (usePlayer.getState().snapshot?.track?.id === track.id) void load(track, true, set)
-  }, Math.min(20_000 * autoRetries, MAX_RETRY_DELAY_MS))
+  }, RETRY_DELAY_MS)
 }
 
 async function load(track: Track, force: boolean, set: (s: LyricsState) => void): Promise<void> {
