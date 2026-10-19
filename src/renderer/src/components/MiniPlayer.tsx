@@ -1,3 +1,4 @@
+import { useIdle } from '@/hooks/useIdle'
 import { usePlayerView } from '@/hooks/usePlayerView'
 import { useWindowDrag } from '@/hooks/useWindowDrag'
 import { joinArtists } from '@/lib/format'
@@ -40,9 +41,11 @@ export function MiniPlayer() {
   const drag = useWindowDrag()
   const caps = useCaps()
   const videoBehind = useBgState((x) => x.media === 'mini')
+  // with a video behind it, the header / title / controls fade away after a few seconds and return on touch
+  const idle = useIdle(4000)
 
   return (
-    <div className="mini">
+    <div className={`mini ${videoBehind && idle && panel === 'none' ? 'is-idle' : ''}`}>
       <header className="mini__head" {...drag}>
         <span className="mini__device" title={device ? `Playing on ${device.name}` : undefined}>
           {device ? device.name : 'Lyra'}

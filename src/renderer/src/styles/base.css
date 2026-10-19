@@ -648,3 +648,9 @@ p {
 .backdrop--media:not(.backdrop--rich) .backdrop__shade {
   background: none;
 }
+
+/* phone: keep YouTube's own start/return overlay out of sight */
+.backdrop__yt[data-ready][data-mask] {
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}

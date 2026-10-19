@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useIdle } from '@/hooks/useIdle'
 import { usePlayerView } from '@/hooks/usePlayerView'
 import { joinArtists } from '@/lib/format'
 import { useBgState } from '@/store/bgState'
@@ -11,30 +11,6 @@ import { LikeButton } from './MiniPlayer'
 import { ProgressBar } from './ProgressBar'
 import { VideoPicker } from './VideoPicker'
 import { ConnectScreen, LoadingScreen, NoMusicScreen, OfflineBanner, OfflineScreen } from './StateScreens'
-
-/** Hide chrome and the cursor after a few seconds without mouse movement. */
-function useIdle(ms: number): boolean {
-  const [idle, setIdle] = useState(false)
-  useEffect(() => {
-    let t: ReturnType<typeof setTimeout>
-    const wake = (): void => {
-      setIdle(false)
-      clearTimeout(t)
-      t = setTimeout(() => setIdle(true), ms)
-    }
-    wake()
-    window.addEventListener('mousemove', wake)
-    window.addEventListener('mousedown', wake)
-    window.addEventListener('keydown', wake)
-    return () => {
-      clearTimeout(t)
-      window.removeEventListener('mousemove', wake)
-      window.removeEventListener('mousedown', wake)
-      window.removeEventListener('keydown', wake)
-    }
-  }, [ms])
-  return idle
-}
 
 export function FullscreenPlayer() {
   const view = usePlayerView()

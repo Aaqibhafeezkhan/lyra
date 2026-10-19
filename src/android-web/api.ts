@@ -45,6 +45,7 @@ function sanitize(s: Settings): Settings {
   return {
     ...DEFAULT_SETTINGS,
     ...s,
+    backgroundInMini: true, // the phone's only player always shows the video
     backgroundDim: clamp(s.backgroundDim, 0.2, 0.9, 0.5),
     lyricFontSize: clamp(s.lyricFontSize, 24, 72, 40),
     lineSpacing: clamp(s.lineSpacing, 1, 2, 1.35),
@@ -140,12 +141,18 @@ async function decodeThumb(bytes: ArrayBuffer): Promise<DecodedImage | null> {
 const resolveBackground = createBackgroundResolver({
   settings: () => settingsStore.get(),
   songs: () => songsStore.get().songs,
-  mediaSpec: () => null, // picking your own file on Android comes later
+  mediaSpec: (m, scope) => ({ kind: 'media', url: `${location.origin}/bg/${m.file}`, media: m.kind, name: m.name, scope }),
   clipUrl: (url) => `${location.origin}/preview/${b64url(url)}`,
   crop: (videoId) => thumbCrop(videoId, decodeThumb)
 })
 
 const noop = (): void => undefined
+
+/** Delete a picked file once nothing refers to it any more. */
+function dropIfUnused(file: string): void {
+  const used = settingsStore.get().customBackground?.file === file || Object.values(songsStore.get().songs).some((s) => s.media?.file === file)
+  if (!used) void rpc('mediaDelete', file).catch(() => undefined)
+}
 
 /** One quiet retry when the free lyrics service hiccups (the app and the floating widget can ask at the same moment). */
 async function withRetry<T extends { status: string }>(first: () => Promise<T>, again: () => Promise<T>): Promise<T> {
@@ -181,7 +188,7 @@ export const androidApi: LyraApi & { android: NonNullable<LyraApi['android']> } 
         return
       }
       // the phone only has two layouts: the expanded player ("mini") and the cinema layout ("full")
-      const next: ViewMode = m === 'full' ? 'full' : 'mini'
+      const next: ViewMode = 'mini' // the phone has one player: the video-first one
       if (next === mode) return
       mode = next
       modeChanged.emit({ mode })
@@ -252,8 +259,46 @@ export const androidApi: LyraApi & { android: NonNullable<LyraApi['android']> } 
   },
   background: {
     resolve: (t) => resolveBackground(t),
-    pick: async () => ({ ok: false, error: 'Choosing your own video isn’t available on Android yet.' }),
-    clear: async () => undefined,
+    pick: async (scope, trackId) => {
+      if (scope === 'song' && !trackId) return { ok: false, error: 'No song selected.' }
+      const r = await rpc<{ ok: boolean; file?: string; name?: string; kind?: 'video' | 'image'; error?: string }>('pickMedia')
+      if (!r.ok || !r.file || !r.name || !r.kind) return { ok: false, error: r.error }
+      const media = { file: r.file, name: r.name, kind: r.kind }
+      if (scope === 'global') {
+        const old = settingsStore.get().customBackground
+        const next = sanitize({ ...settingsStore.get(), customBackground: media })
+        settingsStore.set(next)
+        settingsChanged.emit(next)
+        if (old) dropIfUnused(old.file)
+      } else {
+        const songs = { ...songsStore.get().songs }
+        const old = songs[trackId!]?.media
+        songs[trackId!] = { ...songs[trackId!], media }
+        songsStore.set({ songs })
+        if (old) dropIfUnused(old.file)
+      }
+      return { ok: true }
+    },
+    clear: async (scope, trackId) => {
+      if (scope === 'global') {
+        const old = settingsStore.get().customBackground
+        const next = sanitize({ ...settingsStore.get(), customBackground: null })
+        settingsStore.set(next)
+        settingsChanged.emit(next)
+        if (old) dropIfUnused(old.file)
+      } else if (trackId) {
+        const songs = { ...songsStore.get().songs }
+        const old = songs[trackId]?.media
+        if (songs[trackId]) {
+          const { media: _gone, ...rest } = songs[trackId]!
+          void _gone
+          if (rest.youtube) songs[trackId] = rest
+          else delete songs[trackId]
+          songsStore.set({ songs })
+        }
+        if (old) dropIfUnused(old.file)
+      }
+    },
     hasYoutubeKey: async () => youtube.hasKey(),
     setYoutubeKey: (k) => youtube.setKey(k),
     clearYoutubeKey: async () => youtube.clearKey(),

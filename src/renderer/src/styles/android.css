@@ -136,3 +136,38 @@ html[data-overlay] .widget__actions {
   align-self: stretch;
   justify-self: stretch;
 }
+
+/* ---------- phone expanded player: header, title and controls fade away when idle; touch brings them back ---------- */
+[data-platform='android'] .mini__head,
+[data-platform='android'] .mini__card,
+[data-platform='android'] .mini .lyrics__footer {
+  transition: opacity 0.6s var(--ease);
+}
+[data-platform='android'] .mini.is-idle .mini__head,
+[data-platform='android'] .mini.is-idle .mini__card,
+[data-platform='android'] .mini.is-idle .lyrics__footer {
+  opacity: 0;
+  pointer-events: none;
+}
+/* with a video behind: the "Wrong lyrics? · sync" strip becomes a small pill under the header (without a video it stays at the bottom) */
+[data-platform='android'][data-bg-media='mini'] .mini .lyrics__footer {
+  position: fixed;
+  top: calc(env(safe-area-inset-top, 0px) + 54px);
+  right: 14px;
+  z-index: 5;
+  padding: 3px 10px;
+  gap: 10px;
+  border-radius: 14px;
+  background: rgba(0, 0, 0, 0.38);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+}
+[data-platform='android'][data-bg-media='mini'] .mini .lyrics__source > span {
+  display: none;
+}
+
+/* the phone has one player (this one): no fullscreen / cinema mode, and "also in mini player" has no meaning */
+[data-platform='android'] [aria-label='Fullscreen lyrics'],
+[data-platform='android'] [aria-label='Exit fullscreen (Esc)'] {
+  display: none !important;
+}

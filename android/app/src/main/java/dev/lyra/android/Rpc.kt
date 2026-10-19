@@ -118,6 +118,15 @@ class Rpc(private val ctx: Context, private val web: LyraWebView, private val ac
                     fail(e.message ?: "could not start the service")
                 }
             }
+            "pickMedia" -> ui {
+                val a = activity as? MainActivity
+                if (a == null) ok(JSONObject().put("ok", false).put("error", "Open Lyra to choose a file."))
+                else a.pickMedia { uri ->
+                    if (uri == null) ok(JSONObject().put("ok", false))
+                    else io.execute { ok(MediaFiles.import(ctx, uri)) }
+                }
+            }
+            "mediaDelete" -> { MediaFiles.delete(ctx, args.getString(0)); ok(true) }
             "overlayState" -> ok(JSONObject().put("enabled", OverlayService.enabled(ctx)).put("canDraw", Settings.canDrawOverlays(ctx)))
             "overlaySet" -> ui {
                 val on = args.getBoolean(0)

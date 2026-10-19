@@ -5,7 +5,9 @@ import android.os.Bundle
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import androidx.activity.ComponentActivity
+import android.net.Uri
 import androidx.activity.OnBackPressedCallback
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
@@ -14,6 +16,17 @@ import androidx.core.view.WindowInsetsCompat
 class MainActivity : ComponentActivity() {
     private var web: LyraWebView? = null
     private var rpc: Rpc? = null
+    private var pickCallback: ((Uri?) -> Unit)? = null
+    private val picker = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        pickCallback?.invoke(uri)
+        pickCallback = null
+    }
+
+    /** Opens Android's file picker for a video / GIF / image. The result arrives through [done]. */
+    fun pickMedia(done: (Uri?) -> Unit) {
+        pickCallback = done
+        picker.launch(arrayOf("video/mp4", "video/webm", "image/gif", "image/png", "image/jpeg", "image/webp"))
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

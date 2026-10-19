@@ -34,6 +34,7 @@ object WebSetup {
             override fun shouldInterceptRequest(v: WebView, request: WebResourceRequest): WebResourceResponse? {
                 val path = request.url.path ?: ""
                 if (Rpc.isLyraPage(request.url) && path.startsWith("/preview/")) return previewProxy(path.removePrefix("/preview/"), request)
+                if (Rpc.isLyraPage(request.url) && path.startsWith("/bg/")) return MediaFiles.serve(ctx, path.removePrefix("/bg/"), request)
                 return assets.shouldInterceptRequest(request.url)
             }
 

@@ -196,6 +196,10 @@ function ImageLayer({ url, onFail }: { url: string; onFail: () => void }) {
   return <img className="backdrop__media" src={url} alt="" draggable={false} onError={onFail} />
 }
 
+function phoneInit(): boolean {
+  return document.documentElement.dataset.platform === 'android'
+}
+
 function YoutubeLayer({ spec, run, onFail }: { spec: Extract<BackgroundSpec, { kind: 'youtube' }>; run: boolean; onFail: () => void }) {
   const frame = useRef<HTMLIFrameElement>(null)
   const wrap = useRef<HTMLDivElement>(null)
@@ -204,6 +208,18 @@ function YoutubeLayer({ spec, run, onFail }: { spec: Extract<BackgroundSpec, { k
   const onFailRef = useRef(onFail)
   onFailRef.current = onFail
   const timer = useRef(0)
+  /** On the phone the muted video is never paused: pausing and resuming makes YouTube re-buffer and flash its own controls. */
+  const phone = document.documentElement.dataset.platform === 'android'
+  const lastState = useRef(-1)
+  // YouTube flashes its own controls for a few seconds after it starts and after the app is reopened: keep it invisible then
+  const [masked, setMasked] = useState(phoneInit())
+  const maskTimer = useRef(0)
+  const holdMask = (ms = 4000): void => {
+    if (!phone) return
+    setMasked(true)
+    window.clearTimeout(maskTimer.current)
+    maskTimer.current = window.setTimeout(() => setMasked(false), ms)
+  }
   const runRef = useRef(run)
   runRef.current = run
   const [start] = useState(() => {
@@ -243,13 +259,17 @@ function YoutubeLayer({ spec, run, onFail }: { spec: Extract<BackgroundSpec, { k
       } catch {
         return
       }
+      if (d?.info?.playerState !== undefined) lastState.current = d.info.playerState
       if (d?.event === 'onError') onFailRef.current()
       else if (d?.event === 'onReady') {
         cmd('setPlaybackQuality', ['hd1080'])
-        if (!runRef.current) cmd('pauseVideo')
+        if (!phone && !runRef.current) cmd('pauseVideo')
       } else if (d?.event === 'infoDelivery' && d.info?.playerState === 1) {
         window.clearTimeout(timer.current)
-        setReady(true)
+        setReady((was) => {
+          if (!was) holdMask()
+          return true
+        })
       }
     }
     window.addEventListener('message', onMsg)
@@ -262,8 +282,15 @@ function YoutubeLayer({ spec, run, onFail }: { spec: Extract<BackgroundSpec, { k
   }, [spec.videoId])
 
   useEffect(() => {
-    if (ready) cmd(run ? 'playVideo' : 'pauseVideo')
-  }, [run, ready])
+    if (!ready) return
+    if (phone && run) holdMask()
+    if (phone) {
+      // only restart it if the system actually stopped it while the app was away
+      if (run && lastState.current !== 1) cmd('playVideo')
+      return
+    }
+    cmd(run ? 'playVideo' : 'pauseVideo')
+  }, [run, ready]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const src =
     `https://www.youtube-nocookie.com/embed/${spec.videoId}?autoplay=1&mute=1&controls=0&loop=1&playlist=${spec.videoId}&start=${start}` +
@@ -274,6 +301,7 @@ function YoutubeLayer({ spec, run, onFail }: { spec: Extract<BackgroundSpec, { k
         ref={frame}
         className="backdrop__yt"
         data-ready={ready || undefined}
+      data-mask={masked || undefined}
         style={{ transform: xf }}
         src={src}
         title="Background video"

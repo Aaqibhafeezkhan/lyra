@@ -151,9 +151,11 @@ function BackgroundSection() {
       <Row label="Auto dim" info="Lets Lyra darken bright scenes and ease off on dark ones, using the dim level above as the starting point, so lyrics stay readable without a dull picture.">
         <Toggle label="Auto dim" checked={s.autoDim} onChange={(v) => set({ autoDim: v })} />
       </Row>
+      {document.documentElement.dataset.platform !== 'android' && (
       <Row label="Also in mini player" info="Show the animated background in the mini player too, not only in cinematic mode. Uses a little more CPU/GPU.">
         <Toggle label="Animated background in mini player" checked={s.backgroundInMini} onChange={(v) => set({ backgroundInMini: v })} />
       </Row>
+      )}
       <Row label="Your file for all songs" info="Pick a GIF, image, MP4 or WebM to use behind every song. A copy is stored in Lyra's folder and never uploaded." hint={s.customBackground ? s.customBackground.name : 'GIF, image, MP4 or WebM · up to 200 MB'}>
         <button type="button" className="pill" disabled={busy} onClick={() => void run(() => window.lyra.background.pick('global'))}>
           {s.customBackground ? 'Change' : 'Choose'}
