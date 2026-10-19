@@ -14,6 +14,7 @@ const MARGIN = 24
 const SNAP_MARGIN = 12 // resting gap when snapped to a screen edge
 const SNAP_DISTANCE = 16
 const SETTLE_FALLBACK_MS = 800
+const UNLOAD_AFTER_MS = 60_000 // hidden in the tray this long -> free the page
 
 function sizeFor(mode: Exclude<ViewMode, 'full'>, s: Settings): { width: number; height: number } {
   switch (mode) {
@@ -115,6 +116,8 @@ class WindowManager extends EventEmitter {
       this.broadcastMode()
     })
     win.on('moved', () => this.onMoved())
+    win.on('hide', () => this.armUnload())
+    win.on('show', () => clearTimeout(this.unloadTimer))
     // The X buttons in the UI quit explicitly; a system "close" (Alt+F4, taskbar) just hides to the tray.
     win.on('close', (e) => {
       if (this.quitting) return
@@ -135,10 +138,54 @@ class WindowManager extends EventEmitter {
       this.win = null
     })
 
-    if (process.env['ELECTRON_RENDERER_URL']) void win.loadURL(process.env['ELECTRON_RENDERER_URL'])
-    else void win.loadFile(join(__dirname, '../renderer/index.html'))
+    this.loadApp(win)
 
     return win
+  }
+
+  private loadApp(win: BrowserWindow): Promise<void> {
+    return process.env['ELECTRON_RENDERER_URL'] ? win.loadURL(process.env['ELECTRON_RENDERER_URL']) : win.loadFile(join(__dirname, '../renderer/index.html'))
+  }
+
+  // ---- memory: while the widget sits hidden in the tray, drop the page (video, blur layers, caches) and bring it back on demand ----
+
+  private unloaded = false
+  private unloadTimer: ReturnType<typeof setTimeout> | undefined
+  private waking: Promise<void> | null = null
+
+  private armUnload(): void {
+    clearTimeout(this.unloadTimer)
+    this.unloadTimer = setTimeout(() => {
+      const w = this.window
+      if (!w || w.isVisible() || this.quitting || this.unloaded) return
+      this.unloaded = true
+      void w.webContents.loadURL('about:blank')
+    }, UNLOAD_AFTER_MS)
+  }
+
+  /** Make sure the page is loaded (resolves once the UI is up and listening). */
+  private wake(): Promise<void> {
+    const w = this.window
+    if (!w || !this.unloaded) return Promise.resolve()
+    this.waking ??= (async () => {
+      try {
+        await this.loadApp(w)
+        await new Promise((r) => setTimeout(r, 450)) // let the UI mount and subscribe before anything is sent to it
+        this.unloaded = false
+        this.broadcastMode()
+      } finally {
+        this.waking = null
+      }
+    })()
+    return this.waking
+  }
+
+  /** Send a command (global shortcut / tray) to the UI, waking it first if it was unloaded. */
+  sendCommand(cmd: string): void {
+    void this.wake().then(() => {
+      this.window?.webContents.send(EV.command, cmd)
+      if (!this.window?.isVisible()) this.armUnload()
+    })
   }
 
   private initialPosition(size: { width: number; height: number }): { x: number; y: number } {
@@ -398,9 +445,12 @@ class WindowManager extends EventEmitter {
   show(): void {
     const w = this.window
     if (!w) return
-    if (w.isMinimized()) w.restore()
-    w.show()
-    w.focus()
+    void this.wake().then(() => {
+      if (w.isDestroyed()) return
+      if (w.isMinimized()) w.restore()
+      w.show()
+      w.focus()
+    })
   }
 
   hide(): void {

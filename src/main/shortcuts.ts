@@ -1,5 +1,4 @@
 import { globalShortcut } from 'electron'
-import { EV } from '@shared/ipc'
 import { GLOBAL_SHORTCUTS, effectiveAccel } from '@shared/shortcuts'
 import type { AppCommand } from '@shared/types'
 import { createLogger } from './logger'
@@ -8,7 +7,7 @@ import { windows } from './window'
 const log = createLogger('shortcuts')
 
 function send(cmd: AppCommand): void {
-  windows.window?.webContents.send(EV.command, cmd)
+  windows.sendCommand(cmd)
 }
 
 const ACTIONS: Record<(typeof GLOBAL_SHORTCUTS)[number]['id'], () => void> = {

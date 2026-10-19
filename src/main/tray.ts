@@ -1,7 +1,6 @@
 import { Menu, Tray, app, nativeImage, type NativeImage } from 'electron'
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
-import { EV } from '@shared/ipc'
 import type { AppCommand } from '@shared/types'
 import { windows } from './window'
 import { settings } from './settings'
@@ -46,7 +45,7 @@ function makeIcon(size: number): NativeImage {
 }
 
 function send(cmd: AppCommand): void {
-  windows.window?.webContents.send(EV.command, cmd)
+  windows.sendCommand(cmd)
 }
 
 export function createTray(): Tray {
