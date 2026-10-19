@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "website",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["-e", "const h=require('http'),f=require('fs'),p=require('path');const R=p.join(process.cwd(),'website');const T={'.html':'text/html','.css':'text/css','.js':'text/javascript','.png':'image/png','.webp':'image/webp','.jpg':'image/jpeg','.mp4':'video/mp4','.svg':'image/svg+xml'};h.createServer((q,s)=>{let u=decodeURIComponent(q.url.split('?')[0]);if(u.endsWith('/'))u+='index.html';const fp=p.join(R,u);if(!fp.startsWith(R)||!f.existsSync(fp)||f.statSync(fp).isDirectory()){s.writeHead(404);return s.end('not found')}s.writeHead(200,{'Content-Type':T[p.extname(fp)]||'application/octet-stream'});f.createReadStream(fp).pipe(s)}).listen(4173)"],
+      "port": 4173
+    }
+  ]
+}

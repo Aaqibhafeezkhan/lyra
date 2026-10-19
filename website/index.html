@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Lyra — beautiful synced lyrics for Windows and Android</title>
+  <meta name="description" content="Lyra shows word-by-word synced lyrics over the music video of whatever you are playing. Free, open source, no account. Windows and Android." />
+  <meta name="theme-color" content="#050505" />
+  <meta property="og:title" content="Lyra — lyrics that move with the music" />
+  <meta property="og:description" content="Word-by-word synced lyrics, music-video backgrounds, an ambient screen saver. Free and open source." />
+  <meta property="og:type" content="website" />
+  <link rel="icon" href="assets/icon.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="aurora" aria-hidden="true"><i></i><i></i><i></i></div>
+  <div class="grain" aria-hidden="true"></div>
+
+  <header class="nav">
+    <a class="brand" href="#top"><img src="assets/icon.png" alt="" width="28" height="28" /> Lyra</a>
+    <nav>
+      <a href="#demo">Live demo</a>
+      <a href="#features">Features</a>
+      <a href="#phone">Android</a>
+      <a href="#open">Open source</a>
+    </nav>
+    <a class="btn btn--sm" href="#download">Download</a>
+  </header>
+
+  <main id="top">
+    <!-- HERO -->
+    <section class="hero">
+      <p class="eyebrow reveal"><span class="dot"></span> Free · open source · no account</p>
+      <h1 class="reveal">Lyrics that <em>move</em><br />with the music.</h1>
+      <p class="lead reveal">Lyra reads what you are playing and shows it word by word, over the music video itself. A floating widget on Windows. A screen saver on your phone.</p>
+      <div class="cta reveal">
+        <a class="btn btn--big" id="cta-win" href="https://github.com/DhruvHarani1/lyra/releases/latest" data-os="windows">
+          <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M3 5.5 10.5 4.4v7H3zM11.5 4.3 21 3v8.4h-9.5zM3 12.5h7.5v7L3 18.5zM11.5 12.5H21V21l-9.5-1.3z"/></svg>
+          Download for Windows
+        </a>
+        <a class="btn btn--big btn--ghost" id="cta-and" href="https://github.com/DhruvHarani1/lyra/releases" data-os="android">
+          <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M17.6 9.5 19.3 6.6a.4.4 0 0 0-.7-.4l-1.7 3A10.3 10.3 0 0 0 12 8.2c-1.7 0-3.3.4-4.9 1.1l-1.7-3a.4.4 0 0 0-.7.4l1.7 2.9A9.2 9.2 0 0 0 2.5 17h19a9.2 9.2 0 0 0-3.9-7.5zM8 14.5a1 1 0 1 1 0-2 1 1 0 0 1 0 2zm8 0a1 1 0 1 1 0-2 1 1 0 0 1 0 2z"/></svg>
+          Download for Android
+        </a>
+      </div>
+      <p class="meta reveal"><span id="v-win">Windows 10/11</span> · <span id="v-and">Android 8+</span> · MIT licensed</p>
+
+      <div class="stage reveal" id="hero-stage">
+        <div class="widget tilt" data-bind="mini"></div>
+        <div class="phone tilt phone--float" data-bind="phone"></div>
+      </div>
+    </section>
+
+    <!-- MARQUEE -->
+    <div class="marquee" aria-hidden="true">
+      <div class="marquee__track">
+        <span>Word by word</span><span>Music-video backgrounds</span><span>Ambient screen saver</span><span>Lock-screen lyrics</span><span>Tap a line to seek</span><span>Cover-colour glow</span><span>No account</span><span>Open source</span>
+        <span>Word by word</span><span>Music-video backgrounds</span><span>Ambient screen saver</span><span>Lock-screen lyrics</span><span>Tap a line to seek</span><span>Cover-colour glow</span><span>No account</span><span>Open source</span>
+      </div>
+    </div>
+
+    <!-- LIVE DEMO -->
+    <section class="section" id="demo">
+      <h2 class="reveal">Try it. <span class="mute">It is the real thing.</span></h2>
+      <p class="sub reveal">This preview runs the same way the app does. Play, skip, and click any lyric line to jump there.</p>
+      <div class="tabs reveal" role="tablist">
+        <button role="tab" class="is-on" data-view="full">Fullscreen</button>
+        <button role="tab" data-view="mini">Widget</button>
+        <button role="tab" data-view="phone">Phone ambient</button>
+      </div>
+      <div class="demo reveal" id="demo-box" data-view="full">
+        <div class="demo__scene demo__scene--full" data-bind="full"></div>
+        <div class="demo__scene demo__scene--mini" data-bind="mini"></div>
+        <div class="demo__scene demo__scene--phone" data-bind="phone"></div>
+        <div class="songs" id="songs"></div>
+      </div>
+    </section>
+
+    <!-- FEATURES -->
+    <section class="section" id="features">
+      <h2 class="reveal">Made to be <span class="mute">looked at.</span></h2>
+      <div class="bento">
+        <article class="card card--wide reveal">
+          <h3>Every word, on time</h3>
+          <p>Words fill in as they are sung. It works for English, Hindi, Punjabi and more, even when the lyrics only come line by line.</p>
+          <div class="wbw" aria-hidden="true"><span>Streetlights</span> <span>hum</span> <span>a</span> <span>quiet</span> <span>tune</span></div>
+        </article>
+        <article class="card reveal">
+          <h3>The video behind it</h3>
+          <p>The official music video plays softly behind the lyrics. Your own clips work too.</p>
+          <div class="vid" aria-hidden="true"><i></i><i></i><i></i></div>
+        </article>
+        <article class="card reveal">
+          <h3>Colours from the cover</h3>
+          <p>The whole interface takes on the colours of the album art, and cross-fades between songs.</p>
+          <div class="swatches" aria-hidden="true"><i style="--c:#ff7a59"></i><i style="--c:#c64cff"></i><i style="--c:#3fd0ff"></i><i style="--c:#ffd84a"></i></div>
+        </article>
+        <article class="card card--wide reveal">
+          <h3>A screen saver for your music</h3>
+          <p>On Android, ambient mode turns your phone into a dim, drifting lyrics clock on the charger. It adapts to room light and stays easy on the battery.</p>
+          <div class="clock" aria-hidden="true"><b id="amb-clock">21:07</b><small>Saturday, 18 October</small></div>
+        </article>
+        <article class="card reveal">
+          <h3>On the lock screen</h3>
+          <p>The current line sits in a media card in the notification shade and on the lock screen.</p>
+        </article>
+        <article class="card reveal">
+          <h3>Tap to jump</h3>
+          <p>Scroll the lyrics, tap any line, and the song seeks there.</p>
+        </article>
+        <article class="card reveal">
+          <h3>Private by design</h3>
+          <p>No account, no tracking, no ads. Lyra only reads the now-playing card.</p>
+        </article>
+      </div>
+    </section>
+
+    <!-- PHONE -->
+    <section class="section split" id="phone">
+      <div class="split__text">
+        <p class="eyebrow reveal">Android</p>
+        <h2 class="reveal">Your phone,<br /><span class="mute">on the desk.</span></h2>
+        <p class="sub reveal">Works with Spotify, YouTube Music and any player that shows a media card. Turn ambient mode on and the screen becomes a calm, lyrics-first display.</p>
+        <ul class="ticks reveal">
+          <li>Auto brightness from the light sensor</li>
+          <li>Screen stays on only while music plays</li>
+          <li>Floating lyrics widget over other apps</li>
+          <li>Quick Settings tile, home-screen widget, app shortcut</li>
+        </ul>
+      </div>
+      <div class="split__art reveal"><div class="phone tilt" data-bind="phone2"></div></div>
+    </section>
+
+    <!-- DOWNLOAD -->
+    <section class="section" id="download">
+      <h2 class="reveal">Get Lyra.</h2>
+      <p class="sub reveal">Free forever. Pick your device.</p>
+      <div class="dl">
+        <article class="dl__card reveal">
+          <h3>Windows</h3>
+          <p class="dl__v" id="dl-win-v">Windows 10 / 11</p>
+          <a class="btn btn--big" id="dl-win" href="https://github.com/DhruvHarani1/lyra/releases/latest">Download installer</a>
+          <ol>
+            <li>Install the <b>Spotify desktop app</b> and play a song.</li>
+            <li>Run the installer. Lyra opens as a small floating widget.</li>
+            <li>Click it to expand, press <kbd>F</kbd> for fullscreen.</li>
+          </ol>
+          <p class="note">If Windows SmartScreen warns, choose <b>More info → Run anyway</b>. The app is open source and not yet code-signed.</p>
+        </article>
+        <article class="dl__card reveal">
+          <h3>Android</h3>
+          <p class="dl__v" id="dl-and-v">Android 8.0 or newer</p>
+          <a class="btn btn--big" id="dl-and" href="https://github.com/DhruvHarani1/lyra/releases">Download APK</a>
+          <ol>
+            <li>Open the APK and allow installs from your browser or files app.</li>
+            <li>Grant <b>Notification access</b> so Lyra can see what is playing.</li>
+            <li>Play a song. Switch ambient mode on from the moon icon.</li>
+          </ol>
+          <p class="note">Google Play Protect may block installs made straight from a browser. If it does, use <b>More details → Install anyway</b>, or install with a file manager.</p>
+        </article>
+      </div>
+    </section>
+
+    <!-- OPEN SOURCE -->
+    <section class="section open" id="open">
+      <h2 class="reveal">Open source,<br /><span class="mute">all of it.</span></h2>
+      <p class="sub reveal">MIT licensed. Read the code, build it yourself, send a pull request. Lyrics come from LRCLIB, the free community lyrics database.</p>
+      <div class="cta reveal">
+        <a class="btn btn--ghost" href="https://github.com/DhruvHarani1/lyra" target="_blank" rel="noopener">View on GitHub</a>
+        <a class="btn btn--ghost" href="https://github.com/DhruvHarani1/lyra/blob/main/PRIVACY.md" target="_blank" rel="noopener">Privacy</a>
+      </div>
+    </section>
+  </main>
+
+  <footer class="foot">
+    <span>© Lyra · MIT licence</span>
+    <span>Lyra is not affiliated with Spotify. Song names in this demo are made up.</span>
+  </footer>
+
+  <script src="main.js" defer></script>
+</body>
+</html>
