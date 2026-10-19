@@ -227,3 +227,11 @@ h3 { margin: 0 0 8px; font-size: 20px; letter-spacing: -0.02em; }
   .fs__bar { left: 4%; right: 4%; padding: 10px 12px; gap: 10px; }
   .fs__bar .cover { display: none; }
 }
+
+/* ---------- real screenshots ---------- */
+.real__grid { display: grid; grid-template-columns: 1.7fr 0.62fr; gap: 18px; margin-top: 54px; align-items: end; }
+.shot { margin: 0; position: relative; border-radius: 26px; overflow: hidden; border: 1px solid rgba(255, 255, 255, 0.14); background: #000; box-shadow: 0 50px 120px -40px color-mix(in srgb, var(--c2) 60%, #000); transition: transform 0.7s var(--ease), box-shadow 0.7s; }
+.shot:hover { transform: translateY(-6px) scale(1.01); }
+.shot img { display: block; width: 100%; height: auto; }
+.shot figcaption { position: absolute; left: 14px; bottom: 14px; padding: 7px 14px; border-radius: 999px; font-size: 13px; background: rgba(10, 10, 12, 0.62); backdrop-filter: blur(14px); border: 1px solid var(--line); color: var(--fg2); }
+@media (max-width: 900px) { .real__grid { grid-template-columns: 1fr; } .shot--tall { max-width: 320px; margin-inline: auto; } }
