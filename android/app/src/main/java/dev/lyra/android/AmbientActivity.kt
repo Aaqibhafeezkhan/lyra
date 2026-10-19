@@ -36,14 +36,17 @@ class AmbientActivity : ComponentActivity() {
         val view = LyraWebView(this).apply { layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT) }
         WebSetup.configure(view, this)
         root.addView(view)
-        // touches do nothing (so a stray touch in bed can't switch it off); the tile / widget / shortcut / Back turn it off
-        view.setOnTouchListener { _, _ -> true }
         AmbientController.activity = this
         AmbientController.changed(applicationContext)
         setContentView(root)
         rpc = Rpc(applicationContext, view, this).also { it.install() }
         web = view
         WebSetup.load(view, "?ambient=1")
+    }
+
+    /** 0.02 (darkest) .. 1: set from the ambient page (its brightness slider and style). */
+    fun setBrightness(level: Float) {
+        window.attributes = window.attributes.apply { screenBrightness = level.coerceIn(0.01f, 1f) }
     }
 
     override fun onResume() {

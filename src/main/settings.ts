@@ -29,6 +29,7 @@ function sanitize(s: Settings): Settings {
     wordByWord: s.wordByWord !== false,
     keepScreenOn: !!s.keepScreenOn,
     keepRunning: !!s.keepRunning,
+    ambientBrightness: clamp(s.ambientBrightness, 0.02, 0.6),
     ambientStyle: s.ambientStyle === 'minimal' || s.ambientStyle === 'video' ? s.ambientStyle : 'glow',
     autoDim: s.autoDim !== false,
     customBackground:

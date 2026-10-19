@@ -141,6 +141,10 @@ class Rpc(private val ctx: Context, private val web: LyraWebView, private val ac
                 }
             }
             "setLyrics" -> { LyricsNotifier.setLyrics(args.getString(0), args.getString(1), args.optLong(2, 0), args.optString(3, "synced")); ok(true) }
+            "ambientBrightness" -> ui {
+                AmbientController.activity?.setBrightness(args.getDouble(0).toFloat())
+                ok(true)
+            }
             "toggleAmbient" -> ui {
                 AmbientController.toggle(ctx)
                 ok(true)

@@ -45,6 +45,7 @@ function sanitize(s: Settings): Settings {
   return {
     ...DEFAULT_SETTINGS,
     ...s,
+    ambientBrightness: clamp(s.ambientBrightness, 0.02, 0.6, 0.06),
     backgroundInMini: true, // the phone's only player always shows the video
     backgroundDim: clamp(s.backgroundDim, 0.2, 0.9, 0.5),
     lyricFontSize: clamp(s.lyricFontSize, 24, 72, 40),

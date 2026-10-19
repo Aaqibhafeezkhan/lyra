@@ -5,7 +5,7 @@ import { createRoot } from 'react-dom/client'
 import { estimateWords } from '@shared/wordTiming'
 import { Backdrop } from '@/components/Backdrop'
 import { useArtwork, usePalette } from '@/hooks/useArtwork'
-import { useActiveLine, lyricPosition } from '@/hooks/useLyricsSync'
+import { lyricPosition, useActiveLine } from '@/hooks/useLyricsSync'
 import { NEUTRAL_PALETTE } from '@/lib/palette'
 import { useLyrics } from '@/store/lyrics'
 import { useLyricOffset } from '@/store/offsets'
@@ -13,15 +13,16 @@ import { getPosition, usePlayer } from '@/store/player'
 import { useSettings } from '@/store/settings'
 import '@/styles/tokens.css'
 import '@/styles/base.css'
+import { rpc } from './rpc'
 import './ambient.css'
 
 /**
  * Ambient lyrics: an always-on-display style screen for the desk / bedside / charger.
  *  - Minimal: pure black
- *  - Glow:    the cover's colours as a very dim, slowly moving glow
- *  - Video:   the music video (or your own) played very dim
- * Everything is kept dark (OLED friendly), drifts a little every minute so no pixel stays lit, and updates at a
- * low rate to save battery. Used by the "Ambient screen" and by the Android screen saver.
+ *  - Glow:    the cover's colours as a dim, slowly moving glow
+ *  - Video:   the music video (or your own) played dim
+ * It drifts a little every minute so no OLED pixel stays lit. Touching the screen only shows the controls
+ * (the on/off switch, brightness, play/pause); it never switches ambient mode off by accident.
  */
 function useClock(): { time: string; date: string } {
   const read = (): { time: string; date: string } => {
@@ -42,7 +43,7 @@ function useClock(): { time: string; date: string } {
   return t
 }
 
-/** The cover's colours drive the dim glow (same palette the main player uses). */
+/** The cover's colours drive the glow (same palette the main player uses). */
 function useCoverColours(): void {
   const url = usePlayer((s) => s.snapshot?.track?.artworkUrl ?? null)
   const art = useArtwork(url)
@@ -56,12 +57,11 @@ function useCoverColours(): void {
   }, [pal])
 }
 
-/** Current line with its words filling in as they are sung (about 15 updates a second: smooth enough, easy on the battery). */
-function Line({ lines, idx, offset }: { lines: ReturnType<typeof estimateWords>; idx: number; offset: number }) {
-  const line = lines[idx]
+/** Words fill in as they are sung (about 15 updates a second: smooth enough and easy on the battery). */
+function CurrentLine({ line, nextTime, offset }: { line: ReturnType<typeof estimateWords>[number]; nextTime: number | undefined; offset: number }) {
   const spans = useRef<Array<HTMLSpanElement | null>>([])
-  const words = line?.words
-  const end = line?.endMs ?? lines[idx + 1]?.timeMs ?? (line ? line.timeMs + 4000 : 0)
+  const words = line.words
+  const end = line.endMs ?? nextTime ?? line.timeMs + 4000
 
   useEffect(() => {
     if (!words) return
@@ -71,7 +71,7 @@ function Line({ lines, idx, offset }: { lines: ReturnType<typeof estimateWords>;
         const el = spans.current[i]
         if (!el) return
         const stop = Math.min(words[i + 1]?.timeMs ?? end, end)
-        el.style.setProperty('--p', String(Math.min(1, Math.max(0, (pos - w.timeMs) / Math.max(1, stop - w.timeMs))).toFixed(2)))
+        el.style.setProperty('--p', Math.min(1, Math.max(0, (pos - w.timeMs) / Math.max(1, stop - w.timeMs))).toFixed(2))
       })
     }
     tick()
@@ -79,7 +79,6 @@ function Line({ lines, idx, offset }: { lines: ReturnType<typeof estimateWords>;
     return () => clearInterval(id)
   }, [words, end, offset])
 
-  if (!line) return null
   if (!words) return <>{line.text}</>
   return (
     <>
@@ -110,8 +109,90 @@ function Progress() {
   )
 }
 
+/** Lines stay on screen and glide up as the song moves on: the old line fades and shrinks, the next one grows. */
+const SPRING = { type: 'spring', stiffness: 120, damping: 24, mass: 0.9 } as const
+const ROLE = [
+  { opacity: 0.16, scale: 0.78 }, // previous
+  { opacity: 1, scale: 1 }, // current
+  { opacity: 0.34, scale: 0.78 }, // next
+  { opacity: 0.16, scale: 0.7 } // after that
+]
+
+function LyricStack({ lines, idx, offset }: { lines: ReturnType<typeof estimateWords>; idx: number; offset: number }) {
+  const from = Math.max(0, idx - 1)
+  const visible = lines.slice(from, idx + 3).map((l, k) => ({ l, i: from + k }))
+  return (
+    <div className="amb__stack">
+      <AnimatePresence initial={false}>
+        {visible.map(({ l, i }) => {
+          const role = ROLE[Math.min(3, Math.max(0, i - (idx - 1)))]!
+          return (
+            <motion.p
+              key={i}
+              layout="position"
+              className={`amb__line ${i === idx ? 'is-current' : ''}`}
+              initial={{ opacity: 0, scale: 0.7, y: 40 }}
+              animate={{ opacity: role.opacity, scale: role.scale, y: 0 }}
+              exit={{ opacity: 0, scale: 0.6, y: -40 }}
+              transition={SPRING}
+              style={{ transformOrigin: 'left center' }}
+            >
+              {i === idx ? <CurrentLine line={l} nextTime={lines[i + 1]?.timeMs} offset={offset} /> : l.text || '♪'}
+            </motion.p>
+          )
+        })}
+      </AnimatePresence>
+    </div>
+  )
+}
+
+/** Shown for a few seconds after a touch: the on/off switch, play controls and brightness. */
+function Controls({ shown, onTouch }: { shown: boolean; onTouch: () => void }) {
+  const playing = usePlayer((s) => !!s.snapshot?.isPlaying)
+  const brightness = useSettings((s) => s.settings.ambientBrightness)
+  const set = useSettings((s) => s.set)
+  const command = usePlayer((s) => s.command)
+  return (
+    <div className={`amb__controls ${shown ? 'is-shown' : ''}`} onPointerDown={onTouch}>
+      <button
+        type="button"
+        role="switch"
+        aria-checked="true"
+        className="amb__switch"
+        onClick={() => void window.lyra.android?.toggleAmbient()}
+      >
+        <span>Ambient mode</span>
+        <i />
+      </button>
+      <div className="amb__transport">
+        <button type="button" aria-label="Previous" onClick={() => void command({ type: 'previous' })}>
+          ⏮
+        </button>
+        <button type="button" aria-label={playing ? 'Pause' : 'Play'} className="amb__play" onClick={() => void command({ type: 'toggle' })}>
+          {playing ? '❚❚' : '▶'}
+        </button>
+        <button type="button" aria-label="Next" onClick={() => void command({ type: 'next' })}>
+          ⏭
+        </button>
+      </div>
+      <label className="amb__bright">
+        <span>Brightness</span>
+        <input
+          type="range"
+          min={0.02}
+          max={0.6}
+          step={0.01}
+          value={brightness}
+          onChange={(e) => set({ ambientBrightness: Number(e.target.value) })}
+        />
+      </label>
+    </div>
+  )
+}
+
 function Ambient() {
   const style = useSettings((s) => s.settings.ambientStyle)
+  const brightness = useSettings((s) => s.settings.ambientBrightness)
   const track = usePlayer((s) => s.snapshot?.track ?? null)
   const playing = usePlayer((s) => !!s.snapshot?.isPlaying)
   const st = useLyrics((s) => s.state)
@@ -119,19 +200,32 @@ function Ambient() {
   const lines = useMemo(() => estimateWords(raw, track?.durationMs), [raw, track?.durationMs])
   const offset = useLyricOffset()
   const idx = useActiveLine(lines, lines.length > 0)
-  const next = lines[idx + 1]?.text ?? ''
   const art = useArtwork(track?.artworkUrl ?? null)
   const { time, date } = useClock()
   const [drift, setDrift] = useState({ x: 0, y: 0 })
+  const [shown, setShown] = useState(false)
+  const hide = useRef<number>(0)
   useCoverColours()
+
+  // the picture needs more screen brightness than plain text; the slider sets the base
+  useEffect(() => {
+    const level = style === 'video' ? Math.max(brightness, 0.3) : brightness
+    void rpc('ambientBrightness', level).catch(() => undefined)
+  }, [style, brightness])
 
   useEffect(() => {
     const id = setInterval(() => setDrift({ x: Math.round((Math.random() - 0.5) * 48), y: Math.round((Math.random() - 0.5) * 70) }), 45_000)
     return () => clearInterval(id)
   }, [])
 
+  const touch = (): void => {
+    setShown(true)
+    window.clearTimeout(hide.current)
+    hide.current = window.setTimeout(() => setShown(false), 5000)
+  }
+
   return (
-    <div className={`amb amb--${style}`}>
+    <div className={`amb amb--${style}`} onPointerDown={touch}>
       {style !== 'minimal' && (
         <div className="amb__bg" aria-hidden="true">
           <Backdrop animated={style === 'video'} />
@@ -144,12 +238,7 @@ function Ambient() {
         </div>
 
         <div className="amb__lyrics">
-          <AnimatePresence mode="wait" initial={false}>
-            <motion.p key={`${track?.id}:${idx}`} className="amb__cur" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}>
-              {track ? (lines[idx] ? <Line lines={lines} idx={idx} offset={offset} /> : lines.length ? '♪' : '') : ''}
-            </motion.p>
-          </AnimatePresence>
-          <p className="amb__next">{next}</p>
+          {lines.length > 0 && idx >= 0 ? <LyricStack lines={lines} idx={idx} offset={offset} /> : <p className="amb__line amb__idle">{track ? (lines.length ? '♪' : '') : ''}</p>}
         </div>
 
         <div className="amb__foot">
@@ -161,6 +250,7 @@ function Ambient() {
         </div>
         <Progress />
       </div>
+      <Controls shown={shown} onTouch={touch} />
     </div>
   )
 }

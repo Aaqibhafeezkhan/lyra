@@ -240,6 +240,8 @@ export interface Settings {
   keepRunning: boolean
   /** Android ambient screen: black, a dim colour glow, or a dim video */
   ambientStyle: 'minimal' | 'glow' | 'video'
+  /** Android ambient screen brightness (0.02 darkest .. 0.6) */
+  ambientBrightness: number
   lyricOffsetMs: number
   reducedMotion: 'system' | 'on' | 'off'
   compactWidth: number
@@ -276,6 +278,7 @@ export const DEFAULT_SETTINGS: Settings = {
   keepScreenOn: false,
   keepRunning: false,
   ambientStyle: 'glow',
+  ambientBrightness: 0.06,
   lyricOffsetMs: 0,
   reducedMotion: 'system',
   compactWidth: 380,

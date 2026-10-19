@@ -330,6 +330,9 @@ function PhoneSection() {
           ]}
         />
       </Row>
+      <Row label="Ambient brightness" info="How bright the phone screen is in ambient mode. Keep it low for the bedside and to save battery. You can also change it on the ambient screen itself: touch it once.">
+        <Slider label="Ambient brightness" value={s.ambientBrightness} min={0.02} max={0.6} step={0.01} onChange={(v) => set({ ambientBrightness: v })} format={(v) => `${Math.round(v * 100)}%`} />
+      </Row>
       <Row label="Ambient screen" info="A very dim lyrics screen for your desk or bedside, like an always-on display. It uses minimum brightness and slowly shifts so an OLED screen isn’t worn. Touching the screen does nothing: switch it off with the same button, the Quick Settings tile, the home-screen widget or Back. You can also pick Lyra under Settings → Display → Screen saver so it appears by itself while charging." hint="On / off">
         <button type="button" className="pill" onClick={() => void window.lyra.android?.toggleAmbient()}>
           Switch on / off

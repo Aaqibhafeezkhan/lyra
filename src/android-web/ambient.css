@@ -8,6 +8,7 @@ body,
   font-family: 'Inter Variable', system-ui, sans-serif;
   overflow: hidden;
   user-select: none;
+  -webkit-tap-highlight-color: transparent;
 }
 .amb {
   position: absolute;
@@ -15,21 +16,44 @@ body,
   overflow: hidden;
   background: #000;
 }
-/* the glow / video sits far below normal brightness so the screen stays OLED friendly */
+
+/* the glow / video: dimmed for OLED, but not so far that a video disappears */
 .amb__bg {
   position: absolute;
   inset: 0;
-  filter: brightness(0.3) saturate(0.9);
+  filter: brightness(0.62) saturate(1);
 }
 .amb--video .amb__bg {
-  filter: brightness(0.38) saturate(0.7);
+  filter: brightness(0.9) saturate(0.95);
 }
+/* use our own darkening instead of the player's heavy scrims */
 .amb__bg .backdrop {
   opacity: 1;
 }
+.amb__bg .backdrop__dim {
+  opacity: 0.2 !important;
+}
+.amb--video .amb__bg .backdrop__dim {
+  opacity: 0.08 !important;
+}
+.amb__bg .backdrop__grade,
+.amb__bg .backdrop__shade {
+  display: none;
+}
+/* readability: darken the lower two thirds where the lyrics sit */
+.amb--glow::after,
+.amb--video::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.35) 0%, rgba(0, 0, 0, 0.1) 28%, rgba(0, 0, 0, 0.55) 62%, rgba(0, 0, 0, 0.8) 100%);
+}
+
 .amb__content {
   position: absolute;
   inset: 0;
+  z-index: 2;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -37,48 +61,53 @@ body,
   transition: transform 8s ease-in-out;
 }
 .amb__clock {
-  font-size: 22vw;
+  font-size: 23vw;
   font-weight: 200;
   letter-spacing: -0.05em;
   line-height: 0.95;
-  opacity: 0.5;
+  opacity: 0.55;
 }
 .amb__date {
   margin-top: 8px;
   font-size: 4vw;
   font-weight: 500;
-  opacity: 0.32;
+  opacity: 0.36;
 }
+
 .amb__lyrics {
+  min-height: 46vh;
+  display: flex;
+  align-items: center;
+}
+.amb__stack {
+  width: 100%;
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 2.2vh;
 }
-.amb__cur {
+.amb__line {
   margin: 0;
-  font-size: 8.4vw;
+  font-size: 8vw;
   font-weight: 700;
   line-height: 1.16;
   letter-spacing: -0.025em;
   text-wrap: balance;
-  filter: drop-shadow(0 2px 14px rgba(0, 0, 0, 0.8));
+  will-change: transform, opacity;
+  filter: drop-shadow(0 2px 14px rgba(0, 0, 0, 0.85));
 }
+.amb__idle {
+  opacity: 0.4;
+}
+
 /* words fill from dim to bright as they are sung */
 .amb__word {
   --p: 0;
-  background: linear-gradient(90deg, rgba(255, 255, 255, 0.82) 0, rgba(255, 255, 255, 0.82) calc(var(--p) * 114% - 14%), rgba(255, 255, 255, 0.26) calc(var(--p) * 114%));
+  background: linear-gradient(90deg, #fff 0, #fff calc(var(--p) * 114% - 14%), rgba(255, 255, 255, 0.32) calc(var(--p) * 114%));
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
 }
-.amb__next {
-  margin: 0;
-  font-size: 4.6vw;
-  font-weight: 600;
-  line-height: 1.25;
-  opacity: 0.24;
-  text-wrap: balance;
-}
+
 .amb__foot {
   display: flex;
   align-items: center;
@@ -89,7 +118,7 @@ body,
   height: 13vw;
   border-radius: 14px;
   object-fit: cover;
-  opacity: 0.55;
+  opacity: 0.7;
 }
 .amb__meta {
   min-width: 0;
@@ -97,7 +126,7 @@ body,
 .amb__title {
   font-size: 4.2vw;
   font-weight: 650;
-  opacity: 0.5;
+  opacity: 0.6;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -105,7 +134,7 @@ body,
 .amb__artist {
   margin-top: 2px;
   font-size: 3.4vw;
-  opacity: 0.3;
+  opacity: 0.38;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -114,13 +143,103 @@ body,
   margin-top: 16px;
   height: 3px;
   border-radius: 2px;
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.12);
   overflow: hidden;
 }
 .amb__progress-bar {
   height: 100%;
   width: 100%;
   transform-origin: left center;
-  background: rgba(255, 255, 255, 0.45);
+  background: rgba(255, 255, 255, 0.5);
   transition: transform 1s linear;
+}
+
+/* ---- touch controls: hidden until you touch the screen ---- */
+.amb__controls {
+  position: absolute;
+  z-index: 5;
+  left: 0;
+  right: 0;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: calc(env(safe-area-inset-top, 0px) + 4vh) 7vw 28px;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.88), rgba(0, 0, 0, 0.55) 70%, transparent);
+  opacity: 0;
+  transform: translateY(-14px);
+  pointer-events: none;
+  transition:
+    opacity 0.35s ease,
+    transform 0.35s ease;
+}
+.amb__controls.is-shown {
+  opacity: 1;
+  transform: none;
+  pointer-events: auto;
+}
+.amb__switch {
+  appearance: none;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  font: 600 4.2vw/1 inherit;
+  border-radius: 999px;
+  padding: 14px 18px 14px 22px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.amb__switch i {
+  position: relative;
+  width: 54px;
+  height: 30px;
+  border-radius: 999px;
+  background: #5b8cff;
+}
+.amb__switch i::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #fff;
+}
+.amb__transport {
+  display: flex;
+  justify-content: center;
+  gap: 22px;
+}
+.amb__transport button {
+  appearance: none;
+  border: 0;
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  font-size: 20px;
+}
+.amb__transport .amb__play {
+  background: #fff;
+  color: #000;
+}
+.amb__bright {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 3.4vw;
+  opacity: 0.8;
+}
+.amb__bright input {
+  width: 100%;
+  accent-color: #fff;
+}
+
+/* video: keep the picture clearly visible, only the bottom (lyrics) gets a gentle scrim */
+.amb--video::after {
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.18) 0%, rgba(0, 0, 0, 0) 30%, rgba(0, 0, 0, 0.3) 60%, rgba(0, 0, 0, 0.62) 100%);
 }
