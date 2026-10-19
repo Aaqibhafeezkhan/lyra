@@ -46,7 +46,7 @@ function sanitize(s: Settings): Settings {
     ...DEFAULT_SETTINGS,
     ...s,
     // 0.06 was the old default (too dark to see a video); in auto mode this value is the maximum
-    ambientBrightness: s.ambientBrightness === 0.06 ? 0.3 : clamp(s.ambientBrightness, 0.02, 0.6, 0.3),
+    ambientBrightness: s.ambientBrightness === 0.06 || s.ambientBrightness === 0.3 ? 0.2 : clamp(s.ambientBrightness, 0.04, 0.6, 0.2),
     backgroundInMini: true, // the phone's only player always shows the video
     backgroundDim: clamp(s.backgroundDim, 0.2, 0.9, 0.5),
     lyricFontSize: clamp(s.lyricFontSize, 24, 72, 40),

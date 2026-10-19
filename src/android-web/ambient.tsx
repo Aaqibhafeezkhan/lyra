@@ -175,10 +175,10 @@ function Controls({ shown, onTouch }: { shown: boolean; onTouch: () => void }) {
         </button>
       </div>
       <label className="amb__bright">
-        <span>{autoBright ? 'Brightest (auto adjusts below this)' : 'Brightness'}</span>
+        <span>Brightness</span>
         <input
           type="range"
-          min={0.02}
+          min={0.04}
           max={0.6}
           step={0.01}
           value={brightness}
@@ -215,6 +215,8 @@ function Ambient() {
   const track = usePlayer((s) => s.snapshot?.track ?? null)
   const playing = usePlayer((s) => !!s.snapshot?.isPlaying)
   const st = useLyrics((s) => s.state)
+  const retry = useLyrics((s) => s.retry)
+  const failed = !!track && st.phase === 'ready' && (st.result.status === 'error' || st.result.status === 'none')
   const raw = st.phase === 'ready' && st.result.status === 'synced' ? st.result.lines : []
   const lines = useMemo(() => estimateWords(raw, track?.durationMs), [raw, track?.durationMs])
   const offset = useLyricOffset()
@@ -228,11 +230,9 @@ function Ambient() {
 
   // the picture needs more screen brightness than plain text; the slider sets the base
   useEffect(() => {
-    // video needs more light to be seen; in auto mode the room light moves it between the floor and the slider value
-    const floor = style === 'video' ? 0.12 : 0.03
-    const level = style === 'video' ? Math.max(brightness, 0.3) : brightness
-    void rpc('ambientBrightness', level, autoBright, floor).catch(() => undefined)
-  }, [style, brightness, autoBright])
+    // the slider is the brightness; with Auto the phone's light sensor scales it with the room (50% dark .. 100% bright)
+    void rpc('ambientBrightness', brightness, autoBright).catch(() => undefined)
+  }, [brightness, autoBright])
 
   useEffect(() => {
     const id = setInterval(() => setDrift({ x: Math.round((Math.random() - 0.5) * 48), y: Math.round((Math.random() - 0.5) * 70) }), 45_000)
@@ -259,7 +259,15 @@ function Ambient() {
         </div>
 
         <div className="amb__lyrics">
-          {lines.length > 0 && idx >= 0 ? <LyricScroll lines={lines} idx={idx} offset={offset} /> : <p className="amb__line amb__idle">{track ? (lines.length ? '♪' : '') : ''}</p>}
+          {lines.length > 0 && idx >= 0 ? (
+            <LyricScroll lines={lines} idx={idx} offset={offset} />
+          ) : failed ? (
+            <button type="button" className="amb__retry" onClick={retry}>
+              ↻ Retry lyrics
+            </button>
+          ) : (
+            <p className="amb__line amb__idle">{track ? (lines.length ? '♪' : '') : ''}</p>
+          )}
         </div>
 
         <div className="amb__foot">

@@ -280,7 +280,7 @@ export const DEFAULT_SETTINGS: Settings = {
   keepScreenOn: false,
   keepRunning: false,
   ambientStyle: 'glow',
-  ambientBrightness: 0.3,
+  ambientBrightness: 0.2,
   ambientAutoBrightness: true,
   lyricOffsetMs: 0,
   reducedMotion: 'system',

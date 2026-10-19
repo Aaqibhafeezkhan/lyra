@@ -231,7 +231,10 @@ function YoutubeLayer({ spec, run, onFail }: { spec: Extract<BackgroundSpec, { k
   const cmd = (func: string, args: unknown[] = []): void =>
     frame.current?.contentWindow?.postMessage(JSON.stringify({ event: 'command', func, args }), 'https://www.youtube-nocookie.com')
 
-  // always render the embed at 1080p and scale it down/up to cover, so YouTube serves its best stream even in the small mini player
+  // always render the embed at 1080p and scale it down/up to cover, so YouTube serves its best stream even in the small mini player.
+  // Ambient mode (dim, soft, on battery) asks for 480p instead: far cheaper to decode and it looks just as good that dim.
+  const W = document.documentElement.dataset.ambient === '1' ? 854 : 1920
+  const H = document.documentElement.dataset.ambient === '1' ? 480 : 1080
   useEffect(() => {
     const el = wrap.current
     if (!el) return
@@ -240,9 +243,9 @@ function YoutubeLayer({ spec, run, onFail }: { spec: Extract<BackgroundSpec, { k
     const aw = 1 - c.l - c.r
     const ah = 1 - c.t - c.b
     const ro = new ResizeObserver(() => {
-      const k = Math.max(el.clientWidth / (1920 * aw), el.clientHeight / (1080 * ah)) * 1.1
-      const dx = ((c.l - c.r) / 2) * 1920 * k
-      const dy = ((c.t - c.b) / 2) * 1080 * k
+      const k = Math.max(el.clientWidth / (W * aw), el.clientHeight / (H * ah)) * 1.1
+      const dx = ((c.l - c.r) / 2) * W * k
+      const dy = ((c.t - c.b) / 2) * H * k
       setXf(`translate(calc(-50% - ${dx}px), calc(-50% - ${dy}px)) scale(${k})`)
     })
     ro.observe(el)
@@ -262,7 +265,7 @@ function YoutubeLayer({ spec, run, onFail }: { spec: Extract<BackgroundSpec, { k
       if (d?.info?.playerState !== undefined) lastState.current = d.info.playerState
       if (d?.event === 'onError') onFailRef.current()
       else if (d?.event === 'onReady') {
-        cmd('setPlaybackQuality', ['hd1080'])
+        cmd('setPlaybackQuality', [document.documentElement.dataset.ambient === '1' ? 'large' : 'hd1080'])
         if (!phone && !runRef.current) cmd('pauseVideo')
       } else if (d?.event === 'infoDelivery' && d.info?.playerState === 1) {
         window.clearTimeout(timer.current)
@@ -294,7 +297,7 @@ function YoutubeLayer({ spec, run, onFail }: { spec: Extract<BackgroundSpec, { k
 
   const src =
     `https://www.youtube-nocookie.com/embed/${spec.videoId}?autoplay=1&mute=1&controls=0&loop=1&playlist=${spec.videoId}&start=${start}` +
-    '&modestbranding=1&playsinline=1&disablekb=1&rel=0&fs=0&iv_load_policy=3&enablejsapi=1&vq=hd1080'
+    '&modestbranding=1&playsinline=1&disablekb=1&rel=0&fs=0&iv_load_policy=3&enablejsapi=1&vq=' + (document.documentElement.dataset.ambient === '1' ? 'large' : 'hd1080')
   return (
     <div ref={wrap} className="backdrop__ytwrap">
       <iframe
@@ -302,7 +305,7 @@ function YoutubeLayer({ spec, run, onFail }: { spec: Extract<BackgroundSpec, { k
         className="backdrop__yt"
         data-ready={ready || undefined}
       data-mask={masked || undefined}
-        style={{ transform: xf }}
+        style={{ width: W, height: H, transform: xf }}
         src={src}
         title="Background video"
         allow="autoplay; encrypted-media"

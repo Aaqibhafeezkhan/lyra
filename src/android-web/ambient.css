@@ -24,7 +24,7 @@ body,
   filter: brightness(0.62) saturate(1);
 }
 .amb--video .amb__bg {
-  filter: brightness(0.9) saturate(0.95);
+  filter: brightness(0.72) saturate(0.85);
 }
 /* use our own darkening instead of the player's heavy scrims */
 .amb__bg .backdrop {
@@ -34,7 +34,7 @@ body,
   opacity: 0.2 !important;
 }
 .amb--video .amb__bg .backdrop__dim {
-  opacity: 0.08 !important;
+  opacity: 0.16 !important;
 }
 .amb__bg .backdrop__grade,
 .amb__bg .backdrop__shade {
@@ -97,6 +97,18 @@ body,
 }
 .amb__idle {
   opacity: 0.4;
+}
+.amb__retry {
+  font: inherit;
+  font-size: 15px;
+  color: rgba(255, 255, 255, 0.75);
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 999px;
+  padding: 10px 22px;
+}
+.amb__retry:active {
+  background: rgba(255, 255, 255, 0.2);
 }
 
 /* words fill from dim to bright as they are sung */
