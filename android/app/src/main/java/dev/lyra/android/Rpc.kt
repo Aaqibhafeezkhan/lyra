@@ -4,9 +4,13 @@ import android.app.Activity
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import android.content.Intent
 import android.net.Uri
+import android.os.Handler
+import android.os.Looper
+import android.provider.Settings
 import android.util.Base64
-import android.webkit.WebView
+import android.view.WindowManager
 import androidx.webkit.JavaScriptReplyProxy
 import androidx.webkit.WebMessageCompat
 import androidx.webkit.WebViewCompat
@@ -20,10 +24,17 @@ import java.util.concurrent.Executors
 /**
  * The only door between the web UI and Android. It is restricted to Lyra's own page (a YouTube iframe on the
  * same screen cannot call it) and answers a small fixed set of methods; nothing here runs arbitrary code.
+ *
+ * Serves both the app screen (with an [activity]) and the floating widget (without one).
  */
-class Rpc(private val activity: Activity, private val web: LyraWebView) {
+class Rpc(private val ctx: Context, private val web: LyraWebView, private val activity: Activity? = null) {
     private val io = Executors.newCachedThreadPool()
+    private val main = Handler(Looper.getMainLooper())
     private val listener = { pushState() }
+
+    private fun ui(r: Runnable) {
+        if (Looper.myLooper() == Looper.getMainLooper()) r.run() else main.post(r)
+    }
 
     fun install() {
         check(WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_LISTENER)) { "This WebView is too old for Lyra" }
@@ -31,15 +42,15 @@ class Rpc(private val activity: Activity, private val web: LyraWebView) {
             if (isMainFrame) handle(message, reply)
         }
         MediaMonitor.addListener(listener)
-        MediaMonitor.refresh(activity)
+        MediaMonitor.refresh(ctx)
     }
 
     fun dispose() = MediaMonitor.removeListener(listener)
 
     /** Push the latest playback state to the page (main frame only, via evaluateJavascript). */
     fun pushState() {
-        val snap = MediaMonitor.snapshotJson(activity)
-        val status = MediaMonitor.statusJson(activity)
+        val snap = MediaMonitor.snapshotJson(ctx)
+        val status = MediaMonitor.statusJson(ctx)
         web.post {
             web.evaluateJavascript(
                 "window.__lyraNative&&window.__lyraNative.push(${JSONObject.quote(snap)},${JSONObject.quote(status)})",
@@ -59,52 +70,75 @@ class Rpc(private val activity: Activity, private val web: LyraWebView) {
         val args = req.optJSONArray("args") ?: JSONArray()
         fun ok(result: Any?) = reply.postMessage(JSONObject().put("id", id).put("ok", true).put("result", result ?: JSONObject.NULL).toString())
         fun fail(e: String) = reply.postMessage(JSONObject().put("id", id).put("ok", false).put("error", e).toString())
+        fun activityOnly(block: (Activity) -> Unit) = ui {
+            if (activity == null) ok(false) else {
+                block(activity)
+                ok(true)
+            }
+        }
 
         when (req.optString("method")) {
-            "snapshot" -> activity.runOnUiThread { ok(MediaMonitor.snapshotJson(activity)) }
-            "status" -> activity.runOnUiThread { ok(MediaMonitor.statusJson(activity)) }
-            "command" -> activity.runOnUiThread { ok(MediaMonitor.command(args.getString(0))) }
-            "hasAccess" -> ok(MediaMonitor.hasAccess(activity))
+            "snapshot" -> ui { ok(MediaMonitor.snapshotJson(ctx)) }
+            "status" -> ui { ok(MediaMonitor.statusJson(ctx)) }
+            "command" -> ui { ok(MediaMonitor.command(args.getString(0))) }
+            "hasAccess" -> ok(MediaMonitor.hasAccess(ctx))
             "refresh" -> {
-                MediaMonitor.refresh(activity)
+                MediaMonitor.refresh(ctx)
                 ok(true)
             }
-            "openAccessSettings" -> activity.runOnUiThread { MediaMonitor.openAccessSettings(activity); ok(true) }
-            "openSpotify" -> activity.runOnUiThread { MediaMonitor.openSpotify(activity); ok(true) }
-            "copy" -> activity.runOnUiThread {
-                (activity.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager).setPrimaryClip(ClipData.newPlainText("Lyra", args.getString(0)))
+            "openAccessSettings" -> ui { MediaMonitor.openAccessSettings(ctx); ok(true) }
+            "openSpotify" -> ui { MediaMonitor.openSpotify(ctx); ok(true) }
+            "openApp" -> ui {
+                ctx.startActivity(Intent(ctx, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT))
                 ok(true)
             }
-            "secretLoad" -> ok(SecretStore.load(activity, args.getString(0)))
-            "secretSave" -> { SecretStore.save(activity, args.getString(0), args.getString(1)); ok(true) }
-            "secretClear" -> { SecretStore.clear(activity, args.getString(0)); ok(true) }
-            "keepScreenOn" -> activity.runOnUiThread {
+            "copy" -> ui {
+                (ctx.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager).setPrimaryClip(ClipData.newPlainText("Lyra", args.getString(0)))
+                ok(true)
+            }
+            "secretLoad" -> ok(SecretStore.load(ctx, args.getString(0)))
+            "secretSave" -> { SecretStore.save(ctx, args.getString(0), args.getString(1)); ok(true) }
+            "secretClear" -> { SecretStore.clear(ctx, args.getString(0)); ok(true) }
+            "keepScreenOn" -> activityOnly { a ->
                 val on = args.getBoolean(0)
                 web.userKeepsScreenOn = on
                 web.keepScreenOn = on
-                if (on) activity.window.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-                else activity.window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-                ok(true)
+                if (on) a.window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                else a.window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
             }
-            "keepRunning" -> activity.runOnUiThread {
+            "keepRunning" -> ui {
                 val on = args.getBoolean(0)
-                if (on && android.os.Build.VERSION.SDK_INT >= 33 &&
+                if (on && activity != null && android.os.Build.VERSION.SDK_INT >= 33 &&
                     activity.checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED
                 ) activity.requestPermissions(arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), 7)
                 try {
-                    KeepAliveService.set(activity, on)
+                    KeepAliveService.set(ctx, on)
                     ok(true)
                 } catch (e: Exception) {
                     fail(e.message ?: "could not start the service")
                 }
             }
-            "openBatterySettings" -> activity.runOnUiThread {
-                activity.startActivity(android.content.Intent(android.provider.Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
+            "overlayState" -> ok(JSONObject().put("enabled", OverlayService.enabled(ctx)).put("canDraw", Settings.canDrawOverlays(ctx)))
+            "overlaySet" -> ui {
+                val on = args.getBoolean(0)
+                if (on && !Settings.canDrawOverlays(ctx)) {
+                    // the user must grant "Display over other apps" themselves; open the right screen for them
+                    ctx.startActivity(
+                        Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:${ctx.packageName}")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    )
+                    ok(JSONObject().put("ok", false).put("needsPermission", true))
+                } else {
+                    OverlayService.set(ctx, on)
+                    ok(JSONObject().put("ok", true))
+                }
+            }
+            "openBatterySettings" -> ui {
+                ctx.startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
                 ok(true)
             }
-            "version" -> ok(activity.packageManager.getPackageInfo(activity.packageName, 0).versionName)
-            "minimize" -> activity.runOnUiThread { activity.moveTaskToBack(true); ok(true) }
-            "finish" -> activity.runOnUiThread { activity.finishAffinity(); ok(true) }
+            "version" -> ok(ctx.packageManager.getPackageInfo(ctx.packageName, 0).versionName)
+            "minimize" -> activityOnly { it.moveTaskToBack(true) }
+            "finish" -> activityOnly { it.finishAffinity() }
             "fetch" -> io.execute {
                 try {
                     ok(fetch(args.getString(0), args.optJSONObject(1)))

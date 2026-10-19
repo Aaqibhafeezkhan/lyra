@@ -4,6 +4,7 @@ import { ready } from './api'
 await ready
 
 document.documentElement.dataset.platform = 'android'
+if (new URLSearchParams(location.search).has('overlay')) document.documentElement.dataset.overlay = '1'
 
 void import('@/main').then(async () => {
   const { useUi, requestMode } = await import('@/store/ui')

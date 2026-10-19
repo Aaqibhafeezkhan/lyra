@@ -182,6 +182,9 @@ export interface LyraApi {
     hasAccess(): Promise<boolean>
     openAccessSettings(): Promise<void>
     openBatterySettings(): Promise<void>
+    overlayState(): Promise<{ enabled: boolean; canDraw: boolean }>
+    /** needsPermission: Android opened the "Display over other apps" screen; the user must allow it, then try again */
+    setOverlay(on: boolean): Promise<{ ok: boolean; needsPermission?: boolean }>
   }
   app: {
     info(): Promise<AppInfo>

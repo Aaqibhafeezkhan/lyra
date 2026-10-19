@@ -57,6 +57,7 @@ function sanitize(s: Settings): Settings {
 let lastScreenOn: boolean | null = null
 let lastRunning: boolean | null = null
 function syncPhone(): void {
+  if (overlayMode) return // the floating widget never touches the screen / service switches
   const s = settingsStore.get()
   const screenOn = !!s.keepScreenOn && !!snapshot?.isPlaying
   if (screenOn !== lastScreenOn) {
@@ -70,7 +71,9 @@ function syncPhone(): void {
 }
 
 // ---------------- window / mode (the phone has one screen: expanded player or the full cinema layout)
-let mode: ViewMode = 'mini'
+/** the floating widget runs this same page with ?overlay=compact */
+const overlayMode = new URLSearchParams(location.search).get('overlay')
+let mode: ViewMode = overlayMode ? 'compact' : 'mini'
 const modeChanged = emitter<ModeEvent>()
 
 // ---------------- playback (pushed by the app)
@@ -144,6 +147,14 @@ const resolveBackground = createBackgroundResolver({
 
 const noop = (): void => undefined
 
+/** One quiet retry when the free lyrics service hiccups (the app and the floating widget can ask at the same moment). */
+async function withRetry<T extends { status: string }>(first: () => Promise<T>, again: () => Promise<T>): Promise<T> {
+  const r = await first()
+  if (r.status !== 'error') return r
+  await new Promise((ok) => setTimeout(ok, 3000))
+  return again()
+}
+
 export const androidApi: LyraApi & { android: NonNullable<LyraApi['android']> } = {
   settings: {
     get: async () => sanitize(settingsStore.get()),
@@ -164,6 +175,11 @@ export const androidApi: LyraApi & { android: NonNullable<LyraApi['android']> } 
   },
   window: {
     setMode: async (m) => {
+      if (overlayMode) {
+        // the floating widget can only be a widget; "expand" opens the app
+        if (m !== 'compact' && m !== 'minimal') void rpc('openApp')
+        return
+      }
       // the phone only has two layouts: the expanded player ("mini") and the cinema layout ("full")
       const next: ViewMode = m === 'full' ? 'full' : 'mini'
       if (next === mode) return
@@ -212,7 +228,7 @@ export const androidApi: LyraApi & { android: NonNullable<LyraApi['android']> } 
     openInSpotify: async () => void (await rpc('openSpotify'))
   },
   lyrics: {
-    get: (t) => lyricsService.get(t),
+    get: (t) => withRetry(() => lyricsService.get(t), () => lyricsService.get(t, true)),
     refresh: (t) => lyricsService.get(t, true),
     candidates: (t) => lyricsService.candidates(t),
     choose: (t, provider, id) => lyricsService.choose(t, provider, id),
@@ -270,7 +286,9 @@ export const androidApi: LyraApi & { android: NonNullable<LyraApi['android']> } 
   android: {
     hasAccess: () => rpc<boolean>('hasAccess'),
     openAccessSettings: async () => void (await rpc('openAccessSettings')),
-    openBatterySettings: async () => void (await rpc('openBatterySettings'))
+    openBatterySettings: async () => void (await rpc('openBatterySettings')),
+    overlayState: () => rpc<{ enabled: boolean; canDraw: boolean }>('overlayState'),
+    setOverlay: (on) => rpc<{ ok: boolean; needsPermission?: boolean }>('overlaySet', on)
   }
 }
 

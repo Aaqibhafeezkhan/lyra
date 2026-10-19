@@ -281,6 +281,16 @@ function BackgroundSection() {
 function PhoneSection() {
   const s = useSettings((x) => x.settings)
   const set = useSettings((x) => x.set)
+  const toast = useUi((x) => x.toast)
+  const [overlay, setOverlay] = useState(false)
+  useEffect(() => {
+    void window.lyra.android?.overlayState().then((st) => setOverlay(st.enabled && st.canDraw))
+  }, [])
+  const toggleOverlay = async (on: boolean): Promise<void> => {
+    const r = await window.lyra.android?.setOverlay(on)
+    if (r?.needsPermission) toast('Turn on “Display over other apps” for Lyra, then come back and switch this on again.')
+    else setOverlay(on)
+  }
   return (
     <section>
       <h4>Phone</h4>
@@ -289,6 +299,9 @@ function PhoneSection() {
       </Row>
       <Row label="Keep Lyra running" info="Runs a small background service (with one quiet notification) so Android doesn’t close Lyra while you listen. Turn it off any time." hint="Shows a notification">
         <Toggle label="Keep Lyra running" checked={s.keepRunning} onChange={(v) => set({ keepRunning: v })} />
+      </Row>
+      <Row label="Floating lyrics" info="Shows a small lyrics widget over other apps while music plays, so you can read along while using something else. It hides while Lyra is open. Needs Android’s “Display over other apps” permission." hint="Over other apps">
+        <Toggle label="Floating lyrics widget" checked={overlay} onChange={(v) => void toggleOverlay(v)} />
       </Row>
       <Row label="Battery" info="Samsung and other phones may still close apps to save power. Set Lyra to “Unrestricted” (or choose “Don’t optimise”) so it keeps working with the screen off." hint="Allow background use">
         <button type="button" className="pill" onClick={() => void window.lyra.android?.openBatterySettings()}>

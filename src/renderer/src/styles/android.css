@@ -64,3 +64,75 @@
 [data-platform='android'] .lyrics--full {
   --lyric-size: 27px !important;
 }
+
+/* ---------- phone cinema: smaller dock, tidier header, lyrics options moved up under the header ---------- */
+[data-platform='android'] .full.is-cinema .full__side {
+  padding: 8px 12px 8px 8px;
+  gap: 10px;
+  border-radius: 20px;
+}
+[data-platform='android'] .full.is-cinema .full__side .artwork {
+  width: 56px !important;
+  height: 56px !important;
+  border-radius: 10px !important;
+}
+[data-platform='android'] .full.is-cinema .full__titles h1 {
+  font-size: 16px;
+}
+[data-platform='android'] .full.is-cinema .full__artist {
+  font-size: 12.5px;
+  margin-top: 1px;
+}
+[data-platform='android'] .full.is-cinema .full__chrome {
+  gap: 4px;
+}
+[data-platform='android'] .full.is-cinema .transport .ibtn {
+  width: 40px;
+  height: 40px;
+}
+[data-platform='android'] .full__device {
+  display: none; /* "Playing on this phone" is obvious and wrapped onto two lines */
+}
+[data-platform='android'] .full__top {
+  justify-content: flex-end;
+}
+/* the "LRCLIB · words estimated · Wrong lyrics? · sync" strip becomes a small pill under the header */
+[data-platform='android'] .full .lyrics__footer {
+  position: fixed;
+  top: calc(env(safe-area-inset-top, 0px) + 62px);
+  right: 14px;
+  z-index: 5;
+  padding: 3px 10px;
+  gap: 10px;
+  border-radius: 14px;
+  background: rgba(0, 0, 0, 0.38);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  transition: opacity 0.5s var(--ease);
+}
+[data-platform='android'] .full .lyrics__source > span {
+  display: none; /* provider / "words estimated" text */
+}
+[data-platform='android'] .full.is-idle .lyrics__footer {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* ---------- floating widget page ---------- */
+[data-overlay] html,
+[data-overlay] body,
+html[data-overlay] body {
+  background: transparent !important;
+}
+html[data-overlay] .shell {
+  border-radius: 0;
+  box-shadow: none;
+}
+html[data-overlay] .widget__actions {
+  opacity: 1;
+}
+
+[data-platform='android'] .full.is-cinema .full__side {
+  align-self: stretch;
+  justify-self: stretch;
+}

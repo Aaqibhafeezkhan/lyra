@@ -137,6 +137,21 @@ object MediaMonitor {
         }
         if (duration > 0) pos = pos.coerceIn(0, duration)
 
+        // Spotify marks ads with "Advertisement" as the artist ("Advertisement • 1 of 2") or an ad media id
+        val isAd = artist.startsWith("Advertisement", true) || title.equals("Advertisement", true) || mediaId.contains(":ad:") || album.equals("Advertisement", true)
+        if (isAd) {
+            return JSONObject().apply {
+                put("track", JSONObject.NULL)
+                put("isPlaying", playing)
+                put("positionMs", 0)
+                put("sampledAt", System.currentTimeMillis())
+                put("device", JSONObject.NULL)
+                put("shuffle", false)
+                put("repeat", "off")
+                put("isAdOrUnknown", true)
+            }.toString()
+        }
+
         val track = JSONObject()
         track.put("id", trackId(c.packageName, mediaId, title, artist, album))
         track.put("uri", mediaId.ifEmpty { "android:${c.packageName}" })
