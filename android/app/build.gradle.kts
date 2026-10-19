@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -5,7 +7,7 @@ plugins {
 
 // One place for the version: version.properties (the release workflow checks that the tag matches it, and
 // F-Droid reads it too). Bump both numbers for every release; versionCode must always go up.
-val versionProps = java.util.Properties().apply { file("version.properties").inputStream().use { load(it) } }
+val versionProps = Properties().apply { file("version.properties").inputStream().use { load(it) } }
 val lyraVersion: String = versionProps.getProperty("versionName")
 val lyraVersionCode: Int = versionProps.getProperty("versionCode").toInt()
 
