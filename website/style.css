@@ -249,10 +249,4 @@ h3 { margin: 0 0 8px; font-size: 20px; letter-spacing: -0.02em; }
 /* ---------- whole song ---------- */
 .song { position: relative; margin: 34px auto 0; max-width: 1100px; border-radius: 28px; overflow: hidden; border: 1px solid rgba(255, 255, 255, 0.14); background: #000; aspect-ratio: 16 / 10; box-shadow: 0 60px 140px -50px color-mix(in srgb, var(--c2) 60%, #000); }
 .song video { width: 100%; height: 100%; display: block; object-fit: cover; }
-.song__yt { position: absolute; top: 14px; right: 14px; width: 220px; padding: 8px; border-radius: 16px; background: rgba(10, 10, 12, 0.72); border: 1px solid var(--line); backdrop-filter: blur(16px); text-align: left; z-index: 2; }
-.song__yt[hidden] { display: none; }
-.song__yt iframe { width: 100%; height: auto; aspect-ratio: 16 / 9; border-radius: 10px; display: block; }
-.song__yt small { display: block; margin-top: 6px; font-size: 11px; color: var(--fg3); }
-.song__bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 16px; margin-top: 22px; }
-.song__note { font-size: 12.5px; color: var(--fg3); max-width: 46ch; }
-@media (max-width: 700px) { .song__yt { width: 150px; top: 8px; right: 8px; } .song__yt small { display: none; } }
+.song__note { margin: 22px auto 0; font-size: 12.5px; color: var(--fg3); max-width: 52ch; text-align: center; }
