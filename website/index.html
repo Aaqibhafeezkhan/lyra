@@ -24,6 +24,7 @@
     <nav>
       <a href="#real">Screenshots</a>
       <a href="#reel">Videos</a>
+      <a href="#song">Full song</a>
       <a href="#demo">Live demo</a>
       <a href="#features">Features</a>
       <a href="#phone">Android</a>
@@ -78,15 +79,34 @@
     <section class="section" id="reel">
       <h2 class="reveal">See it <span class="mute">in motion.</span></h2>
       <p class="sub reveal">Screen recordings of Lyra on Windows, different songs, different moods.</p>
-      <div class="tabs reveal" id="reel-tabs" role="tablist">
-        <button role="tab" class="is-on" data-clip="blinding">Warm night</button>
-        <button role="tab" data-clip="levitating">Cool blue</button>
-        <button role="tab" data-clip="dontstart">Club</button>
-        <button role="tab" data-clip="barsaat">Hindi · Spider-Man</button>
+      <div class="tabs tabs--scroll reveal" id="reel-tabs" role="tablist">
+        <button role="tab" class="is-on" data-clip="blinding">Blinding Lights</button>
+        <button role="tab" data-clip="levitating">Levitating</button>
+        <button role="tab" data-clip="dontstart">Don't Start Now</button>
+        <button role="tab" data-clip="espresso">Espresso</button>
+        <button role="tab" data-clip="asit">As It Was</button>
+        <button role="tab" data-clip="barsaat">Barsaat · Hindi</button>
         <button role="tab" data-clip="widget">Widget</button>
       </div>
       <div class="reel reveal" id="reel-box">
         <video id="reel-video" muted loop playsinline autoplay preload="metadata" poster="assets/poster-blinding.jpg"><source src="assets/clip-blinding.mp4" type="video/mp4" /></video>
+      </div>
+    </section>
+
+    <!-- WHOLE SONG -->
+    <section class="section" id="song">
+      <h2 class="reveal">Watch a <em>whole</em> song.</h2>
+      <p class="sub reveal">Barsaat by Banjaare, start to finish, with Hindi lyrics lighting up word by word over the video. Turn the sound on to hear it.</p>
+      <div class="song reveal" id="song-box">
+        <video id="song-video" controls playsinline preload="metadata" muted poster="assets/poster-song.jpg"><source src="assets/song-barsaat.mp4" type="video/mp4" /></video>
+        <div class="song__yt" id="song-yt-card" hidden><div id="song-yt"></div><small>Sound: the official upload on YouTube</small></div>
+      </div>
+      <div class="song__bar reveal">
+        <button class="btn" id="song-sound" type="button">
+          <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M3 9v6h4l5 4V5L7 9zm13.5 3a4.5 4.5 0 0 0-2.5-4v8a4.5 4.5 0 0 0 2.5-4z"/></svg>
+          <span>Play with sound</span>
+        </button>
+        <span class="song__note">The song and video belong to Banjaare and Sony Music. Shown here only to demo Lyra.</span>
       </div>
     </section>
 

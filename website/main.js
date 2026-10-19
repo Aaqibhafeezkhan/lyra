@@ -278,9 +278,59 @@ document.getElementById('reel-tabs').addEventListener('click', (e) => {
   const k = b.dataset.clip
   document.querySelectorAll('#reel-tabs button').forEach((x) => x.classList.toggle('is-on', x === b))
   document.getElementById('reel-box').classList.toggle('is-tall', k === 'widget')
+  b.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' })
   reelVideo.poster = `assets/poster-${k}.jpg`
   reelVideo.src = `assets/clip-${k}.mp4`
   reelVideo.play().catch(() => {})
 })
 // play only while visible (saves battery and bandwidth)
 new IntersectionObserver((es) => es.forEach((e) => (e.isIntersecting ? reelVideo.play().catch(() => {}) : reelVideo.pause())), { threshold: 0.25 }).observe(reelVideo)
+
+/* ---------- whole song: our recording is muted; sound comes from the official YouTube upload, kept in sync ---------- */
+{
+  const v = document.getElementById('song-video')
+  const btn = document.getElementById('song-sound')
+  const card = document.getElementById('song-yt-card')
+  const YT_ID = '7Pw5qk4wJAw' // official upload, same length as the track
+  let yt = null, on = false, timer = 0
+  const label = (t) => (btn.querySelector('span').textContent = t)
+  const loadApi = () => new Promise((res) => {
+    if (window.YT && window.YT.Player) return res()
+    window.onYouTubeIframeAPIReady = res
+    const s = document.createElement('script')
+    s.src = 'https://www.youtube.com/iframe_api'
+    document.head.appendChild(s)
+  })
+  const follow = () => {
+    if (!yt || !yt.getCurrentTime) return
+    if (v.paused) { if (yt.getPlayerState() === 1) yt.pauseVideo(); return }
+    if (yt.getPlayerState() !== 1) yt.playVideo()
+    if (Math.abs(yt.getCurrentTime() - v.currentTime) > 0.4) yt.seekTo(v.currentTime, true)
+  }
+  const stop = () => { on = false; clearInterval(timer); card.hidden = true; if (yt) yt.pauseVideo(); label('Play with sound') }
+  btn.addEventListener('click', async () => {
+    if (on) return stop()
+    on = true
+    label('Loading sound…')
+    card.hidden = false
+    await loadApi()
+    if (!yt) {
+      await new Promise((res) => {
+        yt = new YT.Player('song-yt', {
+          host: 'https://www.youtube-nocookie.com', videoId: YT_ID,
+          playerVars: { controls: 0, rel: 0, modestbranding: 1, playsinline: 1, disablekb: 1, iv_load_policy: 3 },
+          events: { onReady: res }
+        })
+      })
+    }
+    v.muted = true
+    yt.seekTo(v.currentTime, true)
+    if (v.paused) v.play().catch(() => {})
+    yt.playVideo()
+    timer = setInterval(follow, 600)
+    label('Sound on (tap to stop)')
+  })
+  for (const ev of ['pause', 'seeked', 'play', 'ended']) v.addEventListener(ev, () => { if (on) follow() })
+  // pause the recording when scrolled away
+  new IntersectionObserver((es) => es.forEach((e) => { if (!e.isIntersecting && !v.paused) v.pause() }), { threshold: 0.1 }).observe(v)
+}
