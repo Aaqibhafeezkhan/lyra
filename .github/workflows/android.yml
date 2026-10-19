@@ -77,6 +77,11 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "${{ github.ref_name }}" "Lyra-Android-${{ steps.v.outputs.version }}.apk" \
-            --title "Lyra for Android ${{ steps.v.outputs.version }}" \
-            --generate-notes
+          APK="Lyra-Android-${{ steps.v.outputs.version }}.apk"
+          if gh release view "${{ github.ref_name }}" >/dev/null 2>&1; then
+            gh release upload "${{ github.ref_name }}" "$APK" --clobber   # tag was moved: replace the APK
+          else
+            gh release create "${{ github.ref_name }}" "$APK" \
+              --title "Lyra for Android ${{ steps.v.outputs.version }}" \
+              --generate-notes
+          fi
