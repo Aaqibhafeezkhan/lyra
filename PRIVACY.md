@@ -23,4 +23,6 @@ Backgrounds you choose (GIF, image, MP4, WebM) are **copied** into `%APPDATA%\Ly
 A YouTube API key, if you add one, is encrypted with Windows DPAPI, kept only in the main process and never shown
 to the interface; remove it any time in Settings → Background.
 
+**On Android** the same rules apply, plus: Lyra asks for *Notification access* only so Android will let it see which song is playing (title, artist, album, position, cover). It does not read or store your notifications. Your settings, saved lines, and any background video/GIF you pick live in the app's private storage; a YouTube API key is encrypted with the Android Keystore. The optional floating widget and "keep running" service only show lyrics and keep the app alive; they send nothing anywhere.
+
 Requests go straight from your PC to those services; Lyra has no server of its own.

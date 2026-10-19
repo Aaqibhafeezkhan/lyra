@@ -46,6 +46,22 @@ Spotify's own looping "Canvas" videos have no public API, so Lyra offers three l
 
 Auto order: your per-song file → your global file → a free 30 s Apple music-video preview when one exists → YouTube (only if you added a key) → living artwork. Videos pause while the window is hidden or reduce-motion is on.
 
+## Android
+Lyra also runs on Android (8.0+). It is the same UI and the same shared core (`src/core`), inside a small Kotlin shell (`android/`).
+
+- **Install:** download `Lyra-Android-<version>.apk` from the [Releases](../../releases) page (look for tags named `android-v…`) and open it. Android will ask you to allow installs from your browser or file manager the first time.
+- **What it does:** reads what any music app (Spotify, YouTube Music…) is playing from Android's media sessions, shows synced lyrics with word-by-word highlighting, and plays the Apple / YouTube / your own video behind them. The title and controls fade away after a few seconds and the lyrics grow into the space; touch brings them back.
+- **One permission to grant:** *Notification access*. Lyra only reads the now-playing card (title, artist, position). It never reads your notifications.
+- **Optional (Settings → Phone):** keep the screen on while a song plays, keep Lyra running in the background, a floating lyrics widget over other apps ("Display over other apps"), your own video/GIF per song or for all songs, and a YouTube API key (stored encrypted in the Android Keystore).
+- **Build it yourself:** install JDK 17 and the Android SDK (platform 36), then:
+  ```bash
+  npm ci
+  npm run build:android-ui         # builds the web UI into android/app/src/main/assets/ui
+  cd android && ./gradlew assembleDebug
+  ```
+  Release APKs are built and signed by the **Android** GitHub workflow when a tag like `android-v0.1.0` is pushed (secrets: `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD`). Without those secrets (a fork) it signs with the debug key instead.
+- **Architecture:** `src/android-web` implements `window.lyra` for the phone (the same interface the Windows app uses); `android/app/src/main/java/dev/lyra/android` has the media-session reader, the origin-restricted bridge (`Rpc.kt`), the floating widget and the Keystore storage. Contributions welcome.
+
 ## Notes & limits
 - Windows can't blur the desktop behind a transparent window, so "glass" = translucent panel + blurred artwork layer, not true acrylic.
 - Always-on-top uses the highest topmost level and is re-asserted on blur and every 2.5 s.

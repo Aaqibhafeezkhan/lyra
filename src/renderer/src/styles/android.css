@@ -153,3 +153,21 @@ html[data-overlay] .widget__actions {
 [data-platform='android'] [aria-label='Exit fullscreen (Esc)'] {
   display: none !important;
 }
+
+/* when the title and controls fade away, they fold up and the lyrics grow into the space (and settle back on touch) */
+[data-platform='android'] .mini__card {
+  max-height: 320px;
+  overflow: hidden;
+  transition:
+    opacity 0.6s var(--ease),
+    max-height 0.7s var(--ease);
+}
+[data-platform='android'] .mini.is-idle .mini__card {
+  max-height: 0;
+}
+[data-platform='android'][data-bg-media='mini'] .mini__lyrics {
+  transition: height 0.7s var(--ease);
+}
+[data-platform='android'][data-bg-media='mini'] .mini.is-idle .mini__lyrics {
+  height: clamp(280px, 48vh, 460px);
+}

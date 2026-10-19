@@ -1,0 +1,78 @@
+name: Android
+
+# Push a tag like android-v0.1.0 to build the signed APK and attach it to a GitHub release.
+# Run it by hand ("Run workflow") to just build an APK and download it as an artifact.
+on:
+  push:
+    tags: ['android-v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    env:
+      HAS_KEY: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: 'platforms;android-36 build-tools;36.0.0'
+
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - name: Build the web UI for Android
+        run: npm run build:android-ui
+
+      - name: Work out the version
+        id: v
+        shell: bash
+        run: |
+          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then v="${GITHUB_REF_NAME#android-v}"; else v="0.0.1"; fi
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+
+      - name: Decode the signing key (only when the secrets exist)
+        if: env.HAS_KEY == 'true'
+        shell: bash
+        run: |
+          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > "$RUNNER_TEMP/lyra-release.jks"
+          echo "LYRA_KEYSTORE=$RUNNER_TEMP/lyra-release.jks" >> "$GITHUB_ENV"
+          echo "LYRA_KEYSTORE_PASSWORD=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}" >> "$GITHUB_ENV"
+          echo "LYRA_KEY_ALIAS=${{ secrets.ANDROID_KEY_ALIAS }}" >> "$GITHUB_ENV"
+          echo "LYRA_KEY_PASSWORD=${{ secrets.ANDROID_KEY_PASSWORD }}" >> "$GITHUB_ENV"
+
+      - name: Build the APK
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleRelease -PlyraVersion="${{ steps.v.outputs.version }}" --no-daemon --console=plain
+
+      - name: Name the APK
+        shell: bash
+        run: cp android/app/build/outputs/apk/release/app-release.apk "Lyra-Android-${{ steps.v.outputs.version }}.apk"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Lyra-Android-${{ steps.v.outputs.version }}
+          path: Lyra-Android-*.apk
+
+      - name: Publish release
+        if: ${{ github.ref_type == 'tag' }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ github.ref_name }}" "Lyra-Android-${{ steps.v.outputs.version }}.apk" \
+            --title "Lyra for Android ${{ steps.v.outputs.version }}" \
+            --generate-notes

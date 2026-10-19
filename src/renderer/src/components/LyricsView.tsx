@@ -128,6 +128,17 @@ function SyncedLyrics({ result, variant }: { result: LyricsResult; variant: 'min
     if (follow.current) scrollToActive(active < 0)
   }, [active, scrollToActive])
 
+  // keep the current line in place when the lyrics area grows or shrinks (e.g. the phone player hiding its controls)
+  useEffect(() => {
+    const box = scroller.current
+    if (!box || typeof ResizeObserver === 'undefined') return
+    const ro = new ResizeObserver(() => {
+      if (follow.current) scrollToActive(true)
+    })
+    ro.observe(box)
+    return () => ro.disconnect()
+  }, [scrollToActive])
+
   useEffect(() => () => clearTimeout(resumeTimer.current), [])
 
   const resume = useCallback(() => {

@@ -42,7 +42,8 @@ export function MiniPlayer() {
   const caps = useCaps()
   const videoBehind = useBgState((x) => x.media === 'mini')
   // with a video behind it, the header / title / controls fade away after a few seconds and return on touch
-  const idle = useIdle(4000)
+  // a touch screen hides after 4 s; with a mouse, give it a little longer
+  const idle = useIdle(document.documentElement.dataset.platform === 'android' ? 4000 : 6000)
 
   return (
     <div className={`mini ${videoBehind && idle && panel === 'none' ? 'is-idle' : ''}`}>
