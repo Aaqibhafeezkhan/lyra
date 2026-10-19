@@ -30,6 +30,7 @@ function sanitize(s: Settings): Settings {
     keepScreenOn: !!s.keepScreenOn,
     keepRunning: !!s.keepRunning,
     ambientBrightness: clamp(s.ambientBrightness, 0.02, 0.6),
+    ambientAutoBrightness: s.ambientAutoBrightness !== false,
     ambientStyle: s.ambientStyle === 'minimal' || s.ambientStyle === 'video' ? s.ambientStyle : 'glow',
     autoDim: s.autoDim !== false,
     customBackground:

@@ -144,20 +144,25 @@ function LyricScroll({ lines, idx, offset }: { lines: ReturnType<typeof estimate
 function Controls({ shown, onTouch }: { shown: boolean; onTouch: () => void }) {
   const playing = usePlayer((s) => !!s.snapshot?.isPlaying)
   const brightness = useSettings((s) => s.settings.ambientBrightness)
+  const autoBright = useSettings((s) => s.settings.ambientAutoBrightness)
   const set = useSettings((s) => s.set)
   const command = usePlayer((s) => s.command)
   return (
     <div className={`amb__controls ${shown ? 'is-shown' : ''}`} onPointerDown={onTouch}>
-      <button
-        type="button"
-        role="switch"
-        aria-checked="true"
-        className="amb__switch"
-        onClick={() => void window.lyra.android?.toggleAmbient()}
-      >
-        <span>Ambient mode</span>
-        <i />
-      </button>
+      <div className="amb__top-row">
+        <label className="amb__auto">
+          <input type="checkbox" checked={autoBright} onChange={(e) => set({ ambientAutoBrightness: e.target.checked })} />
+          <span>Auto brightness</span>
+        </label>
+        <span className="ambsw ambsw--amb" title="Ambient mode">
+          <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+            <path fill="currentColor" d="M12.1 22c-5.5 0-10-4.5-10-10 0-4.8 3.4-8.9 8-9.8.4-.1.8.3.6.7-.5 1.1-.7 2.3-.7 3.4 0 4.4 3.6 8 8 8 .6 0 1.2-.1 1.8-.2.4-.1.8.3.6.7-1.3 4.2-5.3 7.2-9.8 7.2z" />
+          </svg>
+          <button type="button" role="switch" aria-checked="true" aria-label="Ambient mode" className="switch switch--sm" onClick={() => void window.lyra.android?.toggleAmbient()}>
+            <i />
+          </button>
+        </span>
+      </div>
       <div className="amb__transport">
         <button type="button" aria-label="Previous" onClick={() => void command({ type: 'previous' })}>
           ⏮
@@ -170,7 +175,7 @@ function Controls({ shown, onTouch }: { shown: boolean; onTouch: () => void }) {
         </button>
       </div>
       <label className="amb__bright">
-        <span>Brightness</span>
+        <span>{autoBright ? 'Brightest (auto adjusts below this)' : 'Brightness'}</span>
         <input
           type="range"
           min={0.02}
@@ -206,6 +211,7 @@ function MiniTransport() {
 function Ambient() {
   const style = useSettings((s) => s.settings.ambientStyle)
   const brightness = useSettings((s) => s.settings.ambientBrightness)
+  const autoBright = useSettings((s) => s.settings.ambientAutoBrightness)
   const track = usePlayer((s) => s.snapshot?.track ?? null)
   const playing = usePlayer((s) => !!s.snapshot?.isPlaying)
   const st = useLyrics((s) => s.state)
@@ -222,9 +228,11 @@ function Ambient() {
 
   // the picture needs more screen brightness than plain text; the slider sets the base
   useEffect(() => {
+    // video needs more light to be seen; in auto mode the room light moves it between the floor and the slider value
+    const floor = style === 'video' ? 0.12 : 0.03
     const level = style === 'video' ? Math.max(brightness, 0.3) : brightness
-    void rpc('ambientBrightness', level).catch(() => undefined)
-  }, [style, brightness])
+    void rpc('ambientBrightness', level, autoBright, floor).catch(() => undefined)
+  }, [style, brightness, autoBright])
 
   useEffect(() => {
     const id = setInterval(() => setDrift({ x: Math.round((Math.random() - 0.5) * 48), y: Math.round((Math.random() - 0.5) * 70) }), 45_000)

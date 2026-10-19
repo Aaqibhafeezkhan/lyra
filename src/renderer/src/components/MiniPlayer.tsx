@@ -32,6 +32,21 @@ export function LikeButton({ size = 18 }: { size?: number }) {
   )
 }
 
+/** Android: a small switch to turn ambient mode on or off. */
+function AmbientSwitch() {
+  const on = document.documentElement.dataset.ambient === '1'
+  return (
+    <span className="ambsw" title="Ambient mode">
+      <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
+        <path fill="currentColor" d="M12.1 22c-5.5 0-10-4.5-10-10 0-4.8 3.4-8.9 8-9.8.4-.1.8.3.6.7-.5 1.1-.7 2.3-.7 3.4 0 4.4 3.6 8 8 8 .6 0 1.2-.1 1.8-.2.4-.1.8.3.6.7-1.3 4.2-5.3 7.2-9.8 7.2z" />
+      </svg>
+      <button type="button" role="switch" aria-checked={on} aria-label="Ambient mode" className="switch switch--sm" onClick={() => void window.lyra.android?.toggleAmbient()}>
+        <i />
+      </button>
+    </span>
+  )
+}
+
 export function MiniPlayer() {
   const view = usePlayerView()
   const track = usePlayer((s) => s.snapshot?.track ?? null)
@@ -52,6 +67,7 @@ export function MiniPlayer() {
           {device ? device.name : 'Lyra'}
         </span>
         <div className="mini__tools" data-nodrag>
+          {document.documentElement.dataset.platform === 'android' && <AmbientSwitch />}
           {caps.queue && <IconButton icon="queue" label="Queue" active={panel === 'queue'} size={16} onClick={() => togglePanel('queue')} />}
           <IconButton icon="bookmark" label="Saved lyric moments" active={panel === 'moments'} size={16} onClick={() => togglePanel('moments')} />
           <IconButton icon="settings" label="Settings" active={panel === 'settings'} size={16} onClick={() => togglePanel('settings')} />

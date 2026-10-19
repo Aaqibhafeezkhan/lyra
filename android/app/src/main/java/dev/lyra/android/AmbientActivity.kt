@@ -44,17 +44,59 @@ class AmbientActivity : ComponentActivity() {
         WebSetup.load(view, "?ambient=1")
     }
 
-    /** 0.02 (darkest) .. 1: set from the ambient page (its brightness slider and style). */
-    fun setBrightness(level: Float) {
+    private var sensors: android.hardware.SensorManager? = null
+    private var maxLevel = 0.3f
+    private var floorLevel = 0.03f
+    private var auto = false
+    private var smoothed = -1f
+
+    private val lightListener = object : android.hardware.SensorEventListener {
+        override fun onAccuracyChanged(sensor: android.hardware.Sensor?, accuracy: Int) {}
+
+        override fun onSensorChanged(e: android.hardware.SensorEvent) {
+            // room light (lux) on a log scale: ~0 lux dark bedroom -> floor, ~1000 lux bright room -> the maximum
+            val f = (kotlin.math.log10(e.values[0] + 1f) / 3f).coerceIn(0f, 1f)
+            val target = floorLevel + (maxLevel - floorLevel) * f
+            smoothed = if (smoothed < 0) target else smoothed * 0.85f + target * 0.15f // no flicker when a light switches
+            applyLevel(smoothed)
+        }
+    }
+
+    private fun applyLevel(level: Float) {
         window.attributes = window.attributes.apply { screenBrightness = level.coerceIn(0.01f, 1f) }
+    }
+
+    /**
+     * Screen brightness for ambient mode, set by the ambient page. With [automatic] the phone's light sensor drives it
+     * between [floor] (dark room) and [level] (bright room); otherwise [level] is used as is.
+     */
+    fun setBrightness(level: Float, automatic: Boolean, floor: Float) {
+        maxLevel = level.coerceIn(0.02f, 1f)
+        floorLevel = floor.coerceIn(0.01f, maxLevel)
+        sensors?.unregisterListener(lightListener)
+        auto = automatic
+        val sm = sensors ?: (getSystemService(SENSOR_SERVICE) as android.hardware.SensorManager).also { sensors = it }
+        val light = sm.getDefaultSensor(android.hardware.Sensor.TYPE_LIGHT)
+        if (automatic && light != null) {
+            sm.registerListener(lightListener, light, android.hardware.SensorManager.SENSOR_DELAY_NORMAL)
+        } else {
+            applyLevel(maxLevel)
+        }
     }
 
     override fun onResume() {
         super.onResume()
+        OverlayService.appForeground(true)
         rpc?.pushState()
     }
 
+    override fun onPause() {
+        OverlayService.appForeground(false)
+        super.onPause()
+    }
+
     override fun onDestroy() {
+        sensors?.unregisterListener(lightListener)
         if (AmbientController.activity === this) AmbientController.activity = null
         AmbientController.changed(applicationContext)
         rpc?.dispose()

@@ -171,3 +171,26 @@ html[data-overlay] .widget__actions {
 [data-platform='android'][data-bg-media='mini'] .mini.is-idle .mini__lyrics {
   height: clamp(280px, 48vh, 460px);
 }
+
+/* the small moon switch for ambient mode (next to Settings in the header; also on the ambient screen) */
+.ambsw {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-right: 6px;
+  color: var(--fg-3);
+}
+.switch--sm {
+  width: 32px;
+  height: 18px;
+  border-radius: 9px;
+}
+.switch--sm i {
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+}
+.switch--sm[aria-checked='true'] i {
+  transform: translateX(14px);
+}

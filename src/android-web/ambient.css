@@ -309,3 +309,32 @@ body,
   opacity: 0;
   transform: scale(0.7);
 }
+
+/* small controls row at the top: auto-brightness + the small ambient switch */
+.amb__top-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.amb__auto {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 3.4vw;
+  opacity: 0.85;
+}
+.amb__auto input {
+  width: 18px;
+  height: 18px;
+  accent-color: #fff;
+}
+.ambsw--amb {
+  color: #fff;
+}
+.ambsw--amb .switch {
+  background: #5b8cff;
+}
+.ambsw--amb .switch i {
+  background: #fff;
+}

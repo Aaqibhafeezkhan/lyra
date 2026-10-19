@@ -132,11 +132,20 @@ function SyncedLyrics({ result, variant }: { result: LyricsResult; variant: 'min
   useEffect(() => {
     const box = scroller.current
     if (!box || typeof ResizeObserver === 'undefined') return
+    // Re-centre once the area has stopped changing size. Doing it on every step of a size animation forces a layout
+    // calculation per frame and makes the animation stutter.
+    let settle: ReturnType<typeof setTimeout> | undefined
     const ro = new ResizeObserver(() => {
-      if (follow.current) scrollToActive(true)
+      clearTimeout(settle)
+      settle = setTimeout(() => {
+        if (follow.current) scrollToActive()
+      }, 160)
     })
     ro.observe(box)
-    return () => ro.disconnect()
+    return () => {
+      clearTimeout(settle)
+      ro.disconnect()
+    }
   }, [scrollToActive])
 
   useEffect(() => () => clearTimeout(resumeTimer.current), [])

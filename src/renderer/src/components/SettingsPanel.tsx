@@ -330,6 +330,9 @@ function PhoneSection() {
           ]}
         />
       </Row>
+      <Row label="Auto brightness" info="Uses the phone’s light sensor: ambient mode is very dim in a dark room and a little brighter in daylight. The brightness slider below then sets the maximum." hint="Follows the room light">
+        <Toggle label="Auto brightness" checked={s.ambientAutoBrightness} onChange={(v) => set({ ambientAutoBrightness: v })} />
+      </Row>
       <Row label="Ambient brightness" info="How bright the phone screen is in ambient mode. Keep it low for the bedside and to save battery. You can also change it on the ambient screen itself: touch it once.">
         <Slider label="Ambient brightness" value={s.ambientBrightness} min={0.02} max={0.6} step={0.01} onChange={(v) => set({ ambientBrightness: v })} format={(v) => `${Math.round(v * 100)}%`} />
       </Row>

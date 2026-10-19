@@ -242,6 +242,8 @@ export interface Settings {
   ambientStyle: 'minimal' | 'glow' | 'video'
   /** Android ambient screen brightness (0.02 darkest .. 0.6) */
   ambientBrightness: number
+  /** Android: let the ambient screen follow the room light (the slider is then the maximum) */
+  ambientAutoBrightness: boolean
   lyricOffsetMs: number
   reducedMotion: 'system' | 'on' | 'off'
   compactWidth: number
@@ -278,7 +280,8 @@ export const DEFAULT_SETTINGS: Settings = {
   keepScreenOn: false,
   keepRunning: false,
   ambientStyle: 'glow',
-  ambientBrightness: 0.06,
+  ambientBrightness: 0.3,
+  ambientAutoBrightness: true,
   lyricOffsetMs: 0,
   reducedMotion: 'system',
   compactWidth: 380,
