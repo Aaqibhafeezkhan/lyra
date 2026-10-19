@@ -88,14 +88,16 @@ export function registerIpc(): void {
   handle(CH.settingsSet, (patch: Partial<Settings>) => {
     const prevId = clientId()
     const prevVolume = settings.get().systemVolume
+    const prevApp = settings.get().mediaApp
     const next = settings.update(patch)
     if (active === spotify && clientId() !== prevId) spotify.start()
-    if (active === local && local && next.systemVolume !== prevVolume) local.restart()
+    if (active === local && local && (next.systemVolume !== prevVolume || next.mediaApp !== prevApp)) local.restart()
     return next
   })
 
   handle(CH.settingsReset, () => {
     const prevVolume = settings.get().systemVolume
+    const prevApp = settings.get().mediaApp
     const next = settings.reset()
     background.collectGarbage()
     windows.resetPlacement()
@@ -103,7 +105,7 @@ export function registerIpc(): void {
     // default source is the Windows (no-login) one
     local ??= new SmtcSource()
     if (active !== local) activate(local)
-    else if (prevVolume !== next.systemVolume) local.restart()
+    else if (prevVolume !== next.systemVolume || prevApp !== next.mediaApp) local.restart()
     return next
   })
 

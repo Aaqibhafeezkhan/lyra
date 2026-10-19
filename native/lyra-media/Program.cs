@@ -2,7 +2,7 @@
 //
 //   stdout: one JSON object per line (state changes + a slow heartbeat)
 //   stdin : toggle | play | pause | next | prev | seek:<ms> | volume:<0-100>
-//   args  : --app <substring>   only follow sessions whose app id contains this (default "Spotify")
+//   args  : --app <substring>   only follow sessions whose app id contains this (default: any player)
 //           --volume            also read/control the Windows master volume
 //
 // Event driven: no polling loop, so it sits at ~0% CPU while idle. Builds with the csc.exe that ships
@@ -21,12 +21,12 @@ using Windows.Storage.Streams;
 
 static class Program
 {
-    static string appFilter = "Spotify";
+    static string appFilter = "";
     static bool volumeEnabled;
     static GlobalSystemMediaTransportControlsSessionManager manager;
     static GlobalSystemMediaTransportControlsSession session;
     static readonly TypedEventHandler<GlobalSystemMediaTransportControlsSession, MediaPropertiesChangedEventArgs> onMedia = (x, e) => Schedule();
-    static readonly TypedEventHandler<GlobalSystemMediaTransportControlsSession, PlaybackInfoChangedEventArgs> onPlayback = (x, e) => Schedule();
+    static readonly TypedEventHandler<GlobalSystemMediaTransportControlsSession, PlaybackInfoChangedEventArgs> onPlayback = (x, e) => { Reconsider(); Schedule(); };
     static readonly TypedEventHandler<GlobalSystemMediaTransportControlsSession, TimelinePropertiesChangedEventArgs> onTimeline = (x, e) => Schedule();
     static readonly object gate = new object();
     static Timer debounce;
@@ -50,7 +50,7 @@ static class Program
         manager.CurrentSessionChanged += (m, e) => Rebind();
         debounce = new Timer(_ => Emit(), null, Timeout.Infinite, Timeout.Infinite);
         // slow heartbeat: keeps position/volume honest without a busy loop
-        heartbeat = new Timer(_ => Emit(), null, 5000, 5000);
+        heartbeat = new Timer(_ => { Reconsider(); Emit(); }, null, 5000, 5000);
 
         Rebind();
         WriteLine("{\"ready\":true}");
@@ -62,14 +62,63 @@ static class Program
 
     static void Schedule() { debounce.Change(120, Timeout.Infinite); }
 
-    static GlobalSystemMediaTransportControlsSession Find()
+
+    static HashSet<string> prevPlaying = new HashSet<string>();
+
+    static bool IsSpotify(GlobalSystemMediaTransportControlsSession s)
     {
-        foreach (var s in manager.GetSessions())
-            if (s.SourceAppUserModelId.IndexOf(appFilter, StringComparison.OrdinalIgnoreCase) >= 0) return s;
-        return null;
+        return s.SourceAppUserModelId.IndexOf("Spotify", StringComparison.OrdinalIgnoreCase) >= 0;
     }
 
-    static void Rebind()
+    static bool IsPlaying(GlobalSystemMediaTransportControlsSession s)
+    {
+        try { return s.GetPlaybackInfo().PlaybackStatus == GlobalSystemMediaTransportControlsSessionPlaybackStatus.Playing; }
+        catch { return false; }
+    }
+
+    // Which player to follow: one that is playing right now (Spotify first if several are), otherwise the system's
+    // current session, otherwise the first one. With --app only matching players are considered.
+    static GlobalSystemMediaTransportControlsSession Find()
+    {
+        var all = new List<GlobalSystemMediaTransportControlsSession>();
+        foreach (var s in manager.GetSessions())
+            if (appFilter.Length == 0 || s.SourceAppUserModelId.IndexOf(appFilter, StringComparison.OrdinalIgnoreCase) >= 0) all.Add(s);
+        if (all.Count == 0) return null;
+        // several players at once: a player that just started playing wins; otherwise keep the one we already follow
+        var nowPlaying = new HashSet<string>();
+        GlobalSystemMediaTransportControlsSession started = null, firstPlaying = null;
+        foreach (var s in all)
+            if (IsPlaying(s))
+            {
+                string id = s.SourceAppUserModelId;
+                nowPlaying.Add(id);
+                if (firstPlaying == null || (IsSpotify(s) && !IsSpotify(firstPlaying))) firstPlaying = s;
+                if (!prevPlaying.Contains(id)) started = s;
+            }
+        prevPlaying = nowPlaying;
+        if (started != null) return started;
+        GlobalSystemMediaTransportControlsSession followed;
+        lock (gate) followed = session;
+        if (followed != null && nowPlaying.Contains(followed.SourceAppUserModelId))
+            foreach (var s in all) if (s.SourceAppUserModelId == followed.SourceAppUserModelId) return s;
+        if (firstPlaying != null) return firstPlaying;
+        var cur = manager.GetCurrentSession();
+        if (cur != null)
+            foreach (var s in all) if (s.SourceAppUserModelId == cur.SourceAppUserModelId) return s;
+        foreach (var s in all) if (IsSpotify(s)) return s;
+        return all[0];
+    }
+
+    // a different player started playing (or the followed one closed): switch to it
+    static void Reconsider()
+    {
+        GlobalSystemMediaTransportControlsSession best = Find(), cur;
+        lock (gate) cur = session;
+        string a = best == null ? null : best.SourceAppUserModelId, b = cur == null ? null : cur.SourceAppUserModelId;
+        if (a != b) Rebind(best);
+    }
+
+    static void Rebind(GlobalSystemMediaTransportControlsSession target = null)
     {
         lock (gate)
         {
@@ -83,7 +132,7 @@ static class Program
                 }
                 catch { }
             }
-            session = Find();
+            session = target ?? Find();
             if (session != null)
             {
                 session.MediaPropertiesChanged += onMedia;
