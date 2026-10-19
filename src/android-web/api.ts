@@ -333,6 +333,9 @@ export const androidApi: LyraApi & { android: NonNullable<LyraApi['android']> } 
     openAccessSettings: async () => void (await rpc('openAccessSettings')),
     openBatterySettings: async () => void (await rpc('openBatterySettings')),
     overlayState: () => rpc<{ enabled: boolean; canDraw: boolean }>('overlayState'),
+    lyricsNotification: () => rpc<{ enabled: boolean; public: boolean }>('lyricsNotificationState'),
+    setLyricsNotification: async (on, showOnLockScreen) => void (await rpc('lyricsNotification', on, showOnLockScreen)),
+    openAmbient: async () => void (await rpc('openAmbient')),
     setOverlay: (on) => rpc<{ ok: boolean; needsPermission?: boolean }>('overlaySet', on)
   }
 }

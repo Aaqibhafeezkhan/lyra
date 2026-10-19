@@ -127,6 +127,24 @@ class Rpc(private val ctx: Context, private val web: LyraWebView, private val ac
                 }
             }
             "mediaDelete" -> { MediaFiles.delete(ctx, args.getString(0)); ok(true) }
+            "lyricsNotificationState" -> ok(JSONObject().put("enabled", LyricsNotifier.enabled(ctx)).put("public", LyricsNotifier.publicOnLock(ctx)))
+            "lyricsNotification" -> ui {
+                val on = args.getBoolean(0)
+                if (on && activity != null && android.os.Build.VERSION.SDK_INT >= 33 &&
+                    activity.checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED
+                ) activity.requestPermissions(arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), 8)
+                try {
+                    LyricsNotifier.set(ctx, on, args.getBoolean(1))
+                    ok(true)
+                } catch (e: Exception) {
+                    fail(e.message ?: "could not start the lyrics notification")
+                }
+            }
+            "setLyrics" -> { LyricsNotifier.setLyrics(args.getString(0), args.getString(1), args.optLong(2, 0), args.optString(3, "synced")); ok(true) }
+            "openAmbient" -> ui {
+                ctx.startActivity(Intent(ctx, AmbientActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                ok(true)
+            }
             "overlayState" -> ok(JSONObject().put("enabled", OverlayService.enabled(ctx)).put("canDraw", Settings.canDrawOverlays(ctx)))
             "overlaySet" -> ui {
                 val on = args.getBoolean(0)

@@ -3,10 +3,11 @@ plugins {
     id("org.jetbrains.kotlin.android")
 }
 
-// Version comes from -PlyraVersion=1.2.3 (the release workflow passes the tag); versionCode is derived from it.
-val lyraVersion: String = (project.findProperty("lyraVersion") as String?) ?: "0.1.0"
-val lyraVersionCode: Int = lyraVersion.split(".").map { it.takeWhile(Char::isDigit).toIntOrNull() ?: 0 }
-    .let { (it.getOrElse(0) { 0 }) * 1_000_000 + (it.getOrElse(1) { 0 }) * 1_000 + it.getOrElse(2) { 0 } }
+// One place for the version: version.properties (the release workflow checks that the tag matches it, and
+// F-Droid reads it too). Bump both numbers for every release; versionCode must always go up.
+val versionProps = java.util.Properties().apply { file("version.properties").inputStream().use { load(it) } }
+val lyraVersion: String = versionProps.getProperty("versionName")
+val lyraVersionCode: Int = versionProps.getProperty("versionCode").toInt()
 
 // Release signing: the workflow provides the key through environment variables. Without them (a contributor's
 // own build) the release build falls back to the debug key so `assembleRelease` still works.

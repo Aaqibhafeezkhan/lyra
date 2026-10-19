@@ -1,0 +1,15 @@
+Lyra shows live, synced lyrics for whatever you are listening to, with the current word lighting up as it is sung, and a looping music video or your own GIF/video playing behind them.
+
+It reads the now-playing card of your music app (Spotify, YouTube Music and others) through Android's media sessions. No account, no login and no Spotify API key.
+
+• Synced lyrics from LRCLIB, with word-by-word highlighting
+• Looping video behind the lyrics: a free 30-second clip, a YouTube video (with your own free API key), or your own video / GIF / image
+• The title and controls fade away after a few seconds; touch brings them back
+• Live lyrics in a notification, on the lock screen and in the notification shade (optional)
+• A dim always-on-display style "ambient" screen, and a screen saver for charging
+• A floating lyrics widget you can keep over other apps (optional)
+• Keep the screen on while a song plays, or keep Lyra running in the background (optional)
+
+Privacy: Lyra needs "Notification access" only so Android lets it see which song is playing. It never reads your notifications. Lyrics and videos are requested from LRCLIB, Apple (iTunes preview clips) and, only if you add a key, YouTube. Everything else stays on your phone.
+
+Free and open source (MIT).

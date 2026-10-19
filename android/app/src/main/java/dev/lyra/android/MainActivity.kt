@@ -49,8 +49,10 @@ class MainActivity : ComponentActivity() {
         web = view
         WebSetup.load(view)
 
-        // bring the floating widget back after the process was restarted
+        // bring the floating widget and the lyrics notification back after the process was restarted
         OverlayService.restoreIfEnabled(this)
+        LyricsNotifier.restoreIfEnabled(this)
+        applyLockMode(intent)
 
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
@@ -60,6 +62,24 @@ class MainActivity : ComponentActivity() {
                 }
             }
         })
+    }
+
+    override fun onNewIntent(intent: android.content.Intent) {
+        super.onNewIntent(intent)
+        applyLockMode(intent)
+    }
+
+    /** Opened from the lyrics notification on the lock screen: show above it (without unlocking), like an alarm. */
+    private fun applyLockMode(i: android.content.Intent?) {
+        val fromLock = i?.getBooleanExtra("fromLock", false) == true
+        setShowWhenLocked(fromLock)
+        setTurnScreenOn(fromLock)
+    }
+
+    override fun onStop() {
+        setShowWhenLocked(false) // next time Lyra opens normally, it must not appear over the lock screen
+        setTurnScreenOn(false)
+        super.onStop()
     }
 
     override fun onResume() {

@@ -1,0 +1,1 @@
+First Android release: synced lyrics with word-by-word highlighting, video backgrounds, floating widget.

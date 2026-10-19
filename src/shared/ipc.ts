@@ -183,6 +183,11 @@ export interface LyraApi {
     openAccessSettings(): Promise<void>
     openBatterySettings(): Promise<void>
     overlayState(): Promise<{ enabled: boolean; canDraw: boolean }>
+    /** the live-lyrics notification (shade + lock screen) */
+    lyricsNotification(): Promise<{ enabled: boolean; public: boolean }>
+    setLyricsNotification(on: boolean, showOnLockScreen: boolean): Promise<void>
+    /** open the dim always-on-display style lyrics screen */
+    openAmbient(): Promise<void>
     /** needsPermission: Android opened the "Display over other apps" screen; the user must allow it, then try again */
     setOverlay(on: boolean): Promise<{ ok: boolean; needsPermission?: boolean }>
   }

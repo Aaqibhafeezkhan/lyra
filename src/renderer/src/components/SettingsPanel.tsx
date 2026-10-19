@@ -288,6 +288,14 @@ function PhoneSection() {
   useEffect(() => {
     void window.lyra.android?.overlayState().then((st) => setOverlay(st.enabled && st.canDraw))
   }, [])
+  const [lyricsNote, setLyricsNote] = useState({ enabled: false, public: true })
+  useEffect(() => {
+    void window.lyra.android?.lyricsNotification().then(setLyricsNote)
+  }, [])
+  const changeLyricsNote = async (next: { enabled: boolean; public: boolean }): Promise<void> => {
+    setLyricsNote(next)
+    await window.lyra.android?.setLyricsNotification(next.enabled, next.public)
+  }
   const toggleOverlay = async (on: boolean): Promise<void> => {
     const r = await window.lyra.android?.setOverlay(on)
     if (r?.needsPermission) toast('Turn on “Display over other apps” for Lyra, then come back and switch this on again.')
@@ -301,6 +309,19 @@ function PhoneSection() {
       </Row>
       <Row label="Keep Lyra running" info="Runs a small background service (with one quiet notification) so Android doesn’t close Lyra while you listen. Turn it off any time." hint="Shows a notification">
         <Toggle label="Keep Lyra running" checked={s.keepRunning} onChange={(v) => set({ keepRunning: v })} />
+      </Row>
+      <Row label="Lyrics notification" info="One quiet notification with the current line, the next lines, the cover and play controls. It appears in the notification shade and on the lock screen; tap it to open Lyra over the lock screen without unlocking." hint="Shade and lock screen">
+        <Toggle label="Lyrics notification" checked={lyricsNote.enabled} onChange={(v) => void changeLyricsNote({ ...lyricsNote, enabled: v })} />
+      </Row>
+      {lyricsNote.enabled && (
+        <Row label="Show lyrics on lock screen" info="When off, the lock screen only says “Lyrics are on” and hides the lines until you unlock. Turn it off if you don’t want people nearby to read what you listen to." hint="Visible to anyone who sees the screen">
+          <Toggle label="Show lyrics on lock screen" checked={lyricsNote.public} onChange={(v) => void changeLyricsNote({ ...lyricsNote, public: v })} />
+        </Row>
+      )}
+      <Row label="Ambient screen" info="A black, very dim lyrics screen for your desk or bedside, like an always-on display. It uses minimum brightness and slowly shifts so an OLED screen isn’t worn. Touch the screen to leave. You can also pick Lyra under Settings → Display → Screen saver so it appears by itself while charging." hint="Also a Screen saver while charging">
+        <button type="button" className="pill" onClick={() => void window.lyra.android?.openAmbient()}>
+          Open
+        </button>
       </Row>
       <Row label="Floating lyrics" info="Shows a small lyrics widget over other apps while music plays, so you can read along while using something else. It hides while Lyra is open. Needs Android’s “Display over other apps” permission." hint="Over other apps">
         <Toggle label="Floating lyrics widget" checked={overlay} onChange={(v) => void toggleOverlay(v)} />

@@ -1,0 +1,40 @@
+# Draft F-Droid metadata for Lyra. To submit: copy this file to `metadata/dev.lyra.android.yml` in a fork of
+# https://gitlab.com/fdroid/fdroiddata and open a merge request (see docs/FDROID.md). The F-Droid reviewers may
+# ask for changes to the build recipe.
+Categories:
+  - Multimedia
+License: MIT
+WebSite: https://github.com/DhruvHarani1/lyra
+SourceCode: https://github.com/DhruvHarani1/lyra
+IssueTracker: https://github.com/DhruvHarani1/lyra/issues
+Changelog: https://github.com/DhruvHarani1/lyra/releases
+
+AntiFeatures:
+  NonFreeNet:
+    en-US: Fetches lyrics from lrclib.net, preview clips from Apple, and (only with the user's own key) videos from YouTube.
+
+AutoName: Lyra
+
+RepoType: git
+Repo: https://github.com/DhruvHarani1/lyra.git
+
+Builds:
+  - versionName: 0.1.1
+    versionCode: 1001
+    commit: android-v0.1.1
+    subdir: android/app
+    sudo:
+      - apt-get update
+      - apt-get install -y nodejs npm
+    gradle:
+      - yes
+    prebuild:
+      - cd ../..
+      - npm ci
+      - npm run build:android-ui
+
+AutoUpdateMode: Version
+UpdateCheckMode: Tags ^android-v
+UpdateCheckData: android/app/version.properties|versionCode=(\d+)|.|versionName=(.+)
+CurrentVersion: 0.1.1
+CurrentVersionCode: 1001

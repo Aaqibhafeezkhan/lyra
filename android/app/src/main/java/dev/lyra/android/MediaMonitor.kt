@@ -120,6 +120,25 @@ object MediaMonitor {
         return o.toString()
     }
 
+    /** What is playing right now, cheaply (no cover re-encoding): used by the lock-screen notification. */
+    data class Now(val id: String, val title: String, val artist: String, val positionMs: Long, val playing: Boolean, val art: Bitmap?, val isAd: Boolean)
+
+    fun now(): Now? {
+        val c = pick() ?: return null
+        val md = c.metadata ?: return null
+        val title = md.getString(MediaMetadata.METADATA_KEY_TITLE) ?: md.getString(MediaMetadata.METADATA_KEY_DISPLAY_TITLE) ?: return null
+        val artist = md.getString(MediaMetadata.METADATA_KEY_ARTIST) ?: md.getString(MediaMetadata.METADATA_KEY_DISPLAY_SUBTITLE) ?: ""
+        val album = md.getString(MediaMetadata.METADATA_KEY_ALBUM) ?: ""
+        val mediaId = md.getString(MediaMetadata.METADATA_KEY_MEDIA_ID) ?: ""
+        val state = c.playbackState
+        val playing = state?.state == PlaybackState.STATE_PLAYING || state?.state == PlaybackState.STATE_BUFFERING
+        var pos = state?.position ?: 0L
+        if (state != null && playing && state.lastPositionUpdateTime > 0) pos += ((SystemClock.elapsedRealtime() - state.lastPositionUpdateTime) * state.playbackSpeed).toLong()
+        val ad = artist.startsWith("Advertisement", true) || title.equals("Advertisement", true) || mediaId.contains(":ad:") || album.equals("Advertisement", true)
+        val art: Bitmap? = md.getBitmap(MediaMetadata.METADATA_KEY_ART) ?: md.getBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART) ?: md.getBitmap(MediaMetadata.METADATA_KEY_DISPLAY_ICON)
+        return Now(trackId(c.packageName, mediaId, title, artist, album), title, artist, pos.coerceAtLeast(0), playing, art, ad)
+    }
+
     fun snapshotJson(ctx: Context): String {
         val c = pick() ?: return "null"
         val md = c.metadata ?: return "null"
