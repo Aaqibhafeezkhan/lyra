@@ -50,6 +50,7 @@ object MediaMonitor {
     fun refresh(ctx: Context) {
         main.post {
             val app = ctx.applicationContext
+            ownPackage = app.packageName
             if (!hasAccess(app)) {
                 detach()
                 schedulePush()
@@ -69,7 +70,11 @@ object MediaMonitor {
 
     private val sessionsChanged = MediaSessionManager.OnActiveSessionsChangedListener { list -> attach(list ?: emptyList()) ; schedulePush() }
 
-    private fun attach(list: List<MediaController>) {
+    private var ownPackage = ""
+
+    private fun attach(all: List<MediaController>) {
+        // Lyra's own lyrics media card (see LyricsNotificationService) must never be mistaken for the music source
+        val list = all.filter { it.packageName != ownPackage }
         callbacks.forEach { (c, cb) -> c.unregisterCallback(cb) }
         callbacks.clear()
         controllers = list
@@ -121,7 +126,7 @@ object MediaMonitor {
     }
 
     /** What is playing right now, cheaply (no cover re-encoding): used by the lock-screen notification. */
-    data class Now(val id: String, val title: String, val artist: String, val positionMs: Long, val playing: Boolean, val art: Bitmap?, val isAd: Boolean)
+    data class Now(val id: String, val title: String, val artist: String, val positionMs: Long, val playing: Boolean, val art: Bitmap?, val isAd: Boolean, val durationMs: Long = 0)
 
     fun now(): Now? {
         val c = pick() ?: return null
@@ -136,7 +141,7 @@ object MediaMonitor {
         if (state != null && playing && state.lastPositionUpdateTime > 0) pos += ((SystemClock.elapsedRealtime() - state.lastPositionUpdateTime) * state.playbackSpeed).toLong()
         val ad = artist.startsWith("Advertisement", true) || title.equals("Advertisement", true) || mediaId.contains(":ad:") || album.equals("Advertisement", true)
         val art: Bitmap? = md.getBitmap(MediaMetadata.METADATA_KEY_ART) ?: md.getBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART) ?: md.getBitmap(MediaMetadata.METADATA_KEY_DISPLAY_ICON)
-        return Now(trackId(c.packageName, mediaId, title, artist, album), title, artist, pos.coerceAtLeast(0), playing, art, ad)
+        return Now(trackId(c.packageName, mediaId, title, artist, album), title, artist, pos.coerceAtLeast(0), playing, art, ad, md.getLong(MediaMetadata.METADATA_KEY_DURATION))
     }
 
     fun snapshotJson(ctx: Context): String {

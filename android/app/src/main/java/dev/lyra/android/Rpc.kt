@@ -141,6 +141,22 @@ class Rpc(private val ctx: Context, private val web: LyraWebView, private val ac
                 }
             }
             "setLyrics" -> { LyricsNotifier.setLyrics(args.getString(0), args.getString(1), args.optLong(2, 0), args.optString(3, "synced")); ok(true) }
+            "toggleAmbient" -> ui {
+                AmbientController.toggle(ctx)
+                ok(true)
+            }
+            "addAmbientTile" -> ui {
+                if (android.os.Build.VERSION.SDK_INT >= 33) {
+                    val sbm = ctx.getSystemService(android.app.StatusBarManager::class.java)
+                    sbm.requestAddTileService(
+                        android.content.ComponentName(ctx, AmbientTileService::class.java),
+                        "Lyra ambient",
+                        android.graphics.drawable.Icon.createWithResource(ctx, R.drawable.ic_ambient),
+                        ctx.mainExecutor
+                    ) { }
+                    ok(true)
+                } else ok(false)
+            }
             "openAmbient" -> ui {
                 ctx.startActivity(Intent(ctx, AmbientActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
                 ok(true)

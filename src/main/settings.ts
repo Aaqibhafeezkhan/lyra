@@ -29,6 +29,7 @@ function sanitize(s: Settings): Settings {
     wordByWord: s.wordByWord !== false,
     keepScreenOn: !!s.keepScreenOn,
     keepRunning: !!s.keepRunning,
+    ambientStyle: s.ambientStyle === 'minimal' || s.ambientStyle === 'video' ? s.ambientStyle : 'glow',
     autoDim: s.autoDim !== false,
     customBackground:
       s.customBackground && /^[a-f0-9]{16}\.(mp4|webm|gif|png|jpe?g|webp|apng)$/i.test(s.customBackground.file ?? '')

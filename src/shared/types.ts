@@ -238,6 +238,8 @@ export interface Settings {
   keepScreenOn: boolean
   /** Android: run a small foreground service so the system does not close Lyra */
   keepRunning: boolean
+  /** Android ambient screen: black, a dim colour glow, or a dim video */
+  ambientStyle: 'minimal' | 'glow' | 'video'
   lyricOffsetMs: number
   reducedMotion: 'system' | 'on' | 'off'
   compactWidth: number
@@ -273,6 +275,7 @@ export const DEFAULT_SETTINGS: Settings = {
   wordByWord: true,
   keepScreenOn: false,
   keepRunning: false,
+  ambientStyle: 'glow',
   lyricOffsetMs: 0,
   reducedMotion: 'system',
   compactWidth: 380,

@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Lyra</string>
+    <string name="shortcut_ambient">Ambient</string>
+    <string name="shortcut_ambient_long">Ambient lyrics on / off</string>
 </resources>

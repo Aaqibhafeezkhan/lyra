@@ -29,6 +29,7 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <meta-data android:name="android.app.shortcuts" android:resource="@xml/shortcuts" />
         </activity>
 
         <!-- Holds the "notification access" permission that lets Lyra see what is playing. It never reads notifications. -->
@@ -41,6 +42,30 @@
                 <action android:name="android.service.notification.NotificationListenerService" />
             </intent-filter>
         </service>
+
+        <!-- Switch for ambient mode: Quick Settings tile, home-screen widget, app-icon shortcut -->
+        <service
+            android:name=".AmbientTileService"
+            android:exported="true"
+            android:icon="@drawable/ic_ambient"
+            android:label="Lyra ambient"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
+        <receiver android:name=".AmbientWidget" android:exported="false">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/ambient_widget_info" />
+        </receiver>
+        <activity
+            android:name=".AmbientToggleActivity"
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
 
         <!-- Ambient (always-on-display style) lyrics screen -->
         <activity

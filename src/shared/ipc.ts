@@ -188,6 +188,10 @@ export interface LyraApi {
     setLyricsNotification(on: boolean, showOnLockScreen: boolean): Promise<void>
     /** open the dim always-on-display style lyrics screen */
     openAmbient(): Promise<void>
+    /** ambient screen on/off, like the tile / widget / shortcut */
+    toggleAmbient(): Promise<void>
+    /** ask Android to add the "Lyra ambient" tile to Quick Settings (Android 13+) */
+    addAmbientTile(): Promise<boolean>
     /** needsPermission: Android opened the "Display over other apps" screen; the user must allow it, then try again */
     setOverlay(on: boolean): Promise<{ ok: boolean; needsPermission?: boolean }>
   }

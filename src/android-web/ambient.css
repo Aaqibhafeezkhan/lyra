@@ -12,41 +12,115 @@ body,
 .amb {
   position: absolute;
   inset: 0;
+  overflow: hidden;
+  background: #000;
+}
+/* the glow / video sits far below normal brightness so the screen stays OLED friendly */
+.amb__bg {
+  position: absolute;
+  inset: 0;
+  filter: brightness(0.3) saturate(0.9);
+}
+.amb--video .amb__bg {
+  filter: brightness(0.38) saturate(0.7);
+}
+.amb__bg .backdrop {
+  opacity: 1;
+}
+.amb__content {
+  position: absolute;
+  inset: 0;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  padding: 9vh 8vw 7vh;
-  transition: transform 6s ease-in-out;
+  padding: 8vh 8vw 5vh;
+  transition: transform 8s ease-in-out;
 }
 .amb__clock {
-  font-size: 15vw;
+  font-size: 22vw;
   font-weight: 200;
-  letter-spacing: -0.04em;
-  opacity: 0.4;
-  line-height: 1;
+  letter-spacing: -0.05em;
+  line-height: 0.95;
+  opacity: 0.5;
+}
+.amb__date {
+  margin-top: 8px;
+  font-size: 4vw;
+  font-weight: 500;
+  opacity: 0.32;
 }
 .amb__lyrics {
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 20px;
 }
 .amb__cur {
   margin: 0;
-  font-size: 8vw;
+  font-size: 8.4vw;
   font-weight: 700;
-  line-height: 1.18;
-  letter-spacing: -0.02em;
+  line-height: 1.16;
+  letter-spacing: -0.025em;
   text-wrap: balance;
+  filter: drop-shadow(0 2px 14px rgba(0, 0, 0, 0.8));
+}
+/* words fill from dim to bright as they are sung */
+.amb__word {
+  --p: 0;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.82) 0, rgba(255, 255, 255, 0.82) calc(var(--p) * 114% - 14%), rgba(255, 255, 255, 0.26) calc(var(--p) * 114%));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
 .amb__next {
   margin: 0;
   font-size: 4.6vw;
   font-weight: 600;
   line-height: 1.25;
-  opacity: 0.26;
+  opacity: 0.24;
   text-wrap: balance;
 }
+.amb__foot {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.amb__art {
+  width: 13vw;
+  height: 13vw;
+  border-radius: 14px;
+  object-fit: cover;
+  opacity: 0.55;
+}
 .amb__meta {
-  font-size: 3.6vw;
+  min-width: 0;
+}
+.amb__title {
+  font-size: 4.2vw;
+  font-weight: 650;
+  opacity: 0.5;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.amb__artist {
+  margin-top: 2px;
+  font-size: 3.4vw;
   opacity: 0.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.amb__progress {
+  margin-top: 16px;
+  height: 3px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+}
+.amb__progress-bar {
+  height: 100%;
+  width: 100%;
+  transform-origin: left center;
+  background: rgba(255, 255, 255, 0.45);
+  transition: transform 1s linear;
 }

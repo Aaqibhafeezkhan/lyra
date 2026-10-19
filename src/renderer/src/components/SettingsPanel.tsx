@@ -318,9 +318,26 @@ function PhoneSection() {
           <Toggle label="Show lyrics on lock screen" checked={lyricsNote.public} onChange={(v) => void changeLyricsNote({ ...lyricsNote, public: v })} />
         </Row>
       )}
-      <Row label="Ambient screen" info="A black, very dim lyrics screen for your desk or bedside, like an always-on display. It uses minimum brightness and slowly shifts so an OLED screen isn’t worn. Touch the screen to leave. You can also pick Lyra under Settings → Display → Screen saver so it appears by itself while charging." hint="Also a Screen saver while charging">
-        <button type="button" className="pill" onClick={() => void window.lyra.android?.openAmbient()}>
-          Open
+      <Row label="Ambient style" info="Minimal: pure black with dim lyrics. Glow: the cover’s colours as a very dim moving glow. Video: the music video (or your own) played very dim. All keep the screen at minimum brightness.">
+        <Segmented
+          label="Ambient style"
+          value={s.ambientStyle}
+          onChange={(v) => set({ ambientStyle: v })}
+          options={[
+            { v: 'minimal', label: 'Minimal' },
+            { v: 'glow', label: 'Glow' },
+            { v: 'video', label: 'Video' }
+          ]}
+        />
+      </Row>
+      <Row label="Ambient screen" info="A very dim lyrics screen for your desk or bedside, like an always-on display. It uses minimum brightness and slowly shifts so an OLED screen isn’t worn. Touching the screen does nothing: switch it off with the same button, the Quick Settings tile, the home-screen widget or Back. You can also pick Lyra under Settings → Display → Screen saver so it appears by itself while charging." hint="On / off">
+        <button type="button" className="pill" onClick={() => void window.lyra.android?.toggleAmbient()}>
+          Switch on / off
+        </button>
+      </Row>
+      <Row label="Ambient shortcuts" info="Add the Lyra ambient tile to Quick Settings for a one-tap switch. For the home screen, long-press the home screen → Widgets → Lyra → Ambient, or long-press the Lyra app icon → Ambient." hint="Tile, widget, app-icon shortcut">
+        <button type="button" className="pill" onClick={() => void window.lyra.android?.addAmbientTile()}>
+          Add tile
         </button>
       </Row>
       <Row label="Floating lyrics" info="Shows a small lyrics widget over other apps while music plays, so you can read along while using something else. It hides while Lyra is open. Needs Android’s “Display over other apps” permission." hint="Over other apps">

@@ -2,7 +2,6 @@ package dev.lyra.android
 
 import android.graphics.Color
 import android.os.Bundle
-import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
@@ -37,11 +36,10 @@ class AmbientActivity : ComponentActivity() {
         val view = LyraWebView(this).apply { layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT) }
         WebSetup.configure(view, this)
         root.addView(view)
-        // any touch leaves ambient mode
-        view.setOnTouchListener { _, e ->
-            if (e.actionMasked == MotionEvent.ACTION_UP) finish()
-            true
-        }
+        // touches do nothing (so a stray touch in bed can't switch it off); the tile / widget / shortcut / Back turn it off
+        view.setOnTouchListener { _, _ -> true }
+        AmbientController.activity = this
+        AmbientController.changed(applicationContext)
         setContentView(root)
         rpc = Rpc(applicationContext, view, this).also { it.install() }
         web = view
@@ -54,6 +52,8 @@ class AmbientActivity : ComponentActivity() {
     }
 
     override fun onDestroy() {
+        if (AmbientController.activity === this) AmbientController.activity = null
+        AmbientController.changed(applicationContext)
         rpc?.dispose()
         web?.destroy()
         super.onDestroy()

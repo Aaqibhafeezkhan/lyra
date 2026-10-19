@@ -11,14 +11,14 @@ import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.graphics.Bitmap
 import android.graphics.Color
+import android.graphics.drawable.Icon
+import android.media.MediaMetadata
+import android.media.session.MediaSession
+import android.media.session.PlaybackState
+import android.os.SystemClock
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
-import android.text.SpannableStringBuilder
-import android.text.Spanned
-import android.text.style.RelativeSizeSpan
-import android.text.style.StyleSpan
-import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
 import org.json.JSONArray
 
@@ -91,8 +91,13 @@ object LyricsNotifier {
 class LyricsNotificationService : Service() {
     private val main = Handler(Looper.getMainLooper())
     private val listener = { refresh() }
-    private var lastSignature = ""
     private var started = false
+    private var session: MediaSession? = null
+    private var lastNotificationSig = ""
+    private var lastMetaSig = ""
+    private var lastPlaying: Boolean? = null
+    private var anchorPos = 0L
+    private var anchorAt = 0L
     private val tick = object : Runnable {
         override fun run() {
             refresh()
@@ -114,7 +119,8 @@ class LyricsNotificationService : Service() {
                     lockscreenVisibility = Notification.VISIBILITY_PUBLIC
                 }
             )
-            ServiceCompat.startForeground(this, ID, build(), ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE)
+            ensureSession()
+            ServiceCompat.startForeground(this, ID, buildNotification(MediaMonitor.now()), ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE)
             MediaMonitor.addListener(listener)
             MediaMonitor.refresh(this)
             main.post(tick)
@@ -122,95 +128,161 @@ class LyricsNotificationService : Service() {
         return START_STICKY
     }
 
+    /** A media session of our own, mirroring the player: this is what makes Android draw a proper media card (like Spotify's). */
+    private fun ensureSession(): MediaSession =
+        session ?: MediaSession(this, "Lyra lyrics").also { s ->
+            s.setCallback(object : MediaSession.Callback() {
+                override fun onPlay() {
+                    MediaMonitor.command("""{"type":"play"}""")
+                }
+
+                override fun onPause() {
+                    MediaMonitor.command("""{"type":"pause"}""")
+                }
+
+                override fun onSkipToNext() {
+                    MediaMonitor.command("""{"type":"next"}""")
+                }
+
+                override fun onSkipToPrevious() {
+                    MediaMonitor.command("""{"type":"previous"}""")
+                }
+
+                override fun onSeekTo(pos: Long) {
+                    MediaMonitor.command("""{"type":"seek","positionMs":$pos}""")
+                }
+            })
+            session = s
+        }
+
+    private class Display(val title: String, val text: String, val sub: String)
+
+    private fun display(now: MediaMonitor.Now): Display {
+        val lines = if (LyricsNotifier.linesTrack == now.id) LyricsNotifier.lines else emptyList()
+        val sub = if (now.artist.isNotEmpty()) "${now.title} · ${now.artist}" else now.title
+        if (lines.isEmpty()) {
+            val note = when {
+                LyricsNotifier.linesTrack != now.id -> "Lyrics load while Lyra is open"
+                LyricsNotifier.status == "loading" -> "Loading lyrics…"
+                else -> "No synced lyrics for this song"
+            }
+            return Display(now.title, if (now.artist.isNotEmpty()) "${now.artist} · $note" else note, sub)
+        }
+        val idx = LyricsNotifier.activeIndex(now.positionMs)
+        fun text(i: Int): String = lines.getOrNull(i)?.text?.ifBlank { "♪" } ?: ""
+        return Display(if (idx < 0) "♪" else text(idx), text(idx + 1), sub)
+    }
+
     fun refresh(force: Boolean = false) {
         main.post {
-            val n = build()
-            val sig = n.extras.run { "${getCharSequence(Notification.EXTRA_TITLE)}|${getCharSequence(Notification.EXTRA_TEXT)}|${getCharSequence(Notification.EXTRA_BIG_TEXT)}|${getCharSequence(Notification.EXTRA_SUB_TEXT)}|${n.actions?.firstOrNull { it.title == "Pause" || it.title == "Play" }?.title}" }
-            if (force || sig != lastSignature) {
-                lastSignature = sig
-                (getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager).notify(ID, n)
+            val now = MediaMonitor.now()
+            val s = ensureSession()
+            if (now == null || now.isAd) {
+                s.isActive = false
+                lastPlaying = null
+                lastMetaSig = ""
+                notifyIfChanged("idle|${now?.isAd}", buildNotification(now), force)
+                return@post
             }
+            val d = display(now)
+
+            // card contents: only touch the session when the text / cover changed (this is what the system redraws)
+            val metaSig = "${now.id}|${d.title}|${d.text}|${now.durationMs}"
+            if (metaSig != lastMetaSig) {
+                lastMetaSig = metaSig
+                s.setMetadata(
+                    MediaMetadata.Builder()
+                        .putString(MediaMetadata.METADATA_KEY_TITLE, d.title)
+                        .putString(MediaMetadata.METADATA_KEY_ARTIST, d.text)
+                        .putString(MediaMetadata.METADATA_KEY_ALBUM, d.sub)
+                        .putLong(MediaMetadata.METADATA_KEY_DURATION, now.durationMs)
+                        .putBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART, now.art)
+                        .putBitmap(MediaMetadata.METADATA_KEY_ART, now.art)
+                        .build()
+                )
+            }
+            // seek bar: only re-anchor when play/pause changed or the position jumped (a seek)
+            val predicted = if (lastPlaying == true) anchorPos + (SystemClock.elapsedRealtime() - anchorAt) else anchorPos
+            if (lastPlaying != now.playing || kotlin.math.abs(predicted - now.positionMs) > 1500) {
+                lastPlaying = now.playing
+                anchorPos = now.positionMs
+                anchorAt = SystemClock.elapsedRealtime()
+                s.setPlaybackState(
+                    PlaybackState.Builder()
+                        .setActions(
+                            PlaybackState.ACTION_PLAY or PlaybackState.ACTION_PAUSE or PlaybackState.ACTION_PLAY_PAUSE or
+                                PlaybackState.ACTION_SKIP_TO_NEXT or PlaybackState.ACTION_SKIP_TO_PREVIOUS or PlaybackState.ACTION_SEEK_TO
+                        )
+                        .setState(if (now.playing) PlaybackState.STATE_PLAYING else PlaybackState.STATE_PAUSED, now.positionMs, if (now.playing) 1f else 0f, SystemClock.elapsedRealtime())
+                        .build()
+                )
+            }
+            s.isActive = true
+            notifyIfChanged("${d.title}|${d.text}|${d.sub}|${now.playing}|${now.id}", buildNotification(now), force)
         }
     }
 
-    private fun action(icon: Int, title: String, act: String): NotificationCompat.Action {
-        val pi = PendingIntent.getBroadcast(this, act.hashCode(), Intent(this, LyricsActionReceiver::class.java).setAction(act), PendingIntent.FLAG_IMMUTABLE)
-        return NotificationCompat.Action.Builder(icon, title, pi).build()
+    private fun notifyIfChanged(sig: String, n: Notification, force: Boolean) {
+        if (force || sig != lastNotificationSig) {
+            lastNotificationSig = sig
+            (getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager).notify(ID, n)
+        }
     }
 
-    private fun average(bmp: Bitmap?): Int {
+    private fun action(icon: Int, title: String, act: String): Notification.Action {
+        val pi = PendingIntent.getBroadcast(this, act.hashCode(), Intent(this, LyricsActionReceiver::class.java).setAction(act), PendingIntent.FLAG_IMMUTABLE)
+        return Notification.Action.Builder(Icon.createWithResource(this, icon), title, pi).build()
+    }
+
+    /** The cover's average colour, darkened so white text always reads. */
+    private fun tint(bmp: Bitmap?): Int {
         if (bmp == null) return Color.rgb(40, 40, 48)
         val s = Bitmap.createScaledBitmap(bmp, 1, 1, true).getPixel(0, 0)
-        // keep it dark enough for white text
         return Color.rgb((Color.red(s) * 0.55).toInt(), (Color.green(s) * 0.55).toInt(), (Color.blue(s) * 0.55).toInt())
     }
 
-    private fun build(): Notification {
-        val now = MediaMonitor.now()
+    private fun buildNotification(now: MediaMonitor.Now?): Notification {
         val publicLock = LyricsNotifier.publicOnLock(this)
         val open = PendingIntent.getActivity(
             this, 1,
             Intent(this, MainActivity::class.java).putExtra("fromLock", true).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP),
             PendingIntent.FLAG_IMMUTABLE
         )
-        val b = NotificationCompat.Builder(this, CHANNEL)
+        val b = Notification.Builder(this, CHANNEL)
             .setSmallIcon(android.R.drawable.ic_media_play)
             .setContentIntent(open)
             .setOngoing(true)
             .setOnlyAlertOnce(true)
-            .setSilent(true)
             .setShowWhen(false)
-            .setCategory(NotificationCompat.CATEGORY_TRANSPORT)
-            .setVisibility(if (publicLock) NotificationCompat.VISIBILITY_PUBLIC else NotificationCompat.VISIBILITY_PRIVATE)
-            .setPublicVersion(
-                NotificationCompat.Builder(this, CHANNEL).setSmallIcon(android.R.drawable.ic_media_play).setContentTitle("Lyra").setContentText("Lyrics are on").build()
-            )
+            .setCategory(Notification.CATEGORY_TRANSPORT)
+            .setVisibility(if (publicLock) Notification.VISIBILITY_PUBLIC else Notification.VISIBILITY_PRIVATE)
+            .setPublicVersion(Notification.Builder(this, CHANNEL).setSmallIcon(android.R.drawable.ic_media_play).setContentTitle("Lyra").setContentText("Lyrics are on").build())
 
         if (now == null || now.isAd) {
             return b.setContentTitle("Lyra").setContentText(if (now?.isAd == true) "Ad playing" else "Nothing playing").build()
         }
-
-        val lines = if (LyricsNotifier.linesTrack == now.id) LyricsNotifier.lines else emptyList()
-        val idx = if (lines.isEmpty()) -1 else LyricsNotifier.activeIndex(now.positionMs)
-        fun text(i: Int): String = lines.getOrNull(i)?.text?.ifBlank { "♪" } ?: ""
-        val cur = if (lines.isEmpty()) now.title else if (idx < 0) "♪" else text(idx)
-        val next = if (lines.isEmpty()) now.artist else text(idx + 1)
-        val big = SpannableStringBuilder().apply {
-            if (lines.isEmpty()) {
-                append(now.title).setSpan(StyleSpan(android.graphics.Typeface.BOLD), 0, length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-                append("\n").append(if (now.artist.isNotEmpty()) now.artist else "")
-                val note = when {
-                    LyricsNotifier.linesTrack != now.id -> "Lyrics load while Lyra is open"
-                    LyricsNotifier.status == "loading" -> "Loading lyrics…"
-                    else -> "No synced lyrics for this song"
-                }
-                append("\n").append(note)
-            } else {
-                val s = length
-                append(cur)
-                setSpan(StyleSpan(android.graphics.Typeface.BOLD), s, length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-                setSpan(RelativeSizeSpan(1.12f), s, length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-                for (k in 1..2) text(idx + k).takeIf { it.isNotEmpty() }?.let { append("\n").append(it) }
-            }
-        }
-        b.setContentTitle(cur)
-            .setContentText(next)
-            .setSubText(if (now.artist.isNotEmpty()) "${now.title} · ${now.artist}" else now.title)
-            .setStyle(NotificationCompat.BigTextStyle().bigText(big))
+        val d = display(now)
+        return b.setContentTitle(d.title)
+            .setContentText(d.text)
+            .setSubText(d.sub)
             .setLargeIcon(now.art)
-            .setColor(average(now.art))
+            .setColor(tint(now.art))
+            .setColorized(true)
+            .setStyle(Notification.MediaStyle().setMediaSession(ensureSession().sessionToken).setShowActionsInCompactView(0, 1, 2))
             .addAction(action(android.R.drawable.ic_media_previous, "Previous", "dev.lyra.android.PREV"))
             .addAction(
                 if (now.playing) action(android.R.drawable.ic_media_pause, "Pause", "dev.lyra.android.TOGGLE")
                 else action(android.R.drawable.ic_media_play, "Play", "dev.lyra.android.TOGGLE")
             )
             .addAction(action(android.R.drawable.ic_media_next, "Next", "dev.lyra.android.NEXT"))
-        return b.build()
+            .build()
     }
 
     override fun onDestroy() {
         main.removeCallbacks(tick)
         MediaMonitor.removeListener(listener)
+        session?.release()
+        session = null
         if (instance === this) instance = null
         super.onDestroy()
     }
