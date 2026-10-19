@@ -1,6 +1,5 @@
 import '@fontsource-variable/inter'
-import { AnimatePresence, motion } from 'framer-motion'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import { estimateWords } from '@shared/wordTiming'
 import { Backdrop } from '@/components/Backdrop'
@@ -109,39 +108,34 @@ function Progress() {
   )
 }
 
-/** Lines stay on screen and glide up as the song moves on: the old line fades and shrinks, the next one grows. */
-const SPRING = { type: 'spring', stiffness: 120, damping: 24, mass: 0.9 } as const
-const ROLE = [
-  { opacity: 0.16, scale: 0.78 }, // previous
-  { opacity: 1, scale: 1 }, // current
-  { opacity: 0.34, scale: 0.78 }, // next
-  { opacity: 0.16, scale: 0.7 } // after that
-]
+/**
+ * All lines sit in one column that glides up as the song moves on (like the main player), so there is never a
+ * ghost or a jump: the current line is big and bright, the ones around it are smaller and dim, the rest are hidden.
+ */
+function LyricScroll({ lines, idx, offset }: { lines: ReturnType<typeof estimateWords>; idx: number; offset: number }) {
+  const area = useRef<HTMLDivElement>(null)
+  const els = useRef<Array<HTMLParagraphElement | null>>([])
+  const [shift, setShift] = useState(0)
 
-function LyricStack({ lines, idx, offset }: { lines: ReturnType<typeof estimateWords>; idx: number; offset: number }) {
-  const from = Math.max(0, idx - 1)
-  const visible = lines.slice(from, idx + 3).map((l, k) => ({ l, i: from + k }))
+  useLayoutEffect(() => {
+    const el = els.current[idx]
+    const box = area.current
+    if (!el || !box) return
+    setShift(el.offsetTop - box.clientHeight * 0.3)
+  }, [idx, lines])
+
   return (
-    <div className="amb__stack">
-      <AnimatePresence initial={false}>
-        {visible.map(({ l, i }) => {
-          const role = ROLE[Math.min(3, Math.max(0, i - (idx - 1)))]!
+    <div className="amb__area" ref={area}>
+      <div className="amb__scroll" style={{ transform: `translateY(${-shift}px)` }}>
+        {lines.map((l, i) => {
+          const d = Math.abs(i - idx)
           return (
-            <motion.p
-              key={i}
-              layout="position"
-              className={`amb__line ${i === idx ? 'is-current' : ''}`}
-              initial={{ opacity: 0, scale: 0.7, y: 40 }}
-              animate={{ opacity: role.opacity, scale: role.scale, y: 0 }}
-              exit={{ opacity: 0, scale: 0.6, y: -40 }}
-              transition={SPRING}
-              style={{ transformOrigin: 'left center' }}
-            >
+            <p key={i} ref={(el) => void (els.current[i] = el)} className={`amb__line amb__d${Math.min(d, 3)} ${i < idx ? 'is-past' : ''}`}>
               {i === idx ? <CurrentLine line={l} nextTime={lines[i + 1]?.timeMs} offset={offset} /> : l.text || '♪'}
-            </motion.p>
+            </p>
           )
         })}
-      </AnimatePresence>
+      </div>
     </div>
   )
 }
@@ -186,6 +180,25 @@ function Controls({ shown, onTouch }: { shown: boolean; onTouch: () => void }) {
           onChange={(e) => set({ ambientBrightness: Number(e.target.value) })}
         />
       </label>
+    </div>
+  )
+}
+
+/** Always visible (dim): previous / play-pause / next, so you never have to hunt for them. */
+function MiniTransport() {
+  const playing = usePlayer((s) => !!s.snapshot?.isPlaying)
+  const command = usePlayer((s) => s.command)
+  return (
+    <div className="amb__mini">
+      <button type="button" aria-label="Previous" onClick={() => void command({ type: 'previous' })}>
+        ⏮
+      </button>
+      <button type="button" aria-label={playing ? 'Pause' : 'Play'} className="amb__mini-play" onClick={() => void command({ type: 'toggle' })}>
+        {playing ? '❚❚' : '▶'}
+      </button>
+      <button type="button" aria-label="Next" onClick={() => void command({ type: 'next' })}>
+        ⏭
+      </button>
     </div>
   )
 }
@@ -238,7 +251,7 @@ function Ambient() {
         </div>
 
         <div className="amb__lyrics">
-          {lines.length > 0 && idx >= 0 ? <LyricStack lines={lines} idx={idx} offset={offset} /> : <p className="amb__line amb__idle">{track ? (lines.length ? '♪' : '') : ''}</p>}
+          {lines.length > 0 && idx >= 0 ? <LyricScroll lines={lines} idx={idx} offset={offset} /> : <p className="amb__line amb__idle">{track ? (lines.length ? '♪' : '') : ''}</p>}
         </div>
 
         <div className="amb__foot">
@@ -247,6 +260,7 @@ function Ambient() {
             <div className="amb__title">{track ? track.title : 'Nothing playing'}</div>
             <div className="amb__artist">{track ? `${track.artists.join(', ')}${playing ? '' : ' · paused'}` : ''}</div>
           </div>
+          <MiniTransport />
         </div>
         <Progress />
       </div>
