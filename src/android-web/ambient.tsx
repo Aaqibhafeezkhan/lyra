@@ -115,7 +115,12 @@ function Progress() {
 function LyricScroll({ lines, idx, offset }: { lines: ReturnType<typeof estimateWords>; idx: number; offset: number }) {
   const area = useRef<HTMLDivElement>(null)
   const els = useRef<Array<HTMLParagraphElement | null>>([])
+  const seek = usePlayer((s) => s.seek)
   const [shift, setShift] = useState(0)
+  // browsing: drag the lyrics up/down yourself, tap a line to jump there; it glides back to the song after a few seconds
+  const [browse, setBrowse] = useState<number | null>(null)
+  const drag = useRef<{ y: number; from: number; moved: boolean; id: number } | null>(null)
+  const back = useRef<number>(0)
 
   useLayoutEffect(() => {
     const el = els.current[idx]
@@ -124,13 +129,62 @@ function LyricScroll({ lines, idx, offset }: { lines: ReturnType<typeof estimate
     setShift(el.offsetTop - box.clientHeight * 0.3)
   }, [idx, lines])
 
+  useEffect(() => () => window.clearTimeout(back.current), [])
+
+  const armReturn = (): void => {
+    window.clearTimeout(back.current)
+    back.current = window.setTimeout(() => setBrowse(null), 4500)
+  }
+  const maxShift = (): number => {
+    const last = els.current[lines.length - 1]
+    return last ? last.offsetTop : 0
+  }
+  const down = (e: React.PointerEvent): void => {
+    drag.current = { y: e.clientY, from: browse ?? shift, moved: false, id: e.pointerId }
+    window.clearTimeout(back.current)
+  }
+  const move = (e: React.PointerEvent): void => {
+    const d = drag.current
+    if (!d) return
+    const dy = e.clientY - d.y
+    if (!d.moved && Math.abs(dy) < 8) return
+    if (!d.moved) {
+      d.moved = true
+      area.current?.setPointerCapture(d.id)
+    }
+    setBrowse(Math.min(maxShift(), Math.max(0, d.from - dy)))
+  }
+  const up = (e: React.PointerEvent): void => {
+    const d = drag.current
+    drag.current = null
+    if (!d) return
+    if (d.moved) return armReturn()
+    const row = (e.target as HTMLElement).closest('[data-i]') as HTMLElement | null
+    const line = row ? lines[Number(row.dataset.i)] : undefined
+    if (line) {
+      seek(line.timeMs - offset)
+      setBrowse(null)
+    }
+  }
+
+  const pos = browse ?? shift
   return (
-    <div className="amb__area" ref={area}>
-      <div className="amb__scroll" style={{ transform: `translateY(${-shift}px)` }}>
+    <div
+      className={`amb__area ${browse !== null ? 'is-browse' : ''}`}
+      ref={area}
+      onPointerDown={down}
+      onPointerMove={move}
+      onPointerUp={up}
+      onPointerCancel={() => {
+        drag.current = null
+        if (browse !== null) armReturn()
+      }}
+    >
+      <div className="amb__scroll" style={{ transform: `translateY(${-pos}px)`, transition: drag.current?.moved ? 'none' : undefined }}>
         {lines.map((l, i) => {
           const d = Math.abs(i - idx)
           return (
-            <p key={i} ref={(el) => void (els.current[i] = el)} className={`amb__line amb__d${Math.min(d, 3)} ${i < idx ? 'is-past' : ''}`}>
+            <p key={i} data-i={i} ref={(el) => void (els.current[i] = el)} className={`amb__line amb__d${Math.min(d, 3)} ${i < idx ? 'is-past' : ''}`}>
               {i === idx ? <CurrentLine line={l} nextTime={lines[i + 1]?.timeMs} offset={offset} /> : l.text || '♪'}
             </p>
           )

@@ -294,6 +294,18 @@ body,
   -webkit-mask-image: linear-gradient(180deg, transparent 0, #000 14%, #000 82%, transparent 100%);
   mask-image: linear-gradient(180deg, transparent 0, #000 14%, #000 82%, transparent 100%);
 }
+.amb__area {
+  touch-action: none;
+}
+/* browsing: every line readable (still dimmer than the current one) */
+.amb__area.is-browse .amb__line {
+  opacity: 0.55;
+  transform: scale(0.85);
+}
+.amb__area.is-browse .amb__line.amb__d0 {
+  opacity: 1;
+  transform: scale(1);
+}
 .amb__scroll {
   transition: transform 0.85s cubic-bezier(0.22, 1, 0.36, 1);
   will-change: transform;
