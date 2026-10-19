@@ -3,6 +3,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { createLogger } from './logger'
 import { disposePlayback, registerIpc, setBackground, startPlayback } from './ipc'
+import { lanViewer } from './lan/server'
 import { favorites } from './favorites'
 import { moments } from './moments'
 import { settings } from './settings'
@@ -71,6 +72,7 @@ if (!app.requestSingleInstanceLock()) {
     applyShortcuts(settings.get().globalShortcuts, settings.get().shortcuts)
     windows.applySettings(settings.get())
     startPlayback()
+    if (settings.get().lanViewer) lanViewer.start()
     updater.start()
 
     // Slow polling while the widget isn't visible.
@@ -97,6 +99,7 @@ if (!app.requestSingleInstanceLock()) {
   app.on('before-quit', () => {
     disposeShortcuts()
     disposePlayback()
+    lanViewer.stop()
     settings.flush()
     moments.flush()
     favorites.flush()

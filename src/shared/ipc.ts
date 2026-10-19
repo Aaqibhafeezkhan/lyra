@@ -57,6 +57,7 @@ export const CH = {
   momentsAdd: 'moments:add',
   momentsRemove: 'moments:remove',
   appInfo: 'app:info',
+  lanInfo: 'lan:info',
   appDiagnostics: 'app:diagnostics',
   appCopy: 'app:copy',
   appShortcutStatus: 'app:shortcut-status',
@@ -83,6 +84,12 @@ export const EV = {
   update: 'ev:update',
   fade: 'ev:fade'
 } as const
+
+export interface LanInfo {
+  running: boolean
+  urls: string[]
+  qr: string | null
+}
 
 export interface AppInfo {
   version: string
@@ -194,6 +201,10 @@ export interface LyraApi {
     addAmbientTile(): Promise<boolean>
     /** needsPermission: Android opened the "Display over other apps" screen; the user must allow it, then try again */
     setOverlay(on: boolean): Promise<{ ok: boolean; needsPermission?: boolean }>
+  }
+  lan: {
+    /** TV & party mode: whether the viewer is running, its links and a QR code of the first one. */
+    info(): Promise<LanInfo>
   }
   app: {
     info(): Promise<AppInfo>

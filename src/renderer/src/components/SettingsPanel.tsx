@@ -8,6 +8,34 @@ import { UpdateRow } from './UpdateRow'
 import { useSettings } from '@/store/settings'
 import { useUi } from '@/store/ui'
 
+function TvLink() {
+  const [info, setInfo] = useState<{ running: boolean; urls: string[]; qr: string | null } | null>(null)
+  useEffect(() => {
+    let alive = true
+    const load = (): void => void window.lyra.lan.info().then((i) => alive && setInfo(i))
+    load()
+    const id = setInterval(load, 3000)
+    return () => {
+      alive = false
+      clearInterval(id)
+    }
+  }, [])
+  if (!info) return null
+  if (!info.running || !info.urls.length) return <p className="hint">Starting… If nothing appears, check that you are connected to Wi-Fi or a network.</p>
+  return (
+    <div className="tvlink">
+      {info.qr && <img src={info.qr} width={150} height={150} alt="QR code for the TV link" />}
+      <div>
+        <p className="hint">Open this on any device on the same Wi-Fi. Keep the link private: anyone who has it can see what you play.</p>
+        <code>{info.urls[0]}</code>
+        <button type="button" className="btn btn--sm" onClick={() => void window.lyra.app.copy(info.urls[0]!)}>
+          Copy link
+        </button>
+      </div>
+    </div>
+  )
+}
+
 function Row({ label, hint, info, children }: { label: string; hint?: string; info?: string; children: React.ReactNode }) {
   return (
     <div className="srow">
@@ -533,6 +561,16 @@ export function SettingsPanel() {
       </section>
 
       <BackgroundSection />
+
+      {!android && (
+      <section>
+        <h4>TV &amp; party mode</h4>
+        <Row label="Show lyrics on other screens" hint="Opens a private link on your Wi-Fi: scan the QR code on a phone, tablet, laptop or TV browser and big synced lyrics follow what you play. Off by default">
+          <Toggle label="TV and party mode" checked={s.lanViewer} onChange={up('lanViewer')} />
+        </Row>
+        {s.lanViewer && <TvLink />}
+      </section>
+      )}
 
       {!android && (
       <section>

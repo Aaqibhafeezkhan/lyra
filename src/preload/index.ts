@@ -79,6 +79,9 @@ const api: LyraApi = {
     install: () => invoke(CH.updateInstall),
     onState: (cb) => subscribe(EV.update, cb)
   },
+  lan: {
+    info: () => invoke(CH.lanInfo)
+  },
   app: {
     info: () => invoke(CH.appInfo),
     diagnostics: () => invoke(CH.appDiagnostics),

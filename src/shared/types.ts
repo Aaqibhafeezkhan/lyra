@@ -227,6 +227,11 @@ export interface Settings {
   /** Windows source only: control the system volume (loads a helper some antivirus tools flag). */
   systemVolume: boolean
   trackNotifications: boolean
+  /** TV & party mode: serve a read-only lyrics page to other devices on the same network. */
+  lanViewer: boolean
+  lanPort: number
+  /** Secret in the viewer link (generated on first use). */
+  lanToken: string
   theme: ThemeMode
   lyricFont: LyricFont
   lyricFontSize: number // px, fullscreen base
@@ -271,6 +276,9 @@ export const DEFAULT_SETTINGS: Settings = {
   onboarded: false,
   systemVolume: false,
   trackNotifications: false,
+  lanViewer: false,
+  lanPort: 47813,
+  lanToken: '',
   theme: 'adaptive',
   lyricFont: 'sans',
   lyricFontSize: 40,

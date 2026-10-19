@@ -1,9 +1,11 @@
 import { Notification, app, clipboard, ipcMain, shell, type IpcMainInvokeEvent } from 'electron'
-import { CH, EV, type AppInfo } from '@shared/ipc'
+import { CH, EV, type AppInfo, type LanInfo } from '@shared/ipc'
 import type { ConnectionStatus, PlaybackSnapshot, PlayerCommand, Settings, Track, ViewMode } from '@shared/types'
 import { getArtwork } from './artwork'
 import { DemoSource } from './demo/source'
 import { lyricsService } from '@core/lyrics/service'
+import { lanViewer } from './lan/server'
+import QRCode from 'qrcode'
 import { createLogger, readLogTail } from './logger'
 import { moments } from './moments'
 import { background } from './background/service'
@@ -35,6 +37,7 @@ const send = (channel: string, payload: unknown): void => {
 
 function onSnapshot(s: PlaybackSnapshot): void {
   send(EV.playback, s)
+  lanViewer.publish(s)
   const id = s.track?.id ?? null
   if (id && id !== lastTrackId && s.isPlaying && settings.get().trackNotifications && Notification.isSupported()) {
     new Notification({ title: s.track!.title, body: s.track!.artists.join(', '), silent: true }).show()
@@ -89,6 +92,8 @@ export function registerIpc(): void {
     const prevId = clientId()
     const prevVolume = settings.get().systemVolume
     const next = settings.update(patch)
+    if (next.lanViewer && !lanViewer.running) lanViewer.start()
+    else if (!next.lanViewer && lanViewer.running) lanViewer.stop()
     if (active === spotify && clientId() !== prevId) spotify.start()
     if (active === local && local && next.systemVolume !== prevVolume) local.restart()
     return next
@@ -205,6 +210,11 @@ export function registerIpc(): void {
   handle(CH.updateCheck, () => updater.check())
   handle(CH.updateInstall, () => updater.install())
   updater.on('state', (st) => send(EV.update, st))
+  handle(CH.lanInfo, async (): Promise<LanInfo> => {
+    const urls = lanViewer.urls()
+    const qr = urls[0] ? await QRCode.toDataURL(urls[0], { margin: 1, width: 240, color: { dark: '#0a0a0a', light: '#ffffff' } }) : null
+    return { running: lanViewer.running, urls, qr }
+  })
   handle(CH.appInfo, (): AppInfo => ({ version: app.getVersion(), platform: process.platform, envClientId: !!envClientId() }))
 
   settings.on('change', (next: Settings) => {
