@@ -540,17 +540,6 @@ export function SettingsPanel() {
         <Row label="Launch at startup" hint="Applies to installed builds">
           <Toggle label="Launch at startup" checked={s.launchAtStartup} onChange={up('launchAtStartup')} />
         </Row>
-        <Row label="Music app" hint="Windows source. Any player shows lyrics for Spotify, YouTube in your browser, Apple Music, VLC and more">
-          <Segmented
-            label="Music app"
-            value={s.mediaApp}
-            options={[
-              { v: 'any', label: 'Any player' },
-              { v: 'spotify', label: 'Spotify only' }
-            ]}
-            onChange={up('mediaApp')}
-          />
-        </Row>
         <Row label="Control system volume" hint="Windows source. Loads a helper that some antivirus tools flag">
           <Toggle label="Control system volume" checked={s.systemVolume} onChange={up('systemVolume')} />
         </Row>

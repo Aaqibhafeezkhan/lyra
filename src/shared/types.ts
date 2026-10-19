@@ -226,8 +226,6 @@ export interface Settings {
   onboarded: boolean
   /** Windows source only: control the system volume (loads a helper some antivirus tools flag). */
   systemVolume: boolean
-  /** Windows: follow any player (default) or only the Spotify desktop app. */
-  mediaApp: 'any' | 'spotify'
   trackNotifications: boolean
   theme: ThemeMode
   lyricFont: LyricFont
@@ -272,7 +270,6 @@ export const DEFAULT_SETTINGS: Settings = {
   shortcuts: {},
   onboarded: false,
   systemVolume: false,
-  mediaApp: 'any',
   trackNotifications: false,
   theme: 'adaptive',
   lyricFont: 'sans',

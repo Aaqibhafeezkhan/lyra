@@ -1,10 +1,10 @@
 # Lyra — glassmorphism lyrics & playback companion for Spotify
 
 Floating widget → expanded mini player → cinematic fullscreen lyrics. Spotify stays the player; Lyra is the interface.
-**Free and account-free:** it reads whatever is playing through Windows media controls (Spotify, YouTube in your browser, Apple Music, VLC, Media Player…) and fetches lyrics from LRCLIB. No API key, no Premium, no login.
+**Free and account-free:** it reads the Spotify desktop app through Windows media controls and fetches lyrics from LRCLIB. No API key, no Premium, no login.
 
 ## Run (Windows 10/11)
-Requirements: Node 20+, and any music player that shows up in the Windows media overlay (the Spotify desktop app works best).
+Requirements: Node 20+, the **Spotify desktop app** (not the web player).
 
 ```bash
 npm install
@@ -21,7 +21,7 @@ Play a song in Spotify — the widget shows it. Click the widget to expand; full
 ## Music sources
 | Source | Needs | Gives | Missing |
 |---|---|---|---|
-| **Windows (default)** | any player that uses Windows media controls (Spotify, browsers, Apple Music, VLC, Media Player…) | title, artist, album, artwork, position, play/pause/next/previous/seek, **system volume**, release year (MusicBrainz), Lyra-local favorites ♥ | queue, shuffle/repeat (buttons hidden), syncing likes to Spotify |
+| **Windows (default)** | Spotify desktop app | title, artist, album, artwork, position, play/pause/next/previous/seek, **system volume**, release year (MusicBrainz), Lyra-local favorites ♥ | queue, shuffle/repeat (buttons hidden), syncing likes to Spotify |
 | Spotify API (optional) | your own Spotify Developer app (Client ID) | everything above + volume, queue, likes, devices | **Premium** for any control; Dev Mode needs a Premium app owner and your account under *User Management* |
 | Demo | nothing | simulated playback with sample lyrics | — |
 

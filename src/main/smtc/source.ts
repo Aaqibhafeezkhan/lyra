@@ -40,18 +40,6 @@ const UNSUPPORTED = (what: string): CommandResult => ({
  * Premium needed. Volume is the system master volume; likes are Lyra-local favourites; release year
  * comes from MusicBrainz. No queue, shuffle or repeat.
  */
-/** "Spotify.exe" / "chrome.exe" / "Microsoft.ZuneMusic_8wekyb3d8bbwe!Microsoft.ZuneMusic" -> a readable name */
-function friendlyApp(id: string | undefined): string {
-  if (!id) return 'Player'
-  const known: Array<[RegExp, string]> = [
-    [/spotify/i, 'Spotify'], [/msedge/i, 'Edge'], [/chrome/i, 'Chrome'], [/firefox/i, 'Firefox'], [/brave/i, 'Brave'], [/opera/i, 'Opera'],
-    [/zune|mediaplayer/i, 'Media Player'], [/applemusic|itunes/i, 'Apple Music'], [/vlc/i, 'VLC'], [/foobar/i, 'foobar2000'],
-    [/musicbee/i, 'MusicBee'], [/youtube/i, 'YouTube Music'], [/amazon/i, 'Amazon Music'], [/deezer/i, 'Deezer'], [/tidal/i, 'TIDAL'], [/aimp/i, 'AIMP']
-  ]
-  for (const [re, name] of known) if (re.test(id)) return name
-  return id.replace(/\.exe$/i, '').split('!').pop()!.split('.').pop()!
-}
-
 export class SmtcSource extends PlaybackSource {
   readonly kind = 'smtc' as const
   private proc: ChildProcessWithoutNullStreams | null = null
@@ -70,15 +58,11 @@ export class SmtcSource extends PlaybackSource {
       return
     }
     this.stopped = false
-    this.setStatus({ state: 'local', message: this.sourceLabel() })
+    this.setStatus({ state: 'local', message: 'Spotify desktop app · Windows media controls' })
     this.spawn()
   }
 
-  private sourceLabel(): string {
-    return settings.get().mediaApp === 'spotify' ? 'Spotify desktop app · Windows media controls' : 'Any music player · Windows media controls'
-  }
-
-  /** Re-spawn the bridge (used when the system-volume or music-app option changes). */
+  /** Re-spawn the bridge (used when the system-volume option changes). */
   restart(): void {
     this.stop()
     this.start()
@@ -98,8 +82,7 @@ export class SmtcSource extends PlaybackSource {
     let proc: ChildProcessWithoutNullStreams
     if (helper) {
       // Preferred: tiny event-driven native helper (resources/lyra-media.exe), ~0% CPU while idle.
-      const args = [...(withVolume ? ['--volume'] : []), ...(settings.get().mediaApp === 'spotify' ? ['--app', 'Spotify'] : [])]
-      proc = spawn(helper, args, { windowsHide: true })
+      proc = spawn(helper, withVolume ? ['--volume'] : [], { windowsHide: true })
     } else {
       log.warn('lyra-media.exe missing; falling back to the PowerShell bridge')
       const dir = join(app.getPath('userData'), 'bridge')
@@ -145,14 +128,14 @@ export class SmtcSource extends PlaybackSource {
     }
     if (m.ready) {
       this.failures = 0
-      this.setStatus({ state: 'local', message: this.sourceLabel() })
+      this.setStatus({ state: 'local', message: 'Spotify desktop app · Windows media controls' })
       return
     }
     if (m.error) {
       log.warn('bridge error', m.error)
       return
     }
-    if (this.status.state !== 'local') this.setStatus({ state: 'local', message: this.sourceLabel() })
+    if (this.status.state !== 'local') this.setStatus({ state: 'local', message: 'Spotify desktop app · Windows media controls' })
 
     const now = Date.now()
     let snap: PlaybackSnapshot
@@ -160,7 +143,7 @@ export class SmtcSource extends PlaybackSource {
       sampledAt: now,
       device: {
         id: null,
-        name: `${friendlyApp(m.app)} · Windows`,
+        name: 'Spotify · Windows',
         type: 'Computer',
         volumePercent: m.volume ?? null,
         supportsVolume: m.volume !== undefined
