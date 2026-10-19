@@ -269,3 +269,18 @@ if (isAndroid) {
     }
   } catch { /* offline or rate limited: the buttons keep pointing at the releases page */ }
 })()
+
+/* ---------- reel: recordings of the real app ---------- */
+const reelVideo = document.getElementById('reel-video')
+document.getElementById('reel-tabs').addEventListener('click', (e) => {
+  const b = e.target.closest('button')
+  if (!b) return
+  const k = b.dataset.clip
+  document.querySelectorAll('#reel-tabs button').forEach((x) => x.classList.toggle('is-on', x === b))
+  document.getElementById('reel-box').classList.toggle('is-tall', k === 'widget')
+  reelVideo.poster = `assets/poster-${k}.jpg`
+  reelVideo.src = `assets/clip-${k}.mp4`
+  reelVideo.play().catch(() => {})
+})
+// play only while visible (saves battery and bandwidth)
+new IntersectionObserver((es) => es.forEach((e) => (e.isIntersecting ? reelVideo.play().catch(() => {}) : reelVideo.pause())), { threshold: 0.25 }).observe(reelVideo)

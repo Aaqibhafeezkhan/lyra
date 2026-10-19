@@ -23,6 +23,7 @@
     <a class="brand" href="#top"><img src="assets/icon.png" alt="" width="28" height="28" /> Lyra</a>
     <nav>
       <a href="#real">Screenshots</a>
+      <a href="#reel">Videos</a>
       <a href="#demo">Live demo</a>
       <a href="#features">Features</a>
       <a href="#phone">Android</a>
@@ -70,6 +71,21 @@
       <div class="real__grid">
         <figure class="shot shot--wide reveal"><img src="assets/app-full.jpg" alt="Lyra in fullscreen, with synced lyrics over the music video" width="1920" height="1200" loading="lazy" /><figcaption>Fullscreen: every word lights up as it is sung</figcaption></figure>
         <figure class="shot shot--tall reveal"><img src="assets/app-mini.jpg" alt="Lyra widget with the video filling the whole player" width="630" height="1050" loading="lazy" /><figcaption>Widget: the video fills the player</figcaption></figure>
+      </div>
+    </section>
+
+    <!-- REEL -->
+    <section class="section" id="reel">
+      <h2 class="reveal">See it <span class="mute">in motion.</span></h2>
+      <p class="sub reveal">Screen recordings of Lyra on Windows, different songs, different moods.</p>
+      <div class="tabs reveal" id="reel-tabs" role="tablist">
+        <button role="tab" class="is-on" data-clip="blinding">Warm night</button>
+        <button role="tab" data-clip="levitating">Cool blue</button>
+        <button role="tab" data-clip="dontstart">Club</button>
+        <button role="tab" data-clip="widget">Widget</button>
+      </div>
+      <div class="reel reveal" id="reel-box">
+        <video id="reel-video" muted loop playsinline autoplay preload="metadata" poster="assets/poster-blinding.jpg"><source src="assets/clip-blinding.mp4" type="video/mp4" /></video>
       </div>
     </section>
 
