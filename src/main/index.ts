@@ -39,8 +39,8 @@ function installCsp(): void {
   const media = `${BG_SCHEME}:`
   const embed = 'https://www.youtube-nocookie.com'
   const csp = dev
-    ? `default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: ${media}; media-src 'self' ${media} https://*.itunes.apple.com; frame-src ${embed}; font-src 'self' data:; connect-src 'self' ws: http://localhost:*`
-    : `default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: ${media}; media-src 'self' ${media} https://*.itunes.apple.com; frame-src ${embed}; font-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'`
+    ? `default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: ${media}; media-src 'self' ${media} https://*.itunes.apple.com; frame-src ${embed}; font-src 'self' data:; connect-src 'self' ws: http://localhost:* https://0.peerjs.com wss://0.peerjs.com`
+    : `default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: ${media}; media-src 'self' ${media} https://*.itunes.apple.com; frame-src ${embed}; font-src 'self' data:; connect-src 'self' https://0.peerjs.com wss://0.peerjs.com; object-src 'none'; base-uri 'none'; form-action 'none'`
   session.defaultSession.webRequest.onHeadersReceived((details, cb) => {
     // Only OUR pages get our policy. Third-party documents (the YouTube player) keep their own headers,
     // otherwise our "default-src 'self'" would block their scripts.

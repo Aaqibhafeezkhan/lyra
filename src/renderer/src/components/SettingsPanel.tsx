@@ -6,7 +6,50 @@ import { usePlayer } from '@/store/player'
 import { ShortcutEditor } from './ShortcutEditor'
 import { UpdateRow } from './UpdateRow'
 import { useSettings } from '@/store/settings'
+import { roomLink, useRoom } from '@/store/room'
+import QRCode from 'qrcode'
 import { useUi } from '@/store/ui'
+
+function RoomPanel() {
+  const { code, guests, state, error, start, stop } = useRoom()
+  const [qr, setQr] = useState<string | null>(null)
+  const link = code ? roomLink(code) : ''
+  useEffect(() => {
+    if (!link) return setQr(null)
+    void QRCode.toDataURL(link, { margin: 1, width: 240, color: { dark: '#0a0a0a', light: '#ffffff' } }).then(setQr)
+  }, [link])
+  return (
+    <>
+      <Row label="Listen together" hint="Share a link: friends open it in any browser and see the same synced lyrics, live. Lyrics only, not audio: everyone plays the song themselves">
+        {state === 'idle' || state === 'error' ? (
+          <button type="button" className="btn btn--sm" onClick={start}>
+            Start a room
+          </button>
+        ) : (
+          <button type="button" className="btn btn--sm" onClick={stop}>
+            Stop room
+          </button>
+        )}
+      </Row>
+      {error && <p className="hint">{error}</p>}
+      {state === 'starting' && <p className="hint">Opening the room…</p>}
+      {state === 'live' && code && (
+        <div className="tvlink">
+          {qr && <img src={qr} width={150} height={150} alt="QR code for the room link" />}
+          <div>
+            <p className="hint">
+              Room <b>{code}</b> · {guests} {guests === 1 ? 'person' : 'people'} watching. Guests connect straight to this device, so they can see its network address. Stop the room any time.
+            </p>
+            <code>{link}</code>
+            <button type="button" className="btn btn--sm" onClick={() => void window.lyra.app.copy(link)}>
+              Copy link
+            </button>
+          </div>
+        </div>
+      )}
+    </>
+  )
+}
 
 function TvLink() {
   const [info, setInfo] = useState<{ running: boolean; urls: string[]; qr: string | null } | null>(null)
@@ -561,6 +604,11 @@ export function SettingsPanel() {
       </section>
 
       <BackgroundSection />
+
+      <section>
+        <h4>Listen together</h4>
+        <RoomPanel />
+      </section>
 
       {!android && (
       <section>

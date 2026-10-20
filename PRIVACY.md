@@ -26,3 +26,8 @@ to the interface; remove it any time in Settings → Background.
 **On Android** the same rules apply, plus: Lyra asks for *Notification access* only so Android will let it see which song is playing (title, artist, album, position, cover). It does not read or store your notifications. Your settings, saved lines, and any background video/GIF you pick live in the app's private storage; a YouTube API key is encrypted with the Android Keystore. The optional floating widget and "keep running" service only show lyrics and keep the app alive; they send nothing anywhere.
 
 Requests go straight from your PC to those services; Lyra has no server of its own.
+
+## Optional network features (off by default)
+
+- **TV & party mode** serves a read-only lyrics page on your local network. It needs a secret link, sends nothing to the internet and exposes only what is playing.
+- **Listen together** (rooms) connects friends' browsers directly to your Lyra with WebRTC. The public PeerJS broker (0.peerjs.com) only introduces the two sides, and a public STUN server helps them find each other, so both can see the other's network address. Only the song title, artist, position and synced lyrics are shared, never audio or files. Stop the room and nothing more is shared.
