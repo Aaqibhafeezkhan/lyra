@@ -1,0 +1,18 @@
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.installer.1.6.0.schema.json
+PackageIdentifier: DhruvHarani1.Lyra
+PackageVersion: 0.5.0
+Platform:
+- Windows.Desktop
+MinimumOSVersion: 10.0.17763.0
+InstallerType: nullsoft
+Scope: user
+InstallModes:
+- interactive
+- silent
+UpgradeBehavior: install
+Installers:
+- Architecture: x64
+  InstallerUrl: https://github.com/DhruvHarani1/lyra/releases/download/v0.5.0/Lyra-Setup-0.5.0.exe
+  InstallerSha256: 6944BC83E141407091C565EAFF1D0E59994C73D6535DD0A1145C1D81CE950CF6
+ManifestType: installer
+ManifestVersion: 1.6.0

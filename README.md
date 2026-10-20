@@ -1,9 +1,58 @@
-# Lyra — glassmorphism lyrics & playback companion for Spotify
+<p align="center">
+  <img src="docs/images/icon.png" width="96" alt="Lyra" />
+</p>
 
-Floating widget → expanded mini player → cinematic fullscreen lyrics. Spotify stays the player; Lyra is the interface.
-**Free and account-free:** it reads the Spotify desktop app through Windows media controls and fetches lyrics from LRCLIB. No API key, no Premium, no login.
+<h1 align="center">Lyra</h1>
+<p align="center"><b>Lyrics that move with the music.</b><br />
+Word-by-word synced lyrics over the music video of what you play. For Windows and Android. Free, open source, no account.</p>
 
-## Run (Windows 10/11)
+<p align="center">
+  <a href="https://github.com/DhruvHarani1/lyra/releases/latest"><img alt="Download for Windows" src="https://img.shields.io/github/v/release/DhruvHarani1/lyra?label=Windows&logo=windows&style=for-the-badge" /></a>
+  <a href="https://github.com/DhruvHarani1/lyra/releases?q=android"><img alt="Download for Android" src="https://img.shields.io/badge/Android-APK-3DDC84?logo=android&logoColor=white&style=for-the-badge" /></a>
+  <a href="https://lyra-website-rho.vercel.app"><img alt="Website" src="https://img.shields.io/badge/Website-live%20demo-111?style=for-the-badge" /></a>
+</p>
+<p align="center">
+  <img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-blue" />
+  <img alt="No account, no tracking" src="https://img.shields.io/badge/no%20account-no%20tracking-success" />
+  <a href="https://github.com/DhruvHarani1/lyra/releases"><img alt="Downloads" src="https://img.shields.io/github/downloads/DhruvHarani1/lyra/total" /></a>
+  <a href="https://github.com/DhruvHarani1/lyra/stargazers"><img alt="Stars" src="https://img.shields.io/github/stars/DhruvHarani1/lyra?style=flat" /></a>
+</p>
+
+<p align="center">
+  <img src="docs/images/demo.gif" width="560" alt="Lyra showing synced lyrics over a music video" />
+</p>
+
+## Why Lyra
+
+- **Every word, on time.** Words fill in as they are sung, including Hindi, Punjabi and other scripts.
+- **Over the music video.** The official video (or your own clip) plays softly behind the lyrics, and the whole UI takes on the cover's colours.
+- **A floating widget on Windows, a screen saver on Android.** Fullscreen lyrics, a lock-screen card, and an ambient mode with a clock for the desk.
+- **Listen together.** Share a room link and friends see your synced lyrics live in any browser. Friends with Lyra can join and keep their own player in sync with yours.
+- **TV mode and Jam nearby.** Put big lyrics on a TV or phone over your Wi-Fi, and optionally stream the PC's sound there too.
+- **Private.** No account, no ads, no analytics. Everything runs on your device. See [PRIVACY.md](PRIVACY.md).
+
+<p align="center">
+  <img src="docs/images/fullscreen.jpg" width="62%" alt="Fullscreen lyrics" />
+  <img src="docs/images/widget.jpg" width="22%" alt="Widget" />
+</p>
+<p align="center"><img src="docs/images/demo-hindi.gif" width="420" alt="Hindi lyrics over a video" /></p>
+
+## Install
+
+| Platform | How |
+|---|---|
+| **Windows 10/11** | Download `Lyra-Setup-x.y.z.exe` from the [latest release](https://github.com/DhruvHarani1/lyra/releases/latest), or `winget install DhruvHarani1.Lyra` once it is listed. Windows may show a SmartScreen notice because the app is not code-signed yet: choose *More info → Run anyway*. |
+| **Android 8+** | Download `Lyra-Android-x.y.z.apk` from the [Android releases](https://github.com/DhruvHarani1/lyra/releases?q=android) and open it. Grant *Notification access* so Lyra can see what is playing. F-Droid / IzzyOnDroid listings are being prepared. |
+
+Lyra reads the **Spotify desktop app** on Windows (through Windows media controls) and any media app on Android. Lyrics come from the free [LRCLIB](https://lrclib.net) database.
+
+## Help it grow
+
+Star the repo, tell a friend, or open an issue. Good first issues are labelled. Translations, new lyric sources and bug reports are all welcome: see [CONTRIBUTING.md](CONTRIBUTING.md).
+
+---
+
+## Build and run from source
 Requirements: Node 20+, the **Spotify desktop app** (not the web player).
 
 ```bash

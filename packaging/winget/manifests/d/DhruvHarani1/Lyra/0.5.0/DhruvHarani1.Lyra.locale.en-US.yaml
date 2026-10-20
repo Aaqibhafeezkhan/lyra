@@ -1,0 +1,24 @@
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.defaultLocale.1.6.0.schema.json
+PackageIdentifier: DhruvHarani1.Lyra
+PackageVersion: 0.5.0
+PackageLocale: en-US
+Publisher: DhruvHarani1
+PublisherUrl: https://github.com/DhruvHarani1
+PublisherSupportUrl: https://github.com/DhruvHarani1/lyra/issues
+PackageName: Lyra
+PackageUrl: https://lyra-website-rho.vercel.app
+License: MIT
+LicenseUrl: https://github.com/DhruvHarani1/lyra/blob/main/LICENSE
+Copyright: Copyright (c) Dhruv Harani
+ShortDescription: Word-by-word synced lyrics over the music video of what you play.
+Description: Lyra shows word-by-word synced lyrics in a floating widget or fullscreen, over the music video of the song you are playing in the Spotify desktop app. Free, open source, no account, no tracking.
+Moniker: lyra
+Tags:
+- lyrics
+- spotify
+- synced-lyrics
+- karaoke
+- music
+ReleaseNotesUrl: https://github.com/DhruvHarani1/lyra/releases/tag/v0.5.0
+ManifestType: defaultLocale
+ManifestVersion: 1.6.0

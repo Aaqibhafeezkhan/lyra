@@ -1,0 +1,18 @@
+{
+  "version": "0.5.0",
+  "description": "Word-by-word synced lyrics over the music video of what you play (Spotify desktop app).",
+  "homepage": "https://lyra-website-rho.vercel.app",
+  "license": "MIT",
+  "url": "https://github.com/DhruvHarani1/lyra/releases/download/v0.5.0/Lyra-Setup-0.5.0.exe#/dl.7z",
+  "hash": "6944bc83e141407091c565eaff1d0e59994c73d6535dd0a1145c1d81ce950cf6",
+  "notes": "Windows may show a SmartScreen notice: Lyra is not code-signed yet.",
+  "installer": {
+    "script": [
+      "Start-Process -Wait \"$dir\dl.7z\" -ArgumentList '/S', \"/D=$dir\app\"",
+      "Remove-Item \"$dir\dl.7z\""
+    ]
+  },
+  "shortcuts": [["app\Lyra.exe", "Lyra"]],
+  "checkver": { "github": "https://github.com/DhruvHarani1/lyra", "regex": "v([\d.]+)" },
+  "autoupdate": { "url": "https://github.com/DhruvHarani1/lyra/releases/download/v$version/Lyra-Setup-$version.exe#/dl.7z" }
+}

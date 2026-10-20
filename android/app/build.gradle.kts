@@ -19,6 +19,12 @@ android {
     namespace = "dev.lyra.android"
     compileSdk = 36
 
+    // keeps the APK free of the encrypted dependency blob that open-source app stores flag
+    dependenciesInfo {
+        includeInApk = false
+        includeInBundle = false
+    }
+
     defaultConfig {
         applicationId = "dev.lyra.android"
         minSdk = 26
