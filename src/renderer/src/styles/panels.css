@@ -114,7 +114,8 @@
   margin: 0 0 8px;
   padding: 4px 0 10px;
   flex-wrap: wrap;
-  background: linear-gradient(var(--panel) 80%, transparent);
+  background: var(--bg-1);
+  border-bottom: 1px solid var(--line);
 }
 .stabs button {
   flex: none;
