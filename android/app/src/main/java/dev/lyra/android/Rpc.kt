@@ -92,6 +92,21 @@ class Rpc(private val ctx: Context, private val web: LyraWebView, private val ac
                 ctx.startActivity(Intent(ctx, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT))
                 ok(true)
             }
+            "shareImage" -> ui {
+                // a lyric card from the web UI: write it to our cache and hand it to the system share sheet
+                val bytes = Base64.decode(args.getString(0), Base64.DEFAULT)
+                val dir = java.io.File(ctx.cacheDir, "share").apply { mkdirs() }
+                dir.listFiles()?.forEach { it.delete() }
+                val file = java.io.File(dir, "lyra-card.png").apply { writeBytes(bytes) }
+                val uri = androidx.core.content.FileProvider.getUriForFile(ctx, ctx.packageName + ".share", file)
+                val send = Intent(Intent.ACTION_SEND).apply {
+                    type = "image/png"
+                    putExtra(Intent.EXTRA_STREAM, uri)
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                }
+                ctx.startActivity(Intent.createChooser(send, "Share lyric card").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                ok(true)
+            }
             "copy" -> ui {
                 (ctx.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager).setPrimaryClip(ClipData.newPlainText("Lyra", args.getString(0)))
                 ok(true)

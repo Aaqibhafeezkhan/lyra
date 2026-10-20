@@ -1,4 +1,5 @@
-import { Notification, app, clipboard, ipcMain, shell, type IpcMainInvokeEvent } from 'electron'
+import { ClipboardItem, Notification, app, clipboard, dialog, ipcMain, shell, type IpcMainInvokeEvent } from 'electron'
+import { writeFile } from 'node:fs/promises'
 import { CH, EV, type AppInfo, type LanInfo } from '@shared/ipc'
 import type { ConnectionStatus, PlaybackSnapshot, PlayerCommand, Settings, Track, ViewMode } from '@shared/types'
 import { getArtwork } from './artwork'
@@ -208,6 +209,31 @@ export function registerIpc(): void {
     ].join('\n')
   })
   handle(CH.appShortcutStatus, () => failedShortcuts())
+  const pngFrom = (dataUrl: unknown): Buffer | null => {
+    if (typeof dataUrl !== 'string' || dataUrl.length > 25_000_000) return null
+    const m = /^data:image\/png;base64,([A-Za-z0-9+/=]+)$/.exec(dataUrl)
+    return m ? Buffer.from(m[1]!, 'base64') : null
+  }
+  handle(CH.appCopyImage, async (dataUrl: string) => {
+    const png = pngFrom(dataUrl)
+    if (!png) return false
+    await clipboard.write([new ClipboardItem({ 'image/png': new Blob([new Uint8Array(png)], { type: 'image/png' }) })])
+    return true
+  })
+  handle(CH.appShareImage, async (dataUrl: string, name: string) => {
+    const png = pngFrom(dataUrl)
+    if (!png) return 'failed'
+    const win = windows.window
+    const opts = { title: 'Save lyric card', defaultPath: String(name || 'lyra-card.png').replace(/[\\/:*?"<>|]/g, '-'), filters: [{ name: 'PNG image', extensions: ['png'] }] }
+    const r = win ? await dialog.showSaveDialog(win, opts) : await dialog.showSaveDialog(opts)
+    if (r.canceled || !r.filePath) return 'cancelled'
+    try {
+      await writeFile(r.filePath, png)
+      return 'saved'
+    } catch {
+      return 'failed'
+    }
+  })
   handle(CH.appCopy, (text: string) => {
     if (typeof text !== 'string' || text.length > 200_000) return false
     clipboard.writeText(text)

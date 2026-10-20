@@ -328,6 +328,8 @@ export const androidApi: LyraApi & { android: NonNullable<LyraApi['android']> } 
     info: async () => ({ version: await rpc<string>('version'), platform: 'android', envClientId: false }),
     diagnostics: async () => `Lyra for Android ${await rpc<string>('version')}\n${navigator.userAgent}\nstatus: ${JSON.stringify(status)}`,
     copy: async (text) => rpc<boolean>('copy', text),
+    copyImage: async () => false,
+    shareImage: async (dataUrl, name) => ((await rpc<boolean>('shareImage', dataUrl.slice(dataUrl.indexOf(',') + 1), name)) ? 'shared' : 'failed'),
     failedShortcuts: async () => [],
     onCommand: () => noop
   },

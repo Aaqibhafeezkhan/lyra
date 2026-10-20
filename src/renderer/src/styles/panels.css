@@ -668,3 +668,13 @@
 .joinrow input { flex: 1; min-width: 0; height: 32px; padding: 0 12px; border: 1px solid var(--line-2); border-radius: 10px; background: var(--glass); color: var(--fg); font: inherit; font-size: 12.5px; }
 .joinrow input:focus { outline: 2px solid color-mix(in srgb, var(--accent) 60%, transparent); outline-offset: 1px; }
 .settings .hint a { color: var(--fg); text-decoration: underline; }
+
+/* ---------- share a lyric card ---------- */
+.sharecard { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; background: rgba(0, 0, 0, 0.55); backdrop-filter: blur(6px); }
+.sharecard__box { width: min(420px, 94vw); max-height: 94vh; overflow: auto; padding: 14px; border-radius: 20px; background: var(--bg-1); border: 1px solid var(--line-2); display: flex; flex-direction: column; gap: 12px; }
+.sharecard__box header { display: flex; align-items: center; justify-content: space-between; font-size: 14px; }
+.sharecard__canvas { width: 100%; max-height: 62vh; aspect-ratio: 9 / 16; object-fit: contain; border-radius: 14px; background: #000; }
+.sharecard__row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 12.5px; color: var(--fg-2); }
+.sharecard__row--end { justify-content: flex-end; }
+.pill--primary { background: var(--fg); color: var(--on-fg); }
+.pill:disabled { opacity: 0.4; }

@@ -88,6 +88,8 @@ const api: LyraApi = {
     info: () => invoke(CH.appInfo),
     diagnostics: () => invoke(CH.appDiagnostics),
     copy: (text) => invoke(CH.appCopy, text),
+    copyImage: (dataUrl) => invoke(CH.appCopyImage, dataUrl),
+    shareImage: (dataUrl, name) => invoke(CH.appShareImage, dataUrl, name),
     failedShortcuts: () => invoke(CH.appShortcutStatus),
     onCommand: (cb) => subscribe(EV.command, cb)
   }

@@ -61,6 +61,8 @@ export const CH = {
   lanAnswer: 'lan:answer',
   appDiagnostics: 'app:diagnostics',
   appCopy: 'app:copy',
+  appCopyImage: 'app:copy-image',
+  appShareImage: 'app:share-image',
   appShortcutStatus: 'app:shortcut-status',
   bgResolve: 'bg:resolve',
   bgPick: 'bg:pick',
@@ -217,6 +219,10 @@ export interface LyraApi {
     diagnostics(): Promise<string>
     /** Copy plain text to the system clipboard. */
     copy(text: string): Promise<boolean>
+    /** Put a PNG (data URL) on the clipboard. Resolves false where that is not possible. */
+    copyImage(dataUrl: string): Promise<boolean>
+    /** Windows: ask where to save the PNG. Android: open the share sheet. */
+    shareImage(dataUrl: string, name: string): Promise<'saved' | 'shared' | 'cancelled' | 'failed'>
     /** Ids of global shortcuts another app already owns. */
     failedShortcuts(): Promise<string[]>
     onCommand(cb: (c: AppCommand) => void): Unsubscribe
