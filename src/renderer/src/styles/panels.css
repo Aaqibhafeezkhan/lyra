@@ -662,3 +662,8 @@
   opacity: 1;
   transform: none;
 }
+
+.joinrow { display: flex; gap: 8px; padding: 8px 0 6px; }
+.joinrow input { flex: 1; min-width: 0; height: 32px; padding: 0 12px; border: 1px solid var(--line-2); border-radius: 10px; background: var(--glass); color: var(--fg); font: inherit; font-size: 12.5px; }
+.joinrow input:focus { outline: 2px solid color-mix(in srgb, var(--accent) 60%, transparent); outline-offset: 1px; }
+.settings .hint a { color: var(--fg); text-decoration: underline; }

@@ -7,6 +7,7 @@ import { ShortcutEditor } from './ShortcutEditor'
 import { UpdateRow } from './UpdateRow'
 import { useSettings } from '@/store/settings'
 import { roomLink, useRoom } from '@/store/room'
+import { useJam } from '@/store/jam'
 import QRCode from 'qrcode'
 import { useUi } from '@/store/ui'
 
@@ -39,9 +40,16 @@ function RoomPanel() {
   }, [link])
   return (
     <>
-      <Row label="Listen together" hint="Share a link: friends open it in any browser and see the same synced lyrics, live. Lyrics only, not audio: everyone plays the song themselves">
+      <Row label="Host a room" hint="Share a link: friends open it in any browser and see your synced lyrics live. Friends with Lyra can also join to listen in sync with you">
         {state === 'idle' || state === 'error' ? (
-          <button type="button" className="pill" onClick={start}>
+          <button
+            type="button"
+            className="pill"
+            onClick={() => {
+              useJam.getState().leave()
+              start()
+            }}
+          >
             Start a room
           </button>
         ) : (
@@ -66,6 +74,83 @@ function RoomPanel() {
           </div>
         </div>
       )}
+    </>
+  )
+}
+
+/** Join someone else's room from inside Lyra and listen in sync. */
+function JamPanel() {
+  const { status, message, host, needSong, syncing, syncOn, setSync, join, leave } = useJam()
+  const [text, setText] = useState('')
+  const active = status === 'joining' || status === 'connected'
+  return (
+    <>
+      <Row label="Join a room" hint="Paste a room link or code. Everyone plays the same song in their own Spotify; Lyra keeps your play, pause and position in step with the host">
+        {active ? (
+          <button type="button" className="pill" onClick={leave}>
+            Leave room
+          </button>
+        ) : null}
+      </Row>
+      {!active && (
+        <form
+          className="joinrow"
+          onSubmit={(e) => {
+            e.preventDefault()
+            useRoom.getState().stop()
+            join(text)
+          }}
+        >
+          <input value={text} onChange={(e) => setText(e.target.value)} placeholder="Room link or code" aria-label="Room link or code" spellCheck={false} />
+          <button type="submit" className="pill" disabled={!text.trim()}>
+            Join
+          </button>
+        </form>
+      )}
+      {message && <p className="hint">{message}</p>}
+      {status === 'joining' && <p className="hint">Joining…</p>}
+      {status === 'connected' && (
+        <div className="jam">
+          <p className="hint">
+            In the room · {host?.trackId ? <b>{host.title}</b> : 'the host is not playing yet'}
+            {host?.trackId ? ` · ${host.artists} · ${host.playing ? 'playing' : 'paused'}` : ''}
+          </p>
+          {needSong && (
+            <p className="hint">
+              Play <b>{needSong.title}</b> by {needSong.artists} in your player.{' '}
+              <a href={`https://open.spotify.com/search/${encodeURIComponent(`${needSong.title} ${needSong.artists}`)}`} target="_blank" rel="noreferrer">
+                Find it in Spotify
+              </a>
+            </p>
+          )}
+          {!needSong && host?.trackId && <p className="hint">{syncOn ? (syncing ? 'Syncing with the host…' : 'In sync ✓') : 'Sync is off: you are playing on your own.'}</p>}
+          <Row label="Keep my player in sync" hint="Matches the host's play, pause and position">
+            <Toggle label="Keep my player in sync" checked={syncOn} onChange={setSync} />
+          </Row>
+        </div>
+      )}
+    </>
+  )
+}
+
+/** Hosting and joining live side by side so it is obvious what each one does. */
+function RoomHub() {
+  const roomState = useRoom((r) => r.state)
+  const jamStatus = useJam((j) => j.status)
+  const [mode, setMode] = useState<'host' | 'join'>(jamStatus === 'idle' ? 'host' : 'join')
+  const shown = roomState === 'live' || roomState === 'starting' ? 'host' : jamStatus === 'connected' || jamStatus === 'joining' ? 'join' : mode
+  return (
+    <>
+      <Segmented<'host' | 'join'>
+        label="Room role"
+        value={shown}
+        onChange={setMode}
+        options={[
+          { v: 'host', label: 'Host a room' },
+          { v: 'join', label: 'Join a room' }
+        ]}
+      />
+      {shown === 'host' ? <RoomPanel /> : <JamPanel />}
     </>
   )
 }
@@ -664,15 +749,15 @@ export function SettingsPanel() {
 
       {tab === 'share' && (
       <section>
-        <h4>Listen together</h4>
-        <RoomPanel />
+        <h4>Rooms: listen together</h4>
+        <RoomHub />
       </section>
       )}
 
       {!android && tab === 'share' && (
       <section>
-        <h4>TV &amp; party mode</h4>
-        <Row label="Show lyrics on other screens" hint="Opens a private link on your Wi-Fi: scan the QR code on a phone, tablet, laptop or TV browser and big synced lyrics follow what you play. Off by default">
+        <h4>Nearby screens (TV mode)</h4>
+        <Row label="Show lyrics on other screens" hint="Same Wi-Fi, no internet needed: scan the QR code on a phone, tablet, laptop or TV browser to get big synced lyrics. Off by default">
           <Toggle label="TV and party mode" checked={s.lanViewer} onChange={up('lanViewer')} />
         </Row>
         {s.lanViewer && <TvLink />}
