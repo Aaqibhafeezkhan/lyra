@@ -10,6 +10,25 @@ import { roomLink, useRoom } from '@/store/room'
 import QRCode from 'qrcode'
 import { useUi } from '@/store/ui'
 
+/** Copy text and tell the user it worked (or didn't). */
+async function copyWithToast(text: string, what: string): Promise<void> {
+  let ok = false
+  try {
+    ok = await window.lyra.app.copy(text)
+  } catch {
+    ok = false
+  }
+  if (!ok) {
+    try {
+      await navigator.clipboard.writeText(text)
+      ok = true
+    } catch {
+      ok = false
+    }
+  }
+  useUi.getState().toast(ok ? `${what} copied` : 'Couldn’t copy. Select the link and copy it by hand', ok ? undefined : 'error')
+}
+
 function RoomPanel() {
   const { code, guests, state, error, start, stop } = useRoom()
   const [qr, setQr] = useState<string | null>(null)
@@ -40,8 +59,8 @@ function RoomPanel() {
             <p className="hint">
               Room <b>{code}</b> · {guests} {guests === 1 ? 'person' : 'people'} watching. Guests connect straight to this device, so they can see its network address. Stop the room any time.
             </p>
-            <code>{link}</code>
-            <button type="button" className="pill" onClick={() => void window.lyra.app.copy(link)}>
+            <code onClick={(e) => window.getSelection()?.selectAllChildren(e.currentTarget)}>{link}</code>
+            <button type="button" className="pill" onClick={() => void copyWithToast(link, 'Room link')}>
               Copy link
             </button>
           </div>
@@ -70,8 +89,8 @@ function TvLink() {
       {info.qr && <img src={info.qr} width={150} height={150} alt="QR code for the TV link" />}
       <div>
         <p className="hint">Open this on any device on the same Wi-Fi. Keep the link private: anyone who has it can see what you play.</p>
-        <code>{info.urls[0]}</code>
-        <button type="button" className="pill" onClick={() => void window.lyra.app.copy(info.urls[0]!)}>
+        <code onClick={(e) => window.getSelection()?.selectAllChildren(e.currentTarget)}>{info.urls[0]}</code>
+        <button type="button" className="pill" onClick={() => void copyWithToast(info.urls[0]!, 'TV link')}>
           Copy link
         </button>
       </div>

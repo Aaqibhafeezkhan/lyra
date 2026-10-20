@@ -94,7 +94,7 @@
 
   // ---- connection (WebRTC via PeerJS; the host's Lyra is the other end)
   const CODE = (new URLSearchParams(location.search).get('r') || '').toUpperCase().replace(/[^A-Z0-9]/g, '')
-  let conn = null, tries = 0, pingTimer = 0
+  let conn = null, tries = 0, pingTimer = 0, lastMsg = 0, watchdog = 0, ended = false
   const setState = (m) => {
     const changed = !st || st.trackId !== m.trackId
     st = m
@@ -105,7 +105,22 @@
       $('art').style.backgroundImage = ''; const bg = $('bg'); bg.classList.add('plain'); bg.style.backgroundImage = ''
     }
   }
+  // the host is gone (closed the room, or lost connection): freeze, clear the screen and say so
+  function ended_(text) {
+    if (ended) return
+    ended = true
+    clearInterval(pingTimer); clearInterval(watchdog)
+    $('dot').classList.add('off')
+    st = null; trackId = ''; lines = []; render()
+    $('t').textContent = ''; $('ar').textContent = ''; $('art').style.backgroundImage = ''
+    $('bar').style.transform = 'scaleX(0)'
+    const bg = $('bg'); bg.classList.add('plain'); bg.style.backgroundImage = ''
+    $('play').style.display = 'none'
+    msg(text)
+  }
   function onMsg(m) {
+    lastMsg = Date.now()
+    if (m.t === 'bye') { ended_('The host closed the room.'); try { conn.close() } catch {} return }
     if (m.t === 'pong') { const rtt = Date.now() - m.c; skew = m.h + rtt / 2 - Date.now(); return }
     if (m.t === 'state') { setState({ trackId: m.trackId, title: m.title, artists: m.artists, durationMs: m.durationMs, playing: m.playing, positionMs: m.positionMs, sampledAt: m.at }); return }
     if (m.t === 'art' && st && m.trackId === st.trackId) { $('art').style.backgroundImage = 'url(' + JSON.stringify(m.src) + ')'; const bg = $('bg'); bg.classList.remove('plain'); bg.style.backgroundImage = $('art').style.backgroundImage; return }
@@ -122,13 +137,13 @@
     peer.on('open', () => {
       conn = peer.connect('lyra-room-' + CODE, { reliable: true })
       conn.on('open', () => {
-        tries = 0; $('dot').classList.remove('off'); $('who').textContent = 'Room ' + CODE; msg('Waiting for the host to play a song…')
+        tries = 0; ended = false; lastMsg = Date.now(); clearInterval(watchdog); watchdog = setInterval(() => { if (Date.now() - lastMsg > 16000) ended_('Lost the connection to the host.') }, 3000); $('dot').classList.remove('off'); $('who').textContent = 'Room ' + CODE; msg('Waiting for the host to play a song…')
         conn.send({ t: 'hello' })
         const ping = () => { if (conn && conn.open) conn.send({ t: 'ping', c: Date.now() }) }
         ping(); clearInterval(pingTimer); pingTimer = setInterval(ping, 8000)
       })
       conn.on('data', onMsg)
-      conn.on('close', () => { $('dot').classList.add('off'); clearInterval(pingTimer); msg('The host closed the room.'); try { peer.destroy() } catch {} })
+      conn.on('close', () => { ended_('The host closed the room.'); try { peer.destroy() } catch {} })
     })
     peer.on('error', (e) => {
       $('dot').classList.add('off')

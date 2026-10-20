@@ -16,6 +16,7 @@ type Msg =
   | { t: 'state'; trackId: string; title: string; artists: string; durationMs: number; playing: boolean; positionMs: number; at: number }
   | { t: 'art'; trackId: string; src: string }
   | { t: 'lyrics'; trackId: string; status: string; lines: Array<{ timeMs: number; text: string }> }
+  | { t: 'bye' }
 
 interface RoomStore {
   code: string | null
@@ -160,10 +161,16 @@ export const useRoom = create<RoomStore>((set, get) => ({
     timer = undefined
     unsub = undefined
     unsubLyrics = undefined
-    for (const c of conns) c.close()
+    // tell guests first so their screens clear right away, then close once the message has been sent
+    const closing = conns
+    const p = peer
+    for (const c of closing) if (c.open) c.send({ t: 'bye' } satisfies Msg)
     conns = new Set()
-    peer?.destroy()
     peer = null
+    setTimeout(() => {
+      for (const c of closing) c.close()
+      p?.destroy()
+    }, 400)
     lastSent = { id: '', playing: false, pos: 0, at: 0 }
     set({ code: null, guests: 0, state: 'idle', error: null })
   }
