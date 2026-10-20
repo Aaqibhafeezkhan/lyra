@@ -22,11 +22,11 @@ function RoomPanel() {
     <>
       <Row label="Listen together" hint="Share a link: friends open it in any browser and see the same synced lyrics, live. Lyrics only, not audio: everyone plays the song themselves">
         {state === 'idle' || state === 'error' ? (
-          <button type="button" className="btn btn--sm" onClick={start}>
+          <button type="button" className="pill" onClick={start}>
             Start a room
           </button>
         ) : (
-          <button type="button" className="btn btn--sm" onClick={stop}>
+          <button type="button" className="pill" onClick={stop}>
             Stop room
           </button>
         )}
@@ -41,7 +41,7 @@ function RoomPanel() {
               Room <b>{code}</b> · {guests} {guests === 1 ? 'person' : 'people'} watching. Guests connect straight to this device, so they can see its network address. Stop the room any time.
             </p>
             <code>{link}</code>
-            <button type="button" className="btn btn--sm" onClick={() => void window.lyra.app.copy(link)}>
+            <button type="button" className="pill" onClick={() => void window.lyra.app.copy(link)}>
               Copy link
             </button>
           </div>
@@ -71,7 +71,7 @@ function TvLink() {
       <div>
         <p className="hint">Open this on any device on the same Wi-Fi. Keep the link private: anyone who has it can see what you play.</p>
         <code>{info.urls[0]}</code>
-        <button type="button" className="btn btn--sm" onClick={() => void window.lyra.app.copy(info.urls[0]!)}>
+        <button type="button" className="pill" onClick={() => void window.lyra.app.copy(info.urls[0]!)}>
           Copy link
         </button>
       </div>
@@ -444,6 +444,32 @@ export function SettingsPanel() {
     void window.lyra.app.info().then((i) => setVersion(i.version))
   }, [])
   const up = <K extends keyof Settings>(k: K) => (v: Settings[K]) => set({ [k]: v } as Partial<Settings>)
+  const tabs: Array<{ id: string; label: string }> = android
+    ? [
+        { id: 'phone', label: 'Phone' },
+        { id: 'lyrics', label: 'Lyrics' },
+        { id: 'look', label: 'Look' },
+        { id: 'bg', label: 'Background' },
+        { id: 'share', label: 'Share' },
+        { id: 'about', label: 'About' }
+      ]
+    : [
+        { id: 'general', label: 'General' },
+        { id: 'lyrics', label: 'Lyrics' },
+        { id: 'look', label: 'Look' },
+        { id: 'bg', label: 'Background' },
+        { id: 'share', label: 'Share' },
+        { id: 'keys', label: 'Shortcuts' },
+        { id: 'about', label: 'About' }
+      ]
+  const [tab, setTabState] = useState<string>(() => {
+    const saved = sessionStorage.getItem('lyra.settingsTab')
+    return tabs.some((t) => t.id === saved) ? (saved as string) : tabs[0]!.id
+  })
+  const setTab = (id: string): void => {
+    setTabState(id)
+    sessionStorage.setItem('lyra.settingsTab', id)
+  }
 
   const active: 'local' | 'api' | 'demo' =
     status?.state === 'demo' ? 'demo' : status?.state === 'local' || (status?.state === 'offline' && s.source === 'local') ? 'local' : 'api'
@@ -460,9 +486,17 @@ export function SettingsPanel() {
 
   return (
     <div className="settings" data-nodrag>
-      {android && <PhoneSection />}
+      <nav className="stabs" role="tablist" aria-label="Settings sections">
+        {tabs.map((t) => (
+          <button key={t.id} type="button" role="tab" aria-selected={tab === t.id} className={tab === t.id ? 'is-on' : ''} onClick={() => setTab(t.id)}>
+            {t.label}
+          </button>
+        ))}
+      </nav>
 
-      {!android && (
+      {android && tab === 'phone' && <PhoneSection />}
+
+      {!android && tab === 'general' && (
       <section>
         <h4>Music source</h4>
         <Segmented
@@ -494,7 +528,7 @@ export function SettingsPanel() {
       </section>
       )}
 
-      {!android && (
+      {!android && tab === 'look' && (
       <section>
         <h4>Widget</h4>
         <Row label="Resting size">
@@ -530,6 +564,7 @@ export function SettingsPanel() {
       </section>
       )}
 
+      {tab === 'lyrics' && (
       <section>
         <h4>Lyrics</h4>
         <Row label="Typeface">
@@ -574,7 +609,9 @@ export function SettingsPanel() {
           <Slider label="Sync offset" value={s.lyricOffsetMs} min={-3000} max={3000} step={50} onChange={up('lyricOffsetMs')} format={(v) => `${v > 0 ? '+' : ''}${(v / 1000).toFixed(2)}s`} />
         </Row>
       </section>
+      )}
 
+      {tab === 'look' && (
       <section>
         <h4>Appearance</h4>
         <Row label="Theme">
@@ -602,15 +639,18 @@ export function SettingsPanel() {
           />
         </Row>
       </section>
+      )}
 
-      <BackgroundSection />
+      {tab === 'bg' && <BackgroundSection />}
 
+      {tab === 'share' && (
       <section>
         <h4>Listen together</h4>
         <RoomPanel />
       </section>
+      )}
 
-      {!android && (
+      {!android && tab === 'share' && (
       <section>
         <h4>TV &amp; party mode</h4>
         <Row label="Show lyrics on other screens" hint="Opens a private link on your Wi-Fi: scan the QR code on a phone, tablet, laptop or TV browser and big synced lyrics follow what you play. Off by default">
@@ -620,7 +660,7 @@ export function SettingsPanel() {
       </section>
       )}
 
-      {!android && (
+      {!android && tab === 'general' && (
       <section>
         <h4>System</h4>
         <Row label="Launch at startup" hint="Applies to installed builds">
@@ -638,7 +678,7 @@ export function SettingsPanel() {
       </section>
       )}
 
-      {!android && (
+      {!android && tab === 'keys' && (
       <section>
         <h4>Shortcuts</h4>
         <ShortcutEditor />
@@ -653,6 +693,8 @@ export function SettingsPanel() {
       </section>
       )}
 
+      {tab === 'about' && (
+      <>
       <div className="srow srow--actions">
         <button type="button" className="pill" onClick={() => window.lyra.window.hide()}>
           Hide to tray
@@ -705,6 +747,8 @@ export function SettingsPanel() {
           · MIT licensed
         </p>
       </section>
+      </>
+      )}
     </div>
   )
 }
