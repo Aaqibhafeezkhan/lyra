@@ -20,6 +20,8 @@ class LanViewer {
   private snap: PlaybackSnapshot | null = null
   private heartbeat: NodeJS.Timeout | null = null
   private port = 0
+  /** Set by ipc.ts: hands a guest's WebRTC offer to the app window and resolves with its answer. */
+  onOffer: ((offer: unknown) => Promise<unknown>) | null = null
 
   /** Secret that has to be in every request (stops other people on the same Wi-Fi from stumbling in). */
   get token(): string {
@@ -114,6 +116,34 @@ class LanViewer {
     for (const c of this.clients) c.write(data)
   }
 
+  private handleOffer(req: IncomingMessage, res: ServerResponse, common: Record<string, string>): void {
+    const fail = (code: number, msg: string): void => {
+      res.writeHead(code, { ...common, 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ error: msg }))
+    }
+    if (!settings.get().lanAudio || !this.onOffer) return fail(403, 'Sound sharing is off in Lyra (Settings → Share).')
+    let body = ''
+    req.on('data', (c: Buffer) => {
+      body += c
+      if (body.length > 100_000) req.destroy()
+    })
+    req.on('end', () => {
+      let offer: unknown
+      try {
+        offer = JSON.parse(body)
+      } catch {
+        return fail(400, 'Bad request')
+      }
+      this.onOffer!(offer)
+        .then((answer) => {
+          if (!answer) return fail(503, 'Lyra could not start the sound stream.')
+          res.writeHead(200, { ...common, 'Content-Type': 'application/json' })
+          res.end(JSON.stringify(answer))
+        })
+        .catch(() => fail(503, 'Lyra could not start the sound stream.'))
+    })
+  }
+
   private handle(req: IncomingMessage, res: ServerResponse): void {
     const url = new URL(req.url ?? '/', 'http://x')
     // the key can come as ?k= or as a cookie set by the first visit (so the page can load its sub-requests)
@@ -123,8 +153,12 @@ class LanViewer {
       return
     }
     const common = { 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' }
+    if (url.pathname === '/rtc/offer' && req.method === 'POST') {
+      this.handleOffer(req, res, common)
+      return
+    }
     if (url.pathname === '/') {
-      res.writeHead(200, { ...common, 'Content-Type': 'text/html; charset=utf-8', 'Content-Security-Policy': "default-src 'self'; img-src 'self' data:; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'self'" })
+      res.writeHead(200, { ...common, 'Content-Type': 'text/html; charset=utf-8', 'Content-Security-Policy': "default-src 'self'; img-src 'self' data:; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'self'; media-src 'self' blob: data:" })
       res.end(VIEWER_HTML)
     } else if (url.pathname === '/events') {
       res.writeHead(200, { ...common, 'Content-Type': 'text/event-stream', Connection: 'keep-alive' })

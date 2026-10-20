@@ -229,6 +229,8 @@ export interface Settings {
   trackNotifications: boolean
   /** TV & party mode: serve a read-only lyrics page to other devices on the same network. */
   lanViewer: boolean
+  /** Also stream this PC's sound to the TV-mode page (Jam nearby). */
+  lanAudio: boolean
   lanPort: number
   /** Secret in the viewer link (generated on first use). */
   lanToken: string
@@ -277,6 +279,7 @@ export const DEFAULT_SETTINGS: Settings = {
   systemVolume: false,
   trackNotifications: false,
   lanViewer: false,
+  lanAudio: false,
   lanPort: 47813,
   lanToken: '',
   theme: 'adaptive',

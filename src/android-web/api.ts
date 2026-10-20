@@ -323,7 +323,7 @@ export const androidApi: LyraApi & { android: NonNullable<LyraApi['android']> } 
     install: async () => undefined,
     onState: () => noop
   },
-  lan: { info: async () => ({ running: false, urls: [], qr: null }) },
+  lan: { info: async () => ({ running: false, urls: [], qr: null }), onOffer: () => () => undefined, answer: async () => undefined },
   app: {
     info: async () => ({ version: await rpc<string>('version'), platform: 'android', envClientId: false }),
     diagnostics: async () => `Lyra for Android ${await rpc<string>('version')}\n${navigator.userAgent}\nstatus: ${JSON.stringify(status)}`,

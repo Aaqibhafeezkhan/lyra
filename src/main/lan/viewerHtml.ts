@@ -30,6 +30,11 @@ export const VIEWER_HTML = String.raw`<!doctype html>
   .wd { background: linear-gradient(90deg, #fff 0, #fff calc(var(--p, 0) * 114% - 14%), rgba(255,255,255,.34) calc(var(--p, 0) * 114%)); -webkit-background-clip: text; background-clip: text; color: transparent; }
   .ln:not(.on) .wd { background: none; color: inherit; }
   .msg { position: fixed; left: 0; right: 0; top: 45%; text-align: center; font-size: clamp(20px, 3vw, 44px); font-weight: 700; color: rgba(245,245,247,.7); padding: 0 8vw; }
+  .listen { position: fixed; left: 50%; bottom: 3vh; transform: translateX(-50%); display: flex; gap: 8px; align-items: center; z-index: 5; }
+  .listen button { font: inherit; font-size: 15px; font-weight: 700; color: #0a0a0a; background: #f5f5f7; border: 0; border-radius: 999px; padding: 12px 22px; cursor: pointer; }
+  .listen button:disabled { opacity: .6; }
+  #sync { display: none; align-items: center; gap: 6px; color: rgba(245,245,247,.75); font-size: 13px; background: rgba(15,15,18,.6); border: 1px solid rgba(255,255,255,.14); border-radius: 999px; padding: 4px 6px 4px 12px; }
+  #sync button { padding: 6px 11px; font-size: 14px; background: rgba(255,255,255,.14); color: #f5f5f7; }
   .dot { position: fixed; right: 18px; top: 14px; width: 10px; height: 10px; border-radius: 50%; background: #4ade80; box-shadow: 0 0 12px #4ade80; opacity: .9; }
   .dot.off { background: #f87171; box-shadow: 0 0 12px #f87171; }
   @media (max-aspect-ratio: 1/1) { main { grid-template-columns: 1fr; grid-template-rows: auto 1fr; padding: 3vh 6vw; } .art { display: none; } .meta { align-self: start; padding: 0; } .lyrics { height: 72vh; } .ln { font-size: clamp(26px, 7.4vw, 56px); } }
@@ -43,6 +48,8 @@ export const VIEWER_HTML = String.raw`<!doctype html>
 </main>
 <div class="msg" id="msg">Waiting for Lyra…</div>
 <div class="dot off" id="dot" title="connection"></div>
+<audio id="aud" autoplay playsinline></audio>
+<div class="listen"><button id="listen" type="button">Listen</button><span id="sync">Lyrics timing <button id="nm" type="button">−</button><b id="nv">0 ms</b><button id="np" type="button">+</button></span></div>
 <script>
 (() => {
   const K = new URLSearchParams(location.search).get('k') || ''
@@ -83,7 +90,7 @@ export const VIEWER_HTML = String.raw`<!doctype html>
 
   // ---- clock
   let skew = 0 // server clock minus this device's clock
-  const pos = () => { if (!st) return 0; const now = Date.now() + skew; return Math.max(0, st.positionMs + (st.playing ? now - st.sampledAt : 0) + offset) }
+  const pos = () => { if (!st) return 0; const now = Date.now() + skew; return Math.max(0, st.positionMs + (st.playing ? now - st.sampledAt : 0) + offset - (listening ? lag : 0) + nudge) }
 
   // ---- connection
   function connect() {
@@ -106,6 +113,54 @@ export const VIEWER_HTML = String.raw`<!doctype html>
       }
     }
   }
+
+  // ---- Jam nearby: listen to the PC's sound over the local network (WebRTC, no internet)
+  let listening = false, lag = 0
+  let nudge = Number(localStorage.getItem('lyra.nudge') || 0)
+  const setNudge = (v) => { nudge = Math.max(-1500, Math.min(1500, v)); localStorage.setItem('lyra.nudge', String(nudge)); $('nv').textContent = (nudge > 0 ? '+' : '') + nudge + ' ms' }
+  async function listen() {
+    const btn = $('listen')
+    if (listening) { location.reload(); return }
+    btn.textContent = 'Connecting…'; btn.disabled = true
+    try {
+      const pc = new RTCPeerConnection({ iceServers: [] })
+      pc.addTransceiver('audio', { direction: 'recvonly' })
+      const audio = $('aud')
+      pc.ontrack = (e) => { audio.srcObject = e.streams[0]; audio.play().catch(() => {}) }
+      await pc.setLocalDescription(await pc.createOffer())
+      await new Promise((res) => {
+        if (pc.iceGatheringState === 'complete') return res()
+        const t = setTimeout(res, 2000)
+        pc.onicegatheringstatechange = () => { if (pc.iceGatheringState === 'complete') { clearTimeout(t); res() } }
+      })
+      const r = await fetch('/rtc/offer?k=' + K, { method: 'POST', body: JSON.stringify(pc.localDescription) })
+      const j = await r.json()
+      if (!r.ok) throw new Error(j.error || 'Could not start the sound.')
+      await pc.setRemoteDescription(j)
+      pc.getReceivers().forEach((rc) => { try { rc.playoutDelayHint = 0 } catch (e) {} })
+      pc.onconnectionstatechange = () => { if (pc.connectionState === 'failed') { btn.disabled = false; btn.textContent = 'Sound lost. Tap to retry'; listening = false; lag = 0; $('sync').style.display = 'none' } }
+      listening = true; btn.disabled = false; btn.textContent = 'Sound on'
+      $('sync').style.display = 'flex'; setNudge(nudge)
+      // measure the delay between the PC and this speaker so the lyrics can wait for the sound
+      let last = null
+      setInterval(async () => {
+        const stats = await pc.getStats()
+        let jb = 0, rtt = 0
+        stats.forEach((s) => {
+          if (s.type === 'inbound-rtp' && s.kind === 'audio' && s.jitterBufferEmittedCount) { if (last) { const dn = s.jitterBufferEmittedCount - last.n; if (dn > 0) jb = (s.jitterBufferDelay - last.d) / dn * 1000 } last = { n: s.jitterBufferEmittedCount, d: s.jitterBufferDelay } }
+          if (s.type === 'candidate-pair' && s.state === 'succeeded' && s.currentRoundTripTime) rtt = s.currentRoundTripTime * 1000
+        })
+        if (jb) lag = lag ? lag * 0.7 + (jb + rtt / 2 + 30) * 0.3 : jb + rtt / 2 + 30
+      }, 2000)
+    } catch (e) {
+      btn.disabled = false; btn.textContent = 'Listen'
+      msg((e && e.message) || 'Could not start the sound.')
+      setTimeout(() => { if (!st || !st.trackId) return; msg('') }, 5000)
+    }
+  }
+  $('listen').addEventListener('click', listen)
+  $('nm').addEventListener('click', () => setNudge(nudge - 50))
+  $('np').addEventListener('click', () => setNudge(nudge + 50))
 
   // ---- frame loop
   function frame() {

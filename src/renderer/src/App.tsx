@@ -10,6 +10,7 @@ import { Toasts } from '@/components/Toasts'
 import { Welcome } from '@/components/Welcome'
 import { useArtwork, usePalette } from '@/hooks/useArtwork'
 import { useReducedMotion } from '@/hooks/useMotion'
+import { useNearby } from '@/store/nearby'
 import { NEUTRAL_PALETTE } from '@/lib/palette'
 import { fillWindow, isAnimating, runTransition, shell } from '@/lib/shell'
 import { useLyrics } from '@/store/lyrics'
@@ -22,11 +23,13 @@ function useBoot(): boolean {
   const [ready, setReady] = useState(false)
   useEffect(() => {
     let off: Array<() => void> = []
+    let offNearby: (() => void) | undefined
     void (async () => {
       const api = window.lyra
       await useSettings.getState().init()
       await usePlayer.getState().init()
       useLyrics.getState().init()
+      if (document.documentElement.dataset.platform !== 'android') offNearby = useNearby.getState().init()
       useUi.getState().setMode(await api.window.getMode())
       off = [
         api.update.onState((u) => {
@@ -53,7 +56,10 @@ function useBoot(): boolean {
       ]
       setReady(true)
     })()
-    return () => off.forEach((f) => f())
+    return () => {
+      off.forEach((f) => f())
+      offNearby?.()
+    }
   }, [])
   return ready
 }

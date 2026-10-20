@@ -80,7 +80,9 @@ const api: LyraApi = {
     onState: (cb) => subscribe(EV.update, cb)
   },
   lan: {
-    info: () => invoke(CH.lanInfo)
+    info: () => invoke(CH.lanInfo),
+    onOffer: (cb) => subscribe(EV.lanOffer, cb),
+    answer: (id, answer) => invoke(CH.lanAnswer, id, answer)
   },
   app: {
     info: () => invoke(CH.appInfo),

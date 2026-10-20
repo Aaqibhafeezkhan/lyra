@@ -84,7 +84,26 @@ function on(channel: string, fn: () => void): void {
   })
 }
 
+const pendingOffers = new Map<string, (a: unknown) => void>()
+
 export function registerIpc(): void {
+  lanViewer.onOffer = (offer) =>
+    new Promise((resolve) => {
+      const id = Math.random().toString(36).slice(2)
+      const timer = setTimeout(() => {
+        pendingOffers.delete(id)
+        resolve(null)
+      }, 10_000)
+      pendingOffers.set(id, (a) => {
+        clearTimeout(timer)
+        resolve(a)
+      })
+      send(EV.lanOffer, { id, offer })
+    })
+  ipcMain.handle(CH.lanAnswer, (_e, id: string, answer: unknown) => {
+    pendingOffers.get(id)?.(answer)
+    pendingOffers.delete(id)
+  })
   spotify = new SpotifySource(new SpotifyAuth(new TokenStore()), clientId)
 
   handle(CH.settingsGet, () => settings.get())

@@ -760,6 +760,11 @@ export function SettingsPanel() {
         <Row label="Show lyrics on other screens" hint="Same Wi-Fi, no internet needed: scan the QR code on a phone, tablet, laptop or TV browser to get big synced lyrics. Off by default">
           <Toggle label="TV and party mode" checked={s.lanViewer} onChange={up('lanViewer')} />
         </Row>
+        {s.lanViewer && (
+          <Row label="Stream sound too (Jam nearby)" hint="Lets devices on your Wi-Fi press Listen and hear this PC's sound with the lyrics. It sends everything this PC plays, only over your local network, and only while someone is listening. For you and the people in your home">
+            <Toggle label="Stream sound" checked={s.lanAudio} onChange={up('lanAudio')} />
+          </Row>
+        )}
         {s.lanViewer && <TvLink />}
       </section>
       )}

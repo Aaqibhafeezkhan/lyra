@@ -1,4 +1,4 @@
-import { app, session } from 'electron'
+import { app, desktopCapturer, session } from 'electron'
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { createLogger } from './logger'
@@ -51,8 +51,21 @@ function installCsp(): void {
   session.defaultSession.webRequest.onBeforeSendHeaders({ urls: ['https://www.youtube-nocookie.com/*', 'https://www.youtube.com/*'] }, (details, cb) => {
     cb({ requestHeaders: { ...details.requestHeaders, Referer: 'https://github.com/DhruvHarani1/lyra' } })
   })
+  // Jam nearby: the app window may capture the PC's own sound (loopback), nothing else, and only when sharing is on.
+  session.defaultSession.setDisplayMediaRequestHandler(
+    (_request, cb) => {
+      if (!settings.get().lanAudio) return cb({})
+      void desktopCapturer.getSources({ types: ['screen'] }).then((sources) => cb(sources[0] ? { video: sources[0], audio: 'loopback' } : {}))
+    },
+    { useSystemPicker: false }
+  )
   // The renderer never needs device permissions.
-  session.defaultSession.setPermissionRequestHandler((_wc, _perm, cb) => cb(false))
+  // The only exception: our own window may capture the PC's sound while Jam nearby is on.
+  // getDisplayMedia asks for 'media' (and sometimes 'display-capture'); nothing else is ever allowed
+  const isCapture = (perm: string): boolean => perm === 'display-capture' || perm === 'media'
+  const ownPage = (url: string): boolean => url.startsWith('file://') || url.startsWith('http://localhost')
+  session.defaultSession.setPermissionRequestHandler((wc, perm, cb) => cb(isCapture(perm) && settings.get().lanAudio && ownPage(wc.getURL())))
+  session.defaultSession.setPermissionCheckHandler((wc, perm, origin) => isCapture(perm) && settings.get().lanAudio && ownPage(wc?.getURL() ?? origin))
 }
 
 if (!app.requestSingleInstanceLock()) {

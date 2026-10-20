@@ -31,3 +31,4 @@ Requests go straight from your PC to those services; Lyra has no server of its o
 
 - **TV & party mode** serves a read-only lyrics page on your local network. It needs a secret link, sends nothing to the internet and exposes only what is playing.
 - **Listen together** (rooms) connects friends' browsers directly to your Lyra with WebRTC. The public PeerJS broker (0.peerjs.com) only introduces the two sides, and a public STUN server helps them find each other, so both can see the other's network address. Only the song title, artist, position and synced lyrics are shared, never audio or files. Stop the room and nothing more is shared.
+- **Jam nearby** (stream sound to the TV-mode page) is a second, separate switch. While someone is listening, Lyra sends everything this PC plays to that device over your local network (a direct WebRTC link, no internet, no recording). Turn it off in Settings → Share.

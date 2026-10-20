@@ -58,6 +58,7 @@ export const CH = {
   momentsRemove: 'moments:remove',
   appInfo: 'app:info',
   lanInfo: 'lan:info',
+  lanAnswer: 'lan:answer',
   appDiagnostics: 'app:diagnostics',
   appCopy: 'app:copy',
   appShortcutStatus: 'app:shortcut-status',
@@ -82,7 +83,8 @@ export const EV = {
   mode: 'ev:mode',
   command: 'ev:command',
   update: 'ev:update',
-  fade: 'ev:fade'
+  fade: 'ev:fade',
+  lanOffer: 'ev:lan-offer'
 } as const
 
 export interface LanInfo {
@@ -205,6 +207,9 @@ export interface LyraApi {
   lan: {
     /** TV & party mode: whether the viewer is running, its links and a QR code of the first one. */
     info(): Promise<LanInfo>
+    /** Jam nearby: a device on the network asked to listen. Answer it with `answer`. */
+    onOffer(cb: (o: { id: string; offer: RTCSessionDescriptionInit }) => void): Unsubscribe
+    answer(id: string, answer: RTCSessionDescriptionInit | null): Promise<void>
   }
   app: {
     info(): Promise<AppInfo>
