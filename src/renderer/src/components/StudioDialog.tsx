@@ -3,7 +3,7 @@ import type { BackgroundSpec, LyricLine, Track } from '@shared/types'
 import { parseLrc } from '@shared/lrc'
 import { estimateWords } from '@shared/wordTiming'
 import { decodeAudio, exportFromFile } from '@/lib/studio/fileExport'
-import { dimensions, exportVideo, type ExportOptions, type FontChoice, type Highlight, type LayoutStyle, type Look, type Quality, type Ratio, type TextPosition } from '@/lib/studio/recorder'
+import { dimensions, exportVideo, type ExportOptions, type Fps, type FontChoice, type Highlight, type LayoutStyle, type Look, type Quality, type Ratio, type TextPosition } from '@/lib/studio/recorder'
 import { autoChorus } from '@/lib/studio/sections'
 import { StageSource } from '@/lib/studio/stage'
 import { useLyrics } from '@/store/lyrics'
@@ -53,6 +53,7 @@ export function StudioDialog({ onClose }: { onClose(): void }) {
   const [own, setOwn] = useState<OwnSong>({ audio: null, audioName: '', durationMs: 0, lrc: null, lrcName: '', coverUrl: null, title: '', artist: '' })
   const [ratio, setRatio] = useState<Ratio>('9:16')
   const [quality, setQuality] = useState<Quality>('1080p')
+  const [fps, setFps] = useState<Fps>(60)
   const [look, setLook] = useState<Look>({ style: 'scroll', font: 'sans', highlight: 'white', position: 'middle' })
   const [showSong, setShowSong] = useState(true)
   const [bg, setBg] = useState<'auto' | 'cover' | 'file'>('auto')
@@ -139,7 +140,7 @@ export function StudioDialog({ onClose }: { onClose(): void }) {
   const { w, h } = dimensions(ratio, quality)
   const partMs = Math.max(0, range.endMs - range.startMs)
   const autoUsable = source === 'live' && (spec?.kind === 'preview' || spec?.kind === 'media' || spec?.kind === 'youtube')
-  const approxMb = Math.round(((quality === '720p' ? 5 : quality === '1080p' ? 9 : 16) * (partMs / 1000 + 3)) / 8)
+  const approxMb = Math.round(((quality === '720p' ? 5 : quality === '1080p' ? 9 : 16) * (fps === 60 ? 1.4 : 1) * (partMs / 1000 + 3)) / 8)
   const media: { url: string; kind: 'video' | 'image' } | null =
     bg === 'file' && file
       ? { url: file.url, kind: file.kind }
@@ -161,6 +162,7 @@ export function StudioDialog({ onClose }: { onClose(): void }) {
           look,
           ratio,
           quality,
+          fps,
           startMs: range.startMs,
           endMs: range.endMs,
           showSong,
@@ -181,6 +183,7 @@ export function StudioDialog({ onClose }: { onClose(): void }) {
             coverUrl: own.coverUrl,
             ratio,
             quality,
+            fps,
             look,
             showSong,
             startMs: range.startMs,
@@ -317,8 +320,10 @@ export function StudioDialog({ onClose }: { onClose(): void }) {
                 <div className="studio__group">
                   <span>Quality</span>
                   {seg<Quality>('Quality', quality, QUALITIES, setQuality)}
+                  <span>Smoothness</span>
+                  {seg<string>('Smoothness', String(fps), [{ v: '60', label: '60 fps · smooth' }, { v: '30', label: '30 fps · smaller file' }], (v) => setFps(v === '30' ? 30 : 60))}
                   <small>
-                    {w}×{h} · 30 fps · about {approxMb} MB
+                    {w}×{h} · {fps} fps · about {approxMb} MB
                   </small>
                 </div>
 

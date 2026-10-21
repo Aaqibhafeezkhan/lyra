@@ -2,7 +2,7 @@ import { Muxer, StreamTarget } from 'mp4-muxer'
 import type { LyricLine } from '@shared/types'
 import { estimateWords } from '@shared/wordTiming'
 import logoUrl from '@/assets/logo.png'
-import { dimensions, loadImage, loadVideo, lookInputs, type Look, type Quality, type Ratio, type Progress } from './recorder'
+import { bitrateFor, codecFor, dimensions, loadImage, loadVideo, lookInputs, type Fps, type Look, type Quality, type Ratio, type Progress } from './recorder'
 import { createScene } from './scene'
 
 /**
@@ -18,6 +18,7 @@ export interface FileExportOptions {
   coverUrl: string | null
   ratio: Ratio
   quality: Quality
+  fps?: Fps
   look: Look
   showSong: boolean
   startMs: number
@@ -26,8 +27,6 @@ export interface FileExportOptions {
   mediaKind: 'video' | 'image' | null
 }
 
-const BITRATE: Record<Quality, number> = { '720p': 5_000_000, '1080p': 9_000_000, '1440p': 16_000_000 }
-const FPS = 30
 const END_SECONDS = 2.8
 
 export async function decodeAudio(buf: ArrayBuffer): Promise<AudioBuffer> {
@@ -54,7 +53,8 @@ function seekVideo(v: HTMLVideoElement, t: number): Promise<void> {
 
 export async function exportFromFile(opts: FileExportOptions, onProgress: (p: Progress) => void, signal: AbortSignal): Promise<{ path: string }> {
   const { w, h } = dimensions(opts.ratio, opts.quality)
-  const vcfg: VideoEncoderConfig = { codec: 'avc1.640032', width: w, height: h, bitrate: BITRATE[opts.quality], framerate: FPS }
+  const FPS: Fps = opts.fps ?? 60
+  const vcfg: VideoEncoderConfig = { codec: codecFor(FPS), width: w, height: h, bitrate: bitrateFor(opts.quality, FPS), framerate: FPS }
   if (!(await VideoEncoder.isConfigSupported(vcfg)).supported) throw new Error(`This PC can not encode ${w}×${h} video. Try a lower quality.`)
   onProgress({ stage: 'preparing', seconds: 0, total: 0 })
 

@@ -40,6 +40,8 @@ export interface ExportOptions {
   look: Look
   ratio: Ratio
   quality: Quality
+  /** frames per second: 60 is smoother, 30 makes a smaller file (default 60) */
+  fps?: Fps
   /** the part of the song to record */
   startMs: number
   endMs: number
@@ -61,8 +63,14 @@ export interface Progress {
 
 const RATIOS: Record<Ratio, [number, number]> = { '9:16': [9, 16], '4:5': [4, 5], '1:1': [1, 1], '16:9': [16, 9] }
 const SHORT_SIDE: Record<Quality, number> = { '720p': 720, '1080p': 1080, '1440p': 1440 }
+export type Fps = 30 | 60
 const BITRATE: Record<Quality, number> = { '720p': 5_000_000, '1080p': 9_000_000, '1440p': 16_000_000 }
-const FPS = 30
+/** 60 fps needs about 40% more bits than 30 for the same sharpness */
+export const bitrateFor = (q: Quality, fps: Fps): number => Math.round(BITRATE[q] * (fps === 60 ? 1.4 : 1))
+/** H.264 level 5.0 for 30 fps, 5.2 for 60 fps (a tall 1440p video at 60 needs it) */
+export const codecFor = (fps: Fps): string => (fps === 60 ? 'avc1.640034' : 'avc1.640032')
+/** a hidden YouTube picture is sent at this rate: 30 is plenty for a video and keeps the PC cool */
+const STAGE_FPS = 30
 const END_SECONDS = 2.8
 
 export function dimensions(ratio: Ratio, quality: Quality): { w: number; h: number } {
@@ -111,9 +119,10 @@ export async function exportVideo(opts: ExportOptions, onProgress: (p: Progress)
   const lyrics = useLyrics.getState().state
   const lines: LyricLine[] = lyrics.phase === 'ready' && lyrics.result.status === 'synced' ? estimateWords(lyrics.result.lines, track.durationMs) : []
   const { w, h } = dimensions(opts.ratio, opts.quality)
+  const FPS: Fps = opts.fps ?? 60
 
   if (typeof VideoEncoder === 'undefined') throw new Error('This computer can not encode video here.')
-  const vcfg: VideoEncoderConfig = { codec: 'avc1.640032', width: w, height: h, bitrate: BITRATE[opts.quality], framerate: FPS, latencyMode: 'realtime' }
+  const vcfg: VideoEncoderConfig = { codec: codecFor(FPS), width: w, height: h, bitrate: bitrateFor(opts.quality, FPS), framerate: FPS, latencyMode: 'realtime' }
   if (!(await VideoEncoder.isConfigSupported(vcfg)).supported) throw new Error(`This PC can not encode ${w}×${h} video. Try a lower quality.`)
 
   onProgress({ stage: 'preparing', seconds: 0, total: 0 })
@@ -143,7 +152,7 @@ export async function exportVideo(opts: ExportOptions, onProgress: (p: Progress)
     let stage: StageSource | null = null
     if (opts.youtube) {
       stage = stageRef = new StageSource(opts.youtube.crop)
-      const st = await window.lyra.studio.stageStart({ videoId: opts.youtube.videoId, width: opts.quality === '720p' ? 1280 : 1920, height: opts.quality === '720p' ? 720 : 1080, fps: FPS, startSec: startMs / 1000 })
+      const st = await window.lyra.studio.stageStart({ videoId: opts.youtube.videoId, width: opts.quality === '720p' ? 1280 : 1920, height: opts.quality === '720p' ? 720 : 1080, fps: STAGE_FPS, startSec: startMs / 1000 })
       if (!st.ok) throw new Error(`The YouTube video can not be used: ${st.reason ?? 'unknown reason'}. Pick Cover colours instead.`)
       await stage.firstFrame()
     }
@@ -290,10 +299,11 @@ export async function exportVideo(opts: ExportOptions, onProgress: (p: Progress)
         if (snap && !snap.isPlaying) stalled += 1
         else stalled = 0
         if (over || stalled > 400) return resolve()
-        if (nowMs >= nextFrame) {
+        // the screen refreshes about every 16.7 ms, so allow a frame a little early instead of skipping every other tick
+        if (nowMs >= nextFrame - 5) {
           nextFrame += 1000 / FPS
           if (nowMs - nextFrame > 500) nextFrame = nowMs // fell far behind: do not try to catch up
-          if (venc.encodeQueueSize < 6) {
+          if (venc.encodeQueueSize < 12) {
             try {
               const lyricPos = pos + offsetNow()
               scene.draw(ctx, lyricPos, secs)
