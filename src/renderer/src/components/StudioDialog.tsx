@@ -3,6 +3,7 @@ import type { BackgroundSpec, LyricLine, Track } from '@shared/types'
 import { parseLrc } from '@shared/lrc'
 import { estimateWords } from '@shared/wordTiming'
 import { decodeAudio, exportFromFile } from '@/lib/studio/fileExport'
+import { exportSmooth } from '@/lib/studio/twoPhase'
 import { dimensions, exportVideo, type ExportOptions, type Fps, type FontChoice, type Highlight, type LayoutStyle, type Look, type Quality, type Ratio, type TextPosition } from '@/lib/studio/recorder'
 import { autoChorus } from '@/lib/studio/sections'
 import { StageSource } from '@/lib/studio/stage'
@@ -57,6 +58,8 @@ export function StudioDialog({ onClose }: { onClose(): void }) {
   const [fps, setFps] = useState<Fps>(() => (localStorage.getItem('lyra.studio.slowPc') ? 30 : 60))
   const [look, setLook] = useState<Look>({ style: 'scroll', font: 'sans', highlight: 'white', position: 'middle' })
   const [showSong, setShowSong] = useState(true)
+  // smooth: record the song first, draw the video afterwards (never stutters, takes longer); instant: draw while it plays
+  const [method, setMethod] = useState<'smooth' | 'instant'>(() => (localStorage.getItem('lyra.studio.method') === 'instant' ? 'instant' : 'smooth'))
   const [bg, setBg] = useState<'auto' | 'cover' | 'file'>('auto')
   const [file, setFile] = useState<{ url: string; kind: 'video' | 'image'; name: string } | null>(null)
   const [spec, setSpec] = useState<BackgroundSpec | null>(null)
@@ -166,7 +169,7 @@ export function StudioDialog({ onClose }: { onClose(): void }) {
     abort.current = ctl
     setPhase({ name: 'running', stage: 'Getting ready…', seconds: 0, total: partMs / 1000 })
     const onProgress = (p: { stage: string; seconds: number; total: number }): void =>
-      setPhase({ name: 'running', stage: p.stage === 'recording' ? (source === 'live' ? 'Recording' : 'Making the video') : p.stage === 'finishing' ? 'Finishing the file…' : 'Getting ready…', seconds: p.seconds, total: p.total })
+      setPhase({ name: 'running', stage: p.stage === 'recording' ? (source === 'live' ? (method === 'smooth' ? 'Recording the song' : 'Recording') : 'Making the video') : p.stage === 'rendering' ? 'Rendering the video' : p.stage === 'finishing' ? 'Finishing the file…' : 'Getting ready…', seconds: p.seconds, total: p.total })
     try {
       if (source === 'live') {
         const opts: ExportOptions = {
@@ -182,7 +185,7 @@ export function StudioDialog({ onClose }: { onClose(): void }) {
           clipUrl: bg === 'auto' && spec?.kind === 'preview' ? spec.url : null,
           youtube: bg === 'auto' && spec?.kind === 'youtube' ? { videoId: spec.videoId, crop: spec.crop } : null
         }
-        const r = await exportVideo(opts, onProgress, ctl.signal)
+        const r = await (method === 'smooth' ? exportSmooth(opts, onProgress, ctl.signal) : exportVideo(opts, onProgress, ctl.signal))
         if (r.droppedPct >= 8) localStorage.setItem('lyra.studio.slowPc', '1')
         setPhase({ name: 'done', path: r.path, droppedPct: r.droppedPct, fps: r.fps, sourceQuality: r.sourceQuality, askedFps: fps, coverPath: r.coverPath })
       } else {
@@ -332,6 +335,13 @@ export function StudioDialog({ onClose }: { onClose(): void }) {
                 <div className="studio__group">
                   <span>Quality</span>
                   {seg<Quality>('Quality', quality, QUALITIES, setQuality)}
+                  {source === 'live' && (
+                    <>
+                      <span>How to make it</span>
+                      {seg<string>('How to make it', method, [{ v: 'smooth', label: 'Smooth: record, then render' }, { v: 'instant', label: 'Instant: while it plays' }], (v) => { const m = v === 'instant' ? 'instant' : 'smooth'; setMethod(m); localStorage.setItem('lyra.studio.method', m) })}
+                      <small>{method === 'smooth' ? 'The song plays once, then Lyra draws the video at its own pace: never stutters, even on a busy PC. Takes a little longer.' : 'Draws while the song plays: ready the moment it ends, but a busy PC can make it choppy.'}</small>
+                    </>
+                  )}
                   <span>Smoothness</span>
                   {seg<string>('Smoothness', String(fps), [{ v: '60', label: '60 fps · smooth' }, { v: '30', label: '30 fps · smaller file' }], (v) => setFps(v === '30' ? 30 : 60))}
                   <small>
@@ -425,7 +435,7 @@ export function StudioDialog({ onClose }: { onClose(): void }) {
             <div className="studio__bar">
               <b style={{ transform: `scaleX(${phase.total ? Math.min(1, phase.seconds / phase.total) : 0})` }} />
             </div>
-            <p className="hint">{source === 'live' ? 'Keep Lyra open and your PC’s sound on. Don’t play other sounds until it is done.' : 'You can keep using your PC. Lyra just needs to stay open.'}</p>
+            <p className="hint">{source === 'live' && phase.stage !== 'Rendering the video' ? 'Keep Lyra open and the song playing out loud. You can use other programs.' : 'You can keep using your PC. Lyra just needs to stay open.'}</p>
             <div className="sharecard__row sharecard__row--end">
               <button type="button" className="pill" onClick={() => abort.current?.abort()}>
                 Cancel

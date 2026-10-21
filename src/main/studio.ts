@@ -1,5 +1,6 @@
 import { BrowserWindow, app, dialog, ipcMain, powerSaveBlocker, shell } from 'electron'
 import { open, rm, writeFile, type FileHandle } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
 import { execFile, spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
@@ -44,6 +45,55 @@ export const studio = {
  */
 let stage: BrowserWindow | null = null
 
+/**
+ * "Smooth" export: while the song plays, the YouTube pictures are appended to a temporary file (with their times)
+ * instead of being sent to the window. The video is drawn from that file afterwards, at exact times.
+ */
+interface FrameSink {
+  path: string
+  fh: FileHandle
+  t0: number
+  times: number[]
+  offsets: number[]
+  lengths: number[]
+  tail: number
+  queue: Promise<void>
+  reader: FileHandle | null
+}
+let sink: FrameSink | null = null
+
+async function frameCaptureStart(): Promise<boolean> {
+  await frameCaptureClear()
+  try {
+    const path = join(tmpdir(), `lyra-frames-${Date.now()}.bin`)
+    const fh = await open(path, 'w')
+    sink = { path, fh, t0: Date.now(), times: [], offsets: [], lengths: [], tail: 0, queue: Promise.resolve(), reader: null }
+    return true
+  } catch {
+    return false
+  }
+}
+
+async function frameCaptureStop(): Promise<number[] | null> {
+  const s = sink
+  if (!s) return null
+  await s.queue.catch(() => undefined)
+  await s.fh.close().catch(() => undefined)
+  s.reader = await open(s.path, 'r').catch(() => null)
+  s.t0 = -1 // no more pictures are appended
+  return s.times.length ? s.times : null
+}
+
+async function frameCaptureClear(): Promise<void> {
+  const s = sink
+  sink = null
+  if (!s) return
+  await s.queue.catch(() => undefined)
+  await s.fh.close().catch(() => undefined)
+  await s.reader?.close().catch(() => undefined)
+  await rm(s.path, { force: true })
+}
+
 // everything the player draws on top of the picture: controls, captions, titles, end cards
 const HIDE_PLAYER_UI = '.ytp-chrome-top,.ytp-chrome-bottom,.ytp-gradient-top,.ytp-gradient-bottom,.ytp-pause-overlay,.ytp-large-play-button,.ytp-spinner,.ytp-watermark,.ytp-ce-element,.ytp-cards-teaser,.ytp-caption-window-container,.caption-window,.ytp-player-content,.ytp-iv-video-content,.ytp-endscreen-content,.ytp-youtube-button,.ytp-paid-content-overlay,.ytp-popup,.ytp-contextmenu{display:none!important} #player-controls,#player-control-overlay,.ytPlayerControlsContainerHost,player-middle-controls,.player-controls-background,.new-controls,[class*=player-controls]{display:none!important} video{cursor:none!important} .html5-video-player > :not(.html5-video-container){display:none!important}'
 
@@ -76,7 +126,19 @@ async function startStage(o: { videoId: string; width: number; height: number; f
   win.webContents.on('paint', (_e, _dirty, image) => {
     const target = windows.window
     if (!target || target.isDestroyed()) return
-    target.webContents.send(EV.studioFrame, image.toJPEG(height >= 1200 ? 86 : 90))
+    const jpeg = image.toJPEG(height >= 1200 ? 84 : 88)
+    const s = sink
+    if (s) {
+      if (s.t0 < 0) return
+      const at = s.tail
+      s.tail += jpeg.byteLength
+      s.times.push(Date.now() - s.t0)
+      s.offsets.push(at)
+      s.lengths.push(jpeg.byteLength)
+      s.queue = s.queue.then(() => s.fh.write(jpeg, 0, jpeg.byteLength, at).then(() => undefined))
+      return
+    }
+    target.webContents.send(EV.studioFrame, jpeg)
   })
   const start = Math.max(0, Math.floor(o.startSec))
   const url =
@@ -183,6 +245,16 @@ async function startAudio(): Promise<{ ok: boolean; reason?: string }> {
 export function registerStudioIpc(): void {
   ipcMain.handle(CH.studioAudioStart, () => startAudio())
   ipcMain.handle(CH.studioAudioStop, () => stopAudio())
+  ipcMain.handle(CH.studioFrameCaptureStart, () => frameCaptureStart())
+  ipcMain.handle(CH.studioFrameCaptureStop, () => frameCaptureStop())
+  ipcMain.handle(CH.studioFrameRead, async (_e, index: number) => {
+    const s = sink
+    if (!s?.reader || !Number.isInteger(index) || index < 0 || index >= s.times.length) return null
+    const buf = Buffer.allocUnsafe(s.lengths[index]!)
+    await s.reader.read(buf, 0, buf.length, s.offsets[index]!)
+    return buf
+  })
+  ipcMain.handle(CH.studioFrameCaptureClear, () => frameCaptureClear())
   ipcMain.handle(CH.studioStageStart, (_e, o) => startStage(o))
   ipcMain.handle(CH.studioStageSeek, async (_e, sec: number) => {
     if (stage && !stage.isDestroyed() && Number.isFinite(sec)) await stage.webContents.executeJavaScript(`(() => { const v = document.querySelector('video'); if (v) { v.currentTime = ${Math.max(0, sec)}; v.play() } })()`)
@@ -221,6 +293,7 @@ export function registerStudioIpc(): void {
   })
   ipcMain.handle(CH.studioEnd, () => {
     setExporting(false)
+    void frameCaptureClear()
   })
   ipcMain.handle(CH.studioSaveImage, async (_e, videoPath: string, jpeg: Uint8Array) => {
     if (typeof videoPath !== 'string' || !videoPath.toLowerCase().endsWith('.mp4') || !(jpeg instanceof Uint8Array) || jpeg.byteLength > 20 * 1024 * 1024) return null

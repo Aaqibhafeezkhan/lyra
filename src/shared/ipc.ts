@@ -66,6 +66,10 @@ export const CH = {
   studioEnd: 'studio:end',
   studioReveal: 'studio:reveal',
   studioSaveImage: 'studio:save-image',
+  studioFrameCaptureStart: 'studio:frames-start',
+  studioFrameCaptureStop: 'studio:frames-stop',
+  studioFrameRead: 'studio:frames-read',
+  studioFrameCaptureClear: 'studio:frames-clear',
   studioAudioStart: 'studio:audio-start',
   studioAudioStop: 'studio:audio-stop',
   studioStageStart: 'studio:stage-start',
@@ -232,6 +236,17 @@ export interface LyraApi {
     /** Export finished (or failed): sound capture is switched off again. */
     end(): Promise<void>
     reveal(path: string): Promise<void>
+    /**
+     * Record the YouTube background to a temporary file (instead of sending it to the window), with the time of every
+     * picture, so a video can be rendered afterwards at exact times. Start it right when the song starts.
+     */
+    frameCaptureStart(): Promise<boolean>
+    /** Stop recording pictures; resolves with the time (ms since frameCaptureStart) of each one, or null when none. */
+    frameCaptureStop(): Promise<number[] | null>
+    /** One recorded picture (JPEG) by number. */
+    frameRead(index: number): Promise<Uint8Array | null>
+    /** Delete the temporary file. */
+    frameCaptureClear(): Promise<void>
     /** save a JPEG next to the video (same name, ' (cover).jpg'); resolves with its path, or null */
     saveImage(videoPath: string, jpeg: Uint8Array): Promise<string | null>
     /**

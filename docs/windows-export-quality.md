@@ -1,6 +1,6 @@
 # Windows lyric-video export: smooth, clean, post-ready
 
-Status: **P0 built in 0.11.0, P3 built in 0.12.0** (constant frame rate, worker clock, no throttling, hardware encoder, quiet UI, warm-up, auto 30 fps, 1440p YouTube background, analyzer script). P1 and P2 still to do. Owner: Dhruv. Written 2026-10-21 against Lyra 0.10.5.
+Status: **P0 built in 0.11.0, P3 in 0.12.0, P2 in 0.13.0 (P1 dropped, see section 12)** (constant frame rate, worker clock, no throttling, hardware encoder, quiet UI, warm-up, auto 30 fps, 1440p YouTube background, analyzer script). Only the leftovers in sections 11 and 12 remain. Owner: Dhruv. Written 2026-10-21 against Lyra 0.10.5.
 
 Goal: a video made by Lyra on Windows that someone is happy to post to Instagram Reels, TikTok and YouTube Shorts as it is: **smooth motion, clean sound, sharp picture, nothing that looks like a screen recording of a busy PC.**
 
@@ -212,3 +212,21 @@ Check any video with `node scripts/analyze-video.js file.mp4` (needs ffprobe/ffm
 - A cover picture (JPEG) is saved next to the video.
 - Own-audio exports are normalized to about -14 LUFS with a soft ceiling at -1 dBFS (measured: -13.4 LUFS, peak -1.4 dB). Live exports get a short fade-in and the same ceiling. (AAC stays at 192 kbps: the Windows encoder rejects 256 kbps.)
 - Not done: fast-start MP4 (needs a rewrite pass after muxing), the thumbnail strip in the video list (YouTube images are blocked by the app's security policy), blur-fill instead of heavy crop.
+
+## 12. P2 result (0.13.0) and why P1 was dropped
+
+**Smooth method (default for live exports):** step 1 records the song (sound kept in memory, song position every 100 ms, the YouTube pictures appended to a temporary file with their times). Step 2 draws the video frame by frame at exact times, encodes with the exact sound, and deletes the temporary file. The dialog has "How to make it: Smooth / Instant"; Instant is the old live path.
+
+Measured on this PC (30 s clip, 1080x1920, 60 fps, YouTube background at 1440p):
+
+| | |
+|---|---|
+| Recording step | real time, almost no CPU use |
+| Rendering step | about 2x faster than real time (15 s for 30 s) |
+| Frames / gaps | 1,968 frames, 60.03 fps, longest gap 16.7 ms |
+| Sound length | 29.99 s (exact), video = sound + 2.8 s end card |
+| Cancel during recording | stops, deletes the file and the temporary pictures |
+
+**P1 (render in a worker) was dropped.** It only mattered while drawing had to meet a real-time deadline. In the Smooth method nothing has a deadline, so the worker would add complexity for no gain. The Instant method keeps the worker clock from P0.
+
+Leftovers: the Smooth method was tested with the PC-sound fallback and a pinned video in demo mode; the Spotify-only helper path reuses the same code as Instant but was not re-run end to end here. Disk use is about 0.8-1.5 MB per second of YouTube background (1440p JPEG at 30 pictures a second); the temporary file is deleted when the export ends, is cancelled or fails.

@@ -35,12 +35,18 @@ const END_SECONDS = 2.8
  * estimate (400 ms blocks, quiet blocks ignored); kept between 0.4x and 3x.
  */
 function loudnessGain(pcm: AudioBuffer, s0: number, s1: number, channels: number): number {
+  return loudnessGainOf(Array.from({ length: channels }, (_, c) => pcm.getChannelData(c)), s0, s1)
+}
+
+/** The same estimate for sound that is already in memory as one array per channel. */
+export function loudnessGainOf(chans: Float32Array[], s0: number, s1: number): number {
+  const channels = chans.length
   const block = 19200
   const ms: number[] = []
   for (let s = s0; s + block <= s1; s += block) {
     let sum = 0
     for (let c = 0; c < channels; c++) {
-      const d = pcm.getChannelData(c)
+      const d = chans[c]!
       for (let i = 0; i < block; i += 4) sum += d[s + i]! * d[s + i]!
     }
     ms.push(sum / ((block / 4) * channels))
@@ -66,7 +72,7 @@ export async function decodeAudio(buf: ArrayBuffer): Promise<AudioBuffer> {
   }
 }
 
-function seekVideo(v: HTMLVideoElement, t: number): Promise<void> {
+export function seekVideo(v: HTMLVideoElement, t: number): Promise<void> {
   return new Promise((resolve) => {
     if (Math.abs(v.currentTime - t) < 0.001) return resolve()
     const done = (): void => {

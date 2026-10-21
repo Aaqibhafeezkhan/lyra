@@ -176,7 +176,7 @@ export function createScene(inp: SceneInput): Scene {
         if (inp.style === 'subtitle' && i !== idx) continue
         // fade near the top and above the song bar so the text never runs into it
         const mid = yy + p.height / 2
-        const edge = Math.max(0, Math.min(1, Math.min((mid - h * (tall ? 0.15 : 0.05)) / (h * 0.12), (h * (tall ? (inp.showSong ? 0.7 : 0.76) : inp.showSong ? 0.8 : 0.9) - mid) / (h * 0.12))))
+        const edge = Math.max(0, Math.min(1, Math.min((mid - h * (tall ? 0.15 : 0.05)) / (h * 0.12), (h * (tall ? (inp.showSong ? 0.66 : 0.76) : inp.showSong ? 0.8 : 0.9) - mid) / (h * 0.12))))
         // the current line is bright; the ones around it step down quickly (like Lyra on the phone) so the picture stays clear
         const ring = isNow ? 0 : Math.max(1, Math.min(3, Math.round(Math.abs(d))))
         const alpha = (isNow ? 1 : inp.style === 'scroll' ? [1, 0.4, 0.16, 0][ring]! : 0.3) * edge

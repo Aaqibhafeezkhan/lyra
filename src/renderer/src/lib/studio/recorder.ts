@@ -57,7 +57,7 @@ export interface ExportOptions {
 }
 
 export interface Progress {
-  stage: 'preparing' | 'recording' | 'finishing'
+  stage: 'preparing' | 'recording' | 'rendering' | 'finishing'
   seconds: number
   total: number
 }
@@ -439,12 +439,12 @@ export function softCeiling(x: number): number {
 }
 
 /** Encoder settings for the output; the hardware encoder is asked for first by pickEncoder. */
-function encoderConfig(w: number, h: number, quality: Quality, fps: Fps): VideoEncoderConfig {
+export function encoderConfig(w: number, h: number, quality: Quality, fps: Fps): VideoEncoderConfig {
   return { codec: codecFor(fps), width: w, height: h, bitrate: bitrateFor(quality, fps), framerate: fps, latencyMode: 'realtime' }
 }
 
 /** The graphics chip encodes without loading the CPU that is also drawing the video; use it when it can do this size. */
-async function pickEncoder(cfg: VideoEncoderConfig): Promise<VideoEncoderConfig> {
+export async function pickEncoder(cfg: VideoEncoderConfig): Promise<VideoEncoderConfig> {
   const hw: VideoEncoderConfig = { ...cfg, hardwareAcceleration: 'prefer-hardware' }
   try {
     if ((await VideoEncoder.isConfigSupported(hw)).supported) return hw
@@ -455,7 +455,7 @@ async function pickEncoder(cfg: VideoEncoderConfig): Promise<VideoEncoderConfig>
 }
 
 /** The lyric timing offset (global + this song's nudge), read without a hook. */
-function offsetNow(): number {
+export function offsetNow(): number {
   const id = usePlayer.getState().snapshot?.track?.id
   return useSettings.getState().settings.lyricOffsetMs + (id ? (useOffsets.getState().map[id] ?? 0) : 0)
 }
