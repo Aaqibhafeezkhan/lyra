@@ -112,7 +112,7 @@ const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms
  * lyric video frame by frame, then writes an MP4 straight to the chosen file. Real time: a 4-minute song takes
  * 4 minutes. Resolves with the saved path.
  */
-export async function exportVideo(opts: ExportOptions, onProgress: (p: Progress) => void, signal: AbortSignal): Promise<{ path: string; seconds: number }> {
+export async function exportVideo(opts: ExportOptions, onProgress: (p: Progress) => void, signal: AbortSignal): Promise<{ path: string; seconds: number; droppedPct: number }> {
   const player = usePlayer.getState()
   const track: Track | undefined = player.snapshot?.track ?? undefined
   if (!track) throw new Error('Play a song first.')
@@ -284,6 +284,7 @@ export async function exportVideo(opts: ExportOptions, onProgress: (p: Progress)
     const t0 = performance.now()
     recording = true
     let nextFrame = 0
+    let encoded = 0
     let lastReport = 0
     let lastSync = 0
     const startPos = getPosition()
@@ -309,6 +310,7 @@ export async function exportVideo(opts: ExportOptions, onProgress: (p: Progress)
               scene.draw(ctx, lyricPos, secs)
               const frame = new VideoFrame(canvas, { timestamp: Math.round(nowMs * 1000) })
               venc.encode(frame, { keyFrame: Math.round(nowMs / (1000 / FPS)) % (FPS * 2) === 0 })
+              encoded += 1
               frame.close()
             } catch (e) {
               encError = e as Error
@@ -329,6 +331,7 @@ export async function exportVideo(opts: ExportOptions, onProgress: (p: Progress)
       requestAnimationFrame(tick)
     })
 
+    const recordedSecs = (performance.now() - t0) / 1000
     recording = false
     running = false
     onProgress({ stage: 'finishing', seconds: total, total })
@@ -363,7 +366,9 @@ export async function exportVideo(opts: ExportOptions, onProgress: (p: Progress)
       await window.lyra.studio.discard(file.path)
       throw new Error('cancelled')
     }
-    return { path: file.path, seconds }
+    // how many of the frames this PC should have made were really made (the rest were skipped to keep the sound in step)
+    const expected = Math.max(1, Math.round(recordedSecs * FPS))
+    return { path: file.path, seconds, droppedPct: recordedSecs < 5 ? 0 : Math.max(0, Math.round((1 - encoded / expected) * 100)) }
   } catch (e) {
     await window.lyra.studio.close(file.id).catch(() => undefined)
     if ((e as Error).message === 'cancelled') await window.lyra.studio.discard(file.path).catch(() => undefined)

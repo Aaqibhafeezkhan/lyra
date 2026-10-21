@@ -61,8 +61,38 @@ class ScreenRecorder(
     private val pending = ArrayList<Pending>()
     private var originUs = -1L
 
-    @SuppressLint("MissingPermission") // RECORD_AUDIO is requested by RecordActivity before this starts
+    /**
+     * Start recording. If anything fails half way, everything created so far is released again: a leaked sound
+     * capture would make Android refuse the next recording ("could not register audio policy").
+     */
     fun start() {
+        current?.abort() // a recorder an earlier failed attempt left behind
+        current = this
+        try {
+            startInner()
+        } catch (e: Exception) {
+            abort()
+            throw e
+        }
+    }
+
+    /** Release every piece without writing a file (the caller deletes the half-made video). */
+    fun abort() {
+        stopping = true
+        try { audio?.stop() } catch (_: Exception) { }
+        try { audio?.release() } catch (_: Exception) { }
+        audio = null
+        try { display?.release() } catch (_: Exception) { }
+        for (c in listOf(venc, aenc)) {
+            try { c.stop() } catch (_: Exception) { }
+            try { c.release() } catch (_: Exception) { }
+        }
+        try { muxer.release() } catch (_: Exception) { }
+        if (current === this) current = null
+    }
+
+    @SuppressLint("MissingPermission") // RECORD_AUDIO is requested by RecordActivity before this starts
+    private fun startInner() {
         val vf = MediaFormat.createVideoFormat("video/avc", width, height).apply {
             setInteger(MediaFormat.KEY_COLOR_FORMAT, MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface)
             setInteger(MediaFormat.KEY_BIT_RATE, 9_000_000)
@@ -148,6 +178,7 @@ class ScreenRecorder(
             c.release()
         }
         projection.stop()
+        if (current === this) current = null
     }
 
     private fun write(track: Int, data: ByteBuffer, info: MediaCodec.BufferInfo) {
@@ -316,6 +347,7 @@ class ScreenRecorder(
     }
 
     companion object {
+        @Volatile private var current: ScreenRecorder? = null
         const val RATE = 48000
     }
 }

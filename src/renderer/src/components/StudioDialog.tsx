@@ -23,7 +23,7 @@ const QUALITIES: Array<{ v: Quality; label: string }> = [
   { v: '1440p', label: 'Ultra · 1440p' }
 ]
 
-type Phase = { name: 'setup' } | { name: 'running'; stage: string; seconds: number; total: number } | { name: 'done'; path: string } | { name: 'error'; message: string }
+type Phase = { name: 'setup' } | { name: 'running'; stage: string; seconds: number; total: number } | { name: 'done'; path: string; droppedPct?: number } | { name: 'error'; message: string }
 type Preset = 'chorus' | 'whole' | 'first30' | 'custom'
 type Source = 'live' | 'file'
 
@@ -53,7 +53,8 @@ export function StudioDialog({ onClose }: { onClose(): void }) {
   const [own, setOwn] = useState<OwnSong>({ audio: null, audioName: '', durationMs: 0, lrc: null, lrcName: '', coverUrl: null, title: '', artist: '' })
   const [ratio, setRatio] = useState<Ratio>('9:16')
   const [quality, setQuality] = useState<Quality>('1080p')
-  const [fps, setFps] = useState<Fps>(60)
+  // a PC that dropped frames last time starts at 30 fps
+  const [fps, setFps] = useState<Fps>(() => (localStorage.getItem('lyra.studio.slowPc') ? 30 : 60))
   const [look, setLook] = useState<Look>({ style: 'scroll', font: 'sans', highlight: 'white', position: 'middle' })
   const [showSong, setShowSong] = useState(true)
   const [bg, setBg] = useState<'auto' | 'cover' | 'file'>('auto')
@@ -172,7 +173,8 @@ export function StudioDialog({ onClose }: { onClose(): void }) {
           youtube: bg === 'auto' && spec?.kind === 'youtube' ? { videoId: spec.videoId, crop: spec.crop } : null
         }
         const r = await exportVideo(opts, onProgress, ctl.signal)
-        setPhase({ name: 'done', path: r.path })
+        if (r.droppedPct >= 8) localStorage.setItem('lyra.studio.slowPc', '1')
+        setPhase({ name: 'done', path: r.path, droppedPct: r.droppedPct })
       } else {
         const r = await exportFromFile(
           {
@@ -398,6 +400,11 @@ export function StudioDialog({ onClose }: { onClose(): void }) {
             <p className="studio__song">
               <b>Saved.</b> {phase.path}
             </p>
+            {(phase.droppedPct ?? 0) >= 8 && (
+              <p className="studio__song" style={{ color: '#ffb36b' }}>
+                This PC could not keep up: about {phase.droppedPct}% of the frames were skipped, so the video looks choppy. Close other programs (free memory), pick 30 fps and a lower quality, or use “My own audio file”, which is not recorded live and always comes out smooth.
+              </p>
+            )}
             <div className="studio__group">
               <span>Caption (ready to paste)</span>
               <textarea className="studio__caption" readOnly value={caption} rows={5} onFocus={(e) => e.currentTarget.select()} />
