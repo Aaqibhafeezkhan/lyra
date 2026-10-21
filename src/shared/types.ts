@@ -198,6 +198,8 @@ export interface BackgroundResolution {
   youtubeMessage?: string
   /** the free Apple clip, kept ready in case the YouTube video can not be played in the app */
   fallback?: BackgroundSpec
+  /** other plausible videos of the same song, tried in turn when the first one can not be played here */
+  alternates?: BackgroundSpec[]
   hasSongMedia: boolean
   hasGlobalMedia: boolean
 }

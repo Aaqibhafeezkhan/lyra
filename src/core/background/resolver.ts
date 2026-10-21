@@ -42,6 +42,13 @@ export function createBackgroundResolver(host: ResolverHost): (track: Track) => 
       scope
     })
 
+    /** the next best videos of the song (about the right length), in case the first one is blocked from playing in an app */
+    const alternates = async (best: YoutubeVideo, list: YoutubeVideo[]): Promise<{ alternates?: BackgroundSpec[] }> => {
+      const want = track.durationMs / 1000
+      const near = list.filter((v) => v.videoId !== best.videoId && (!v.durationSec || !want || Math.abs(v.durationSec - want) <= 25)).slice(0, 2)
+      return near.length ? { alternates: await Promise.all(near.map((v) => ytSpec(v, 'auto'))) } : {}
+    }
+
     if (s.backgroundStyle === 'still') return { ...base, spec: { kind: 'still' }, youtube: 'off' }
     if (s.backgroundStyle === 'living') return { ...base, spec: living, youtube: 'off' }
     if (s.backgroundStyle === 'custom') return { ...base, spec: songSpec ?? globalSpec ?? living, youtube: 'off' }
@@ -62,7 +69,7 @@ export function createBackgroundResolver(host: ResolverHost): (track: Track) => 
       // "Video": YouTube first, then Apple's clip, then your file, then living artwork
       const r = await yt()
       const clip = await asClip()
-      if (r.state === 'found') return { ...base, spec: await ytSpec(r.video, 'auto'), youtube: 'found', ...(clip ? { fallback: clip } : {}) }
+      if (r.state === 'found') return { ...base, spec: await ytSpec(r.video, 'auto'), youtube: 'found', ...(clip ? { fallback: clip } : {}), ...(await alternates(r.video, r.list)) }
       return { ...base, spec: clip ?? globalSpec ?? living, ...report(r) }
     }
 
@@ -72,11 +79,11 @@ export function createBackgroundResolver(host: ResolverHost): (track: Track) => 
     // a 640p clip looks soft on a big screen: prefer a 1080p YouTube video when the user has a key
     if (clip && clip.width < 1280 && youtube.hasKey()) {
       const hd = await yt()
-      if (hd.state === 'found') return { ...base, spec: await ytSpec(hd.video, 'auto'), youtube: 'found', fallback: clip }
+      if (hd.state === 'found') return { ...base, spec: await ytSpec(hd.video, 'auto'), youtube: 'found', fallback: clip, ...(await alternates(hd.video, hd.list)) }
     }
     if (clip) return { ...base, spec: clip, youtube: youtube.hasKey() ? 'off' : 'no-key' }
     const r = await yt()
-    if (r.state === 'found') return { ...base, spec: await ytSpec(r.video, 'auto'), youtube: 'found' }
+    if (r.state === 'found') return { ...base, spec: await ytSpec(r.video, 'auto'), youtube: 'found', ...(await alternates(r.video, r.list)) }
     return { ...base, spec: living, ...report(r) }
   }
 }

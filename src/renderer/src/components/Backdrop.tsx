@@ -262,7 +262,11 @@ function YoutubeLayer({ spec, run, onFail }: { spec: Extract<BackgroundSpec, { k
       } catch {
         return
       }
-      if (d?.info?.playerState !== undefined) lastState.current = d.info.playerState
+      if (d?.info?.playerState !== undefined) {
+        lastState.current = d.info.playerState
+        // playing, paused (we pause it while the song is paused) or cued all mean the player works: no need to give up on it
+        if (d.info.playerState === 1 || d.info.playerState === 2 || d.info.playerState === 5) window.clearTimeout(timer.current)
+      }
       if (d?.event === 'onError') onFailRef.current(`error ${(d as { info?: unknown }).info ?? ''}`)
       else if (d?.event === 'onReady') {
         cmd('setPlaybackQuality', [document.documentElement.dataset.ambient === '1' ? 'large' : 'hd1080'])
@@ -339,8 +343,14 @@ export function Backdrop({ rich = false, animated = false }: { rich?: boolean; a
   // a YouTube video that can not be played here (embedding blocked, never started) hands over to the Apple clip
   const [ytFailed, setYtFailed] = useState<string | null>(null)
   const [ytWhy, setYtWhy] = useState('')
-  const baseSpec = res?.spec ?? null
-  useEffect(() => setYtFailed(null), [res])
+  // ...but first the next best videos of the song are tried (one that blocks embedding is common, a re-upload often plays)
+  const [ytSkip, setYtSkip] = useState(0)
+  const tries: BackgroundSpec[] = res?.spec.kind === 'youtube' ? [res.spec, ...(res.alternates ?? [])] : []
+  const baseSpec = tries.length ? (tries[ytSkip] ?? tries[tries.length - 1]!) : (res?.spec ?? null)
+  useEffect(() => {
+    setYtFailed(null)
+    setYtSkip(0)
+  }, [res])
   const ytDead = baseSpec?.kind === 'youtube' && ytFailed === baseSpec.videoId
   const spec = ytDead && res?.fallback ? res.fallback : baseSpec
   const specKey = spec?.kind === 'youtube' ? `yt:${spec.videoId}` : spec && 'url' in spec ? spec.url : (spec?.kind ?? '')
@@ -348,6 +358,10 @@ export function Backdrop({ rich = false, animated = false }: { rich?: boolean; a
   const fail = (why?: string): void => {
     if (spec?.kind === 'youtube') {
       console.warn('[background] YouTube video failed:', spec.videoId, why)
+      if (ytSkip < tries.length - 1) {
+        setYtSkip(ytSkip + 1) // try the next video of this song
+        return
+      }
       setYtWhy(why ?? '')
       setYtFailed(spec.videoId)
     } else setFailed(specKey)
