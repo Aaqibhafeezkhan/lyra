@@ -1,0 +1,52 @@
+import { useState, type ReactElement } from 'react'
+import { usePlayer } from '@/store/player'
+
+/** Android: record a lyric video of the song playing now (the phone films Lyra's screen and Spotify's sound). */
+export function RecordDialog({ onClose }: { onClose: () => void }): ReactElement {
+  const track = usePlayer((s) => s.snapshot?.track ?? null)
+  const [error, setError] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+
+  const start = async (fromStart: boolean): Promise<void> => {
+    setBusy(true)
+    const r = await window.lyra.android?.recordVideo(fromStart).catch((e: Error) => ({ ok: false, error: e.message }))
+    if (r?.ok) onClose()
+    else {
+      setBusy(false)
+      setError(r?.error ?? 'Recording is not available here.')
+    }
+  }
+
+  return (
+    <div className="sharecard" role="dialog" aria-label="Record a lyric video" data-nodrag>
+      <div className="sharecard__box studio">
+        <header>
+          <b>Record lyric video</b>
+          <button type="button" className="ibtn" aria-label="Close" onClick={onClose}>
+            ✕
+          </button>
+        </header>
+        {track ? (
+          <p className="studio__song">
+            <b>{track.title}</b> · {track.artists.join(', ')}
+          </p>
+        ) : (
+          <p className="studio__song">Play a song in Spotify first.</p>
+        )}
+        <p className="studio__song">
+          Lyra films its own screen (lyrics and the song's video), then saves the video to Movies/Lyra and lets you share it. Android asks first for sound and screen recording.
+          Heads up: on some phones (a Samsung Galaxy A54 for one) Spotify's sound is not handed over, so the video can come out silent. You can add the song in your video editor. Do Not Disturb keeps notifications out of the picture.
+        </p>
+        {error && <p className="studio__song" style={{ color: "#ff8a8a" }}>{error}</p>}
+        <div className="studio__group">
+          <button type="button" className="pill pill--primary" disabled={!track || busy} onClick={() => void start(true)}>
+            Record from the start of the song
+          </button>
+          <button type="button" className="pill" disabled={!track || busy} onClick={() => void start(false)}>
+            Record from where it is now
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}

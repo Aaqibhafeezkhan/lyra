@@ -1,0 +1,151 @@
+/* the page that is filmed for a lyric video: brighter and cleaner than the ambient screen */
+.amb--rec .amb__bg {
+  filter: none;
+}
+.amb--rec .amb__bg .backdrop__dim {
+  opacity: 0.12 !important;
+}
+.amb--rec::after {
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.12) 0%, rgba(0, 0, 0, 0) 26%, rgba(0, 0, 0, 0.38) 58%, rgba(0, 0, 0, 0.72) 100%);
+}
+.rec__content {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 3vh;
+  padding: 0 8vw calc(env(safe-area-inset-bottom, 0px) + 4.5vh);
+}
+.rec__lyrics {
+  height: 52vh;
+}
+.rec__idle {
+  opacity: 0.6;
+}
+.rec__art {
+  width: 13vw;
+  height: 13vw;
+  border-radius: 14px;
+  object-fit: cover;
+}
+.rec__title {
+  font-size: 4.4vw;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.rec__artist {
+  margin-top: 2px;
+  font-size: 3.5vw;
+  opacity: 0.65;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.rec__progress {
+  height: 3px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.18);
+  overflow: hidden;
+}
+.rec__progress-bar {
+  height: 100%;
+  transform-origin: left center;
+  transform: scaleX(0);
+  background: rgba(255, 255, 255, 0.85);
+  transition: transform 0.2s linear;
+}
+.rec__badge {
+  text-align: center;
+  font-size: 3vw;
+  font-weight: 600;
+  opacity: 0.55;
+}
+
+/* countdown / messages sit on top and are not recorded (recording starts when they leave) */
+.rec__count {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2vh;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+}
+.rec__count span {
+  font-size: 34vw;
+  font-weight: 800;
+  animation: rec-pop 1s ease-out;
+}
+.rec__count small {
+  font-size: 3.8vw;
+  opacity: 0.8;
+}
+.rec__count--msg {
+  padding: 10vw;
+  text-align: center;
+  font-size: 4.4vw;
+  font-weight: 600;
+}
+@keyframes rec-pop {
+  from {
+    transform: scale(1.3);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* the closing card: logo, call to action */
+.rec__end {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.8vh;
+  background: radial-gradient(60% 40% at 30% 40%, rgba(255, 122, 89, 0.34), transparent), radial-gradient(60% 40% at 72% 46%, rgba(198, 76, 255, 0.34), transparent),
+    radial-gradient(60% 40% at 50% 62%, rgba(63, 208, 255, 0.3), transparent), #050505;
+  animation: rec-fade 0.6s ease-out;
+}
+.rec__end img {
+  width: 26vw;
+  height: 26vw;
+  border-radius: 24%;
+  box-shadow: 0 0 8vw rgba(198, 76, 255, 0.6);
+}
+.rec__end b {
+  margin-top: 2vh;
+  font-size: 5.6vw;
+  font-weight: 800;
+}
+.rec__end span {
+  font-size: 4.3vw;
+  font-weight: 700;
+  color: #ffd5a8;
+}
+.rec__end em {
+  font-style: normal;
+  font-size: 3.4vw;
+  font-weight: 600;
+  color: #a9d7ff;
+  opacity: 0.85;
+}
+@keyframes rec-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}

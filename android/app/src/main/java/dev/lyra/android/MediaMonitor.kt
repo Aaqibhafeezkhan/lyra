@@ -24,7 +24,7 @@ import java.security.MessageDigest
  * JSON shape the desktop app produces (PlaybackSnapshot), so the UI cannot tell the difference.
  */
 object MediaMonitor {
-    private const val SPOTIFY = "com.spotify.music"
+    const val SPOTIFY = "com.spotify.music"
 
     private val main = Handler(Looper.getMainLooper())
     private val listeners = mutableListOf<() -> Unit>()
@@ -74,7 +74,7 @@ object MediaMonitor {
 
     private fun attach(all: List<MediaController>) {
         // Lyra's own lyrics media card (see LyricsNotificationService) must never be mistaken for the music source
-        val list = all.filter { it.packageName != ownPackage }
+        val list = all.filter { it.packageName != ownPackage && !it.packageName.startsWith("dev.lyra.android") } // also the debug build next to the real app
         callbacks.forEach { (c, cb) -> c.unregisterCallback(cb) }
         callbacks.clear()
         controllers = list

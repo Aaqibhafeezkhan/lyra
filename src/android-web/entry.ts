@@ -8,7 +8,11 @@ if (new URLSearchParams(location.search).has('overlay')) document.documentElemen
 
 const params = new URLSearchParams(location.search)
 
-if (params.has('ambient')) {
+if (params.has('record')) {
+  // the page Android films for a lyric video (clean lyrics + the song's video)
+  document.documentElement.dataset.ambient = '1'
+  await import('./record')
+} else if (params.has('ambient')) {
   // the dim always-on-display style screen (also used by the screen saver)
   document.documentElement.dataset.ambient = '1'
   await import('./ambient')

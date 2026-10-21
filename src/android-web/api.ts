@@ -36,8 +36,18 @@ const settingsStore = new LocalStore<Settings>('settings', {
   // phone defaults: no desktop welcome card, the expanded player is the home screen, and the video belongs in it
   onboarded: true,
   defaultMode: 'mini',
-  backgroundInMini: true
+  backgroundInMini: true,
+  keepScreenOn: true // music is playing: the phone should not fall asleep on the lyrics
 })
+// once, for people who installed before this became the default (they can switch it off again in Settings)
+try {
+  if (!localStorage.getItem('lyra.keepOnV1')) {
+    localStorage.setItem('lyra.keepOnV1', '1')
+    settingsStore.set({ ...settingsStore.get(), keepScreenOn: true })
+  }
+} catch {
+  /* storage unavailable: keep what is saved */
+}
 const settingsChanged = emitter<Settings>()
 
 function sanitize(s: Settings): Settings {
@@ -175,7 +185,7 @@ export const androidApi: LyraApi & { android: NonNullable<LyraApi['android']> } 
       return next
     },
     reset: async () => {
-      const next = sanitize({ ...DEFAULT_SETTINGS, defaultMode: 'mini', backgroundInMini: true })
+      const next = sanitize({ ...DEFAULT_SETTINGS, defaultMode: 'mini', backgroundInMini: true, keepScreenOn: true })
       settingsStore.set(next)
       settingsChanged.emit(next)
       return next
@@ -343,6 +353,7 @@ export const androidApi: LyraApi & { android: NonNullable<LyraApi['android']> } 
     setLyricsNotification: async (on, showOnLockScreen) => void (await rpc('lyricsNotification', on, showOnLockScreen)),
     openAmbient: async () => void (await rpc('openAmbient')),
     toggleAmbient: async () => void (await rpc('toggleAmbient')),
+    recordVideo: (fromStart) => rpc<{ ok: boolean; error?: string }>('recordVideo', fromStart),
     addAmbientTile: () => rpc<boolean>('addAmbientTile'),
     setOverlay: (on) => rpc<{ ok: boolean; needsPermission?: boolean }>('overlaySet', on)
   }

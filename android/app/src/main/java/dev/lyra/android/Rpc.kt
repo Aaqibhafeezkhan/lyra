@@ -107,6 +107,28 @@ class Rpc(private val ctx: Context, private val web: LyraWebView, private val ac
                 ctx.startActivity(Intent.createChooser(send, "Share lyric card").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
                 ok(true)
             }
+            "recordVideo" -> ui {
+                if (android.os.Build.VERSION.SDK_INT >= 29) {
+                    RecordActivity.start(ctx, args.optBoolean(0, true))
+                    ok(JSONObject().put("ok", true))
+                } else ok(JSONObject().put("ok", false).put("error", "Recording a lyric video needs Android 10 or newer."))
+            }
+            "recordGo" -> ui {
+                val a = if (android.os.Build.VERSION.SDK_INT >= 29) activity as? RecordActivity else null
+                val err = a?.go(args.optString(0, ""))
+                if (a == null) ok(JSONObject().put("ok", false).put("error", "Not on the recording screen."))
+                else ok(JSONObject().put("ok", err == null).put("error", err ?: JSONObject.NULL))
+            }
+            "recordFinish" -> ui {
+                val a = if (android.os.Build.VERSION.SDK_INT >= 29) activity as? RecordActivity else null
+                if (a == null) ok(JSONObject().put("ok", false))
+                else a.finishNow { err -> ok(JSONObject().put("ok", err == null).put("error", err ?: JSONObject.NULL)) }
+            }
+            "recordAbort" -> ui {
+                val a = if (android.os.Build.VERSION.SDK_INT >= 29) activity as? RecordActivity else null
+                a?.leave(null)
+                ok(true)
+            }
             "copy" -> ui {
                 (ctx.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager).setPrimaryClip(ClipData.newPlainText("Lyra", args.getString(0)))
                 ok(true)

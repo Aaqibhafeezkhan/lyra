@@ -45,6 +45,10 @@ android {
     }
 
     buildTypes {
+        // a debug build installs next to the real app (own settings, own signature) instead of failing to update it
+        debug {
+            applicationIdSuffix = ".debug"
+        }
         release {
             isMinifyEnabled = false
             signingConfig = if (keystorePath != null) signingConfigs.getByName("release") else signingConfigs.getByName("debug")
