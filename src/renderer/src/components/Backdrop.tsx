@@ -200,7 +200,7 @@ function phoneInit(): boolean {
   return document.documentElement.dataset.platform === 'android'
 }
 
-function YoutubeLayer({ spec, run, onFail }: { spec: Extract<BackgroundSpec, { kind: 'youtube' }>; run: boolean; onFail: () => void }) {
+function YoutubeLayer({ spec, run, onFail }: { spec: Extract<BackgroundSpec, { kind: 'youtube' }>; run: boolean; onFail: (why?: string) => void }) {
   const frame = useRef<HTMLIFrameElement>(null)
   const wrap = useRef<HTMLDivElement>(null)
   const [ready, setReady] = useState(false)
@@ -263,7 +263,7 @@ function YoutubeLayer({ spec, run, onFail }: { spec: Extract<BackgroundSpec, { k
         return
       }
       if (d?.info?.playerState !== undefined) lastState.current = d.info.playerState
-      if (d?.event === 'onError') onFailRef.current()
+      if (d?.event === 'onError') onFailRef.current(`error ${(d as { info?: unknown }).info ?? ''}`)
       else if (d?.event === 'onReady') {
         cmd('setPlaybackQuality', [document.documentElement.dataset.ambient === '1' ? 'large' : 'hd1080'])
         if (!phone && !runRef.current) cmd('pauseVideo')
@@ -277,7 +277,7 @@ function YoutubeLayer({ spec, run, onFail }: { spec: Extract<BackgroundSpec, { k
     }
     window.addEventListener('message', onMsg)
     // if it never starts (blocked embed, offline) fall back instead of showing a black box
-    timer.current = window.setTimeout(() => onFailRef.current(), 15_000)
+    timer.current = window.setTimeout(() => onFailRef.current('timeout'), 25_000)
     return () => {
       window.removeEventListener('message', onMsg)
       window.clearTimeout(timer.current)
@@ -337,13 +337,20 @@ export function Backdrop({ rich = false, animated = false }: { rich?: boolean; a
 
   // a YouTube video that can not be played here (embedding blocked, never started) hands over to the Apple clip
   const [ytFailed, setYtFailed] = useState<string | null>(null)
+  const [ytWhy, setYtWhy] = useState('')
   const baseSpec = res?.spec ?? null
   useEffect(() => setYtFailed(null), [res])
   const ytDead = baseSpec?.kind === 'youtube' && ytFailed === baseSpec.videoId
   const spec = ytDead && res?.fallback ? res.fallback : baseSpec
   const specKey = spec?.kind === 'youtube' ? `yt:${spec.videoId}` : spec && 'url' in spec ? spec.url : (spec?.kind ?? '')
   useEffect(() => setFailed(null), [specKey])
-  const fail = (): void => (spec?.kind === 'youtube' ? setYtFailed(spec.videoId) : setFailed(specKey))
+  const fail = (why?: string): void => {
+    if (spec?.kind === 'youtube') {
+      console.warn('[background] YouTube video failed:', spec.videoId, why)
+      setYtWhy(why ?? '')
+      setYtFailed(spec.videoId)
+    } else setFailed(specKey)
+  }
 
   const usable = animated && !reduced && !(failed && failed === specKey) && !(ytDead && !res?.fallback)
   const isVideoFile = !!spec && (spec.kind === 'preview' || (spec.kind === 'media' && spec.media === 'video'))
@@ -374,14 +381,14 @@ export function Backdrop({ rich = false, animated = false }: { rich?: boolean; a
   useEffect(() => {
     let text: string | null = null
     if (animated && !reduced && res && !hasMedia && (settingStyle === 'auto' || settingStyle === 'youtube')) {
-      if (ytDead) text = 'This video can’t be played in Lyra (the uploader blocks it).'
+      if (ytDead) text = ytWhy === 'timeout' ? 'The video didn’t start in time. It may be slow to load or blocked here.' : /error (101|150|152|153)/.test(ytWhy) ? 'This video can’t be played in Lyra (the uploader blocks it).' : `This video can’t be played in Lyra (YouTube said: ${ytWhy || 'unknown'}).`
       else if (res.youtube === 'no-key') text = 'No video for this song yet. Add a YouTube key or pick a video.'
       else if (res.youtube === 'none') text = 'No music video found for this song.'
       else if (res.youtube === 'error') text = res.youtubeMessage ? `Video search failed: ${res.youtubeMessage}` : 'Video search failed.'
     }
     useBgState.getState().setReason(text ? { text } : null)
     return () => useBgState.getState().setReason(null)
-  }, [animated, reduced, res, hasMedia, ytDead, settingStyle])
+  }, [animated, reduced, res, hasMedia, ytDead, ytWhy, settingStyle])
 
   // gentle parallax: the picture drifts against the cursor
   useEffect(() => {
