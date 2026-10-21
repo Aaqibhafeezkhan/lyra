@@ -9,6 +9,7 @@
     <!-- lyric video recording: Spotify's sound is captured with the user's screen-recording consent (never the microphone) -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
 
     <!-- lets Lyra open the Spotify app from its "Open in Spotify" button -->
     <queries>
@@ -99,7 +100,7 @@
         <service
             android:name=".RecordService"
             android:exported="false"
-            android:foregroundServiceType="mediaProjection" />
+            android:foregroundServiceType="mediaProjection|microphone" />
 
         <!-- Lyra as an Android screen saver (Settings > Display > Screen saver) -->
         <service

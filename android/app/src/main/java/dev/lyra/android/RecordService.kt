@@ -49,12 +49,12 @@ class RecordService : Service() {
         val n: Notification = NotificationCompat.Builder(this, CHANNEL)
             .setSmallIcon(android.R.drawable.ic_media_play)
             .setContentTitle("Lyra is recording a lyric video")
-            .setContentText("The Lyra screen and Spotify's sound. Tap Stop to finish.")
+            .setContentText("The Lyra screen and the song's sound. Tap Stop to finish.")
             .setOngoing(true)
             .addAction(0, "Stop", stop)
             .build()
         // the foreground service must be running (type mediaProjection) before the projection is requested
-        ServiceCompat.startForeground(this, 2, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION)
+        ServiceCompat.startForeground(this, 2, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION or ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE)
         projection = (getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager).getMediaProjection(code, data)
         instance = this
         listener?.invoke()

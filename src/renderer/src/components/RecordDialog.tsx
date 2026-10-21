@@ -34,8 +34,8 @@ export function RecordDialog({ onClose }: { onClose: () => void }): ReactElement
           <p className="studio__song">Play a song in Spotify first.</p>
         )}
         <p className="studio__song">
-          Lyra films its own screen (lyrics and the song's video), then saves the video to Movies/Lyra and lets you share it. Android asks first for sound and screen recording.
-          Heads up: on some phones (a Samsung Galaxy A54 for one) Spotify's sound is not handed over, so the video can come out silent. You can add the song in your video editor. Do Not Disturb keeps notifications out of the picture.
+          Lyra films its own screen (lyrics and the song's video) together with the song's sound, then saves the video to Movies/Lyra and lets you share it. Android asks first for sound and screen recording.
+          Some phones do not hand Spotify's sound to other apps. Then Lyra listens through the microphone instead: keep the music on the phone speaker (not headphones), turn it up, and stay quiet. Do Not Disturb keeps notifications out of the picture.
         </p>
         {error && <p className="studio__song" style={{ color: "#ff8a8a" }}>{error}</p>}
         <div className="studio__group">

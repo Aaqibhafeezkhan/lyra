@@ -32,13 +32,18 @@ class ScreenRecorder(
     private val height: Int,
     private val dpi: Int,
     /** only this app's sound is captured; null = every app's media sound */
-    private val soundUid: Int?
+    private val soundUid: Int?,
+    /** when the playback capture stays silent while music plays, listen with the microphone instead */
+    private val micFallback: Boolean = true
 ) {
     private val muxer = MediaMuxer(out, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4)
     private val venc = MediaCodec.createEncoderByType("video/avc")
     private val aenc = MediaCodec.createEncoderByType("audio/mp4a-latm")
     private var display: VirtualDisplay? = null
-    private var audio: AudioRecord? = null
+    @Volatile private var audio: AudioRecord? = null
+    /** true once the sound comes from the microphone because the phone would not hand over the music app's sound */
+    @Volatile var usingMic = false
+        private set
     private var vThread: Thread? = null
     private var aThread: Thread? = null
 
@@ -195,12 +200,16 @@ class ScreenRecorder(
         }
     }
 
-    private fun pumpAudio(rec: AudioRecord) {
+    private fun pumpAudio(first: AudioRecord) {
+        var rec = first
         val pcm = ByteArray(RATE / 25 * 4) // 40 ms
         val info = MediaCodec.BufferInfo()
         var frames = 0L
         var t0 = -1L
         var eosSent = false
+        // some phones (a Samsung Galaxy A54 with Spotify, for one) accept the capture but never route the app's sound into it
+        var peak = 0
+        var judged = !micFallback
         try {
             while (true) {
                 if (!stopping) {
@@ -210,6 +219,24 @@ class ScreenRecorder(
                         if (t0 < 0) t0 = System.nanoTime() / 1000 - n / 4 * 1_000_000L / RATE
                         feed(pcm, n, t0 + frames * 1_000_000L / RATE, false)
                         frames += n / 4
+                        if (!judged) {
+                            for (k in 0 until n - 1 step 2) peak = maxOf(peak, kotlin.math.abs(((pcm[k + 1].toInt() shl 8) or (pcm[k].toInt() and 0xff)).toShort().toInt()))
+                            if (frames >= RATE * 5L) {
+                                judged = true
+                                // five seconds of music playing and not one sample of sound: use the microphone from here on
+                                if (peak < 12 && MediaMonitor.now()?.playing == true) {
+                                    val mic = openMic()
+                                    if (mic != null) {
+                                        android.util.Log.w("LyraRec", "playback capture is silent; switching to the microphone")
+                                        try { rec.stop() } catch (_: Exception) { }
+                                        rec.release()
+                                        rec = mic
+                                        audio = mic
+                                        usingMic = true
+                                    }
+                                }
+                            }
+                        }
                     }
                 } else if (!eosSent) {
                     feed(pcm, 0, (if (t0 < 0) 0 else t0) + frames * 1_000_000L / RATE, true)
@@ -220,6 +247,24 @@ class ScreenRecorder(
         } catch (e: Exception) {
             fail(e)
         }
+    }
+
+    /** The microphone, as unprocessed as the phone allows (no echo cancelling or noise gate that would eat music). */
+    @SuppressLint("MissingPermission")
+    private fun openMic(): AudioRecord? {
+        val fmt = AudioFormat.Builder().setEncoding(AudioFormat.ENCODING_PCM_16BIT).setSampleRate(RATE).setChannelMask(AudioFormat.CHANNEL_IN_STEREO).build()
+        for (source in intArrayOf(android.media.MediaRecorder.AudioSource.UNPROCESSED, android.media.MediaRecorder.AudioSource.VOICE_RECOGNITION, android.media.MediaRecorder.AudioSource.MIC)) {
+            try {
+                val r = AudioRecord.Builder().setAudioSource(source).setAudioFormat(fmt).setBufferSizeInBytes(RATE * 4).build()
+                if (r.state == AudioRecord.STATE_INITIALIZED) {
+                    r.startRecording()
+                    return r
+                }
+                r.release()
+            } catch (_: Exception) {
+            }
+        }
+        return null
     }
 
     /** Hand PCM to the AAC encoder in pieces that fit its input buffers (draining its output while it is busy). */
