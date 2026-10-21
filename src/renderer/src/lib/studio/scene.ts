@@ -21,6 +21,11 @@ export interface SceneInput {
   showSong: boolean
   fontFamily: string
   totalMs: number
+  /** how the lyrics are laid out */
+  style: 'scroll' | 'focus' | 'subtitle'
+  /** the colour a word fills with while it is sung */
+  fill: string
+  position: 'upper' | 'middle' | 'lower'
 }
 
 interface Placed {
@@ -42,7 +47,9 @@ export function createScene(inp: SceneInput): Scene {
   const base = Math.min(w, h)
   const portrait = h >= w
   const margin = Math.round(base * (portrait ? 0.085 : 0.07))
-  const fontSize = Math.round(base * (portrait ? 0.074 : 0.078))
+  const sizeMul = inp.style === 'focus' ? 1.28 : inp.style === 'subtitle' ? 0.74 : 1
+  const centered = inp.style !== 'scroll'
+  const fontSize = Math.round(base * (portrait ? 0.074 : 0.078) * sizeMul)
   const lineH = Math.round(fontSize * 1.18)
   const gap = Math.round(fontSize * 0.55)
   // lyrics column: the whole width in portrait/square, the right 62% in landscape (the song sits left)
@@ -132,7 +139,7 @@ export function createScene(inp: SceneInput): Scene {
 
     // ---- lyrics
     const idx = activeIndex(posMs)
-    const focusY = h * (portrait ? 0.4 : 0.42)
+    const focusY = h * (inp.position === 'upper' ? 0.28 : inp.position === 'lower' ? 0.6 : portrait ? 0.4 : 0.42)
     if (placed.length) {
       const target = Math.max(0, idx)
       scroll += (target - scroll) * (1 - Math.exp(-dt / 0.2))
@@ -148,10 +155,12 @@ export function createScene(inp: SceneInput): Scene {
         if (yy > h + lineH || yy + p.height < -lineH) continue
         const d = i - scroll
         const isNow = i === idx
+        if (inp.style === 'focus' && i !== idx && i !== idx + 1) continue
+        if (inp.style === 'subtitle' && i !== idx) continue
         // fade near the top and above the song bar so the text never runs into it
         const mid = yy + p.height / 2
         const edge = Math.max(0, Math.min(1, Math.min((mid - h * 0.05) / (h * 0.12), (h * (inp.showSong ? 0.8 : 0.9) - mid) / (h * 0.12))))
-        const alpha = (isNow ? 1 : Math.max(0.12, 0.42 - Math.abs(d) * 0.08)) * edge
+        const alpha = (isNow ? 1 : inp.style === 'scroll' ? Math.max(0.12, 0.42 - Math.abs(d) * 0.08) : 0.3) * edge
         if (alpha <= 0.01) continue
         const sc = isNow ? 1 : 0.92
         ctx.save()
@@ -160,7 +169,7 @@ export function createScene(inp: SceneInput): Scene {
         ctx.shadowColor = 'rgba(0,0,0,0.5)'
         ctx.shadowBlur = fontSize * 0.3
         p.rows.forEach((row, r) => {
-          let x = 0
+          let x = centered ? Math.max(0, (colW / sc - p.rowWidths[r]!) / 2) : 0
           const ry = r * lineH
           for (const wi of row) {
             const wd = p.words[wi]!
@@ -176,7 +185,8 @@ export function createScene(inp: SceneInput): Scene {
                 ctx.beginPath()
                 ctx.rect(x, ry - 4, ww * prog + 1, lineH + 8)
                 ctx.clip()
-                ctx.fillStyle = `rgba(255,255,255,${edge})`
+                ctx.globalAlpha = edge
+                ctx.fillStyle = inp.fill
                 ctx.fillText(wd.text, x, ry)
                 ctx.restore()
               }

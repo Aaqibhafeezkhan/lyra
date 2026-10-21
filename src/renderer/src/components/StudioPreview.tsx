@@ -1,13 +1,14 @@
 import { useEffect, useRef } from 'react'
 import type { LyricLine, Track } from '@shared/types'
 import logoUrl from '@/assets/logo.png'
-import { dimensions, loadImage, loadVideo, type Ratio } from '@/lib/studio/recorder'
+import { dimensions, loadImage, loadVideo, lookInputs, type Look, type Ratio } from '@/lib/studio/recorder'
 import { createScene } from '@/lib/studio/scene'
 
 interface Props {
   track: Track
   lines: LyricLine[]
   ratio: Ratio
+  look: Look
   showSong: boolean
   /** a looping video or photo behind the lyrics, or null for the cover's colours */
   media: { url: string; kind: 'video' | 'image' } | null
@@ -16,7 +17,7 @@ interface Props {
 }
 
 /** A small live preview of the finished video: the same drawing code the export uses, looping over the chosen part. */
-export function StudioPreview({ track, lines, ratio, showSong, media, startMs, endMs }: Props) {
+export function StudioPreview({ track, lines, ratio, look, showSong, media, startMs, endMs }: Props) {
   const canvas = useRef<HTMLCanvasElement>(null)
   const { w, h } = dimensions(ratio, '720p')
   const pw = Math.round(w / 2)
@@ -47,8 +48,8 @@ export function StudioPreview({ track, lines, ratio, showSong, media, startMs, e
         tint1: css.getPropertyValue('--tint1').trim() || '#1a1a1a',
         tint2: css.getPropertyValue('--tint2').trim() || '#101010',
         showSong,
-        fontFamily: getComputedStyle(document.body).fontFamily || 'Inter, system-ui, sans-serif',
-        totalMs: endMs - startMs
+        totalMs: endMs - startMs,
+        ...lookInputs(look, css.getPropertyValue('--accent').trim() || '#ffffff')
       })
       const span = Math.max(1000, Math.min(endMs - startMs, 14_000))
       const t0 = performance.now()
@@ -74,7 +75,7 @@ export function StudioPreview({ track, lines, ratio, showSong, media, startMs, e
       cancelAnimationFrame(raf)
       video?.pause()
     }
-  }, [track, lines, pw, ph, showSong, media, startMs, endMs])
+  }, [track, lines, pw, ph, showSong, media, startMs, endMs, look])
 
   return <canvas ref={canvas} className="studio__preview" style={{ aspectRatio: `${pw} / ${ph}` }} aria-label="Preview of the video" />
 }

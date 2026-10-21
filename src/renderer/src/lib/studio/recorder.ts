@@ -10,7 +10,33 @@ import { createScene } from './scene'
 
 export type Ratio = '9:16' | '4:5' | '1:1' | '16:9'
 export type Quality = '720p' | '1080p' | '1440p'
+export type LayoutStyle = 'scroll' | 'focus' | 'subtitle'
+export type FontChoice = 'sans' | 'serif' | 'rounded' | 'mono'
+export type Highlight = 'white' | 'accent' | 'gold'
+export type TextPosition = 'upper' | 'middle' | 'lower'
+
+/** How the text looks: shared by the preview and both exporters. */
+export interface Look {
+  style: LayoutStyle
+  font: FontChoice
+  highlight: Highlight
+  position: TextPosition
+}
+
+const FONT_STACKS: Record<FontChoice, string> = {
+  sans: "'Inter Variable', Inter, 'Segoe UI', system-ui, sans-serif",
+  serif: "Georgia, 'Times New Roman', serif",
+  rounded: "'Nunito', 'Segoe UI Variable Display', ui-rounded, system-ui, sans-serif",
+  mono: "Consolas, 'Courier New', monospace"
+}
+
+/** The scene settings that come from a Look (and the cover's colours). */
+export function lookInputs(look: Look, accent: string): { style: LayoutStyle; fill: string; position: TextPosition; fontFamily: string } {
+  return { style: look.style, position: look.position, fontFamily: FONT_STACKS[look.font], fill: look.highlight === 'white' ? '#ffffff' : look.highlight === 'gold' ? '#ffd166' : accent }
+}
+
 export interface ExportOptions {
+  look: Look
   ratio: Ratio
   quality: Quality
   /** the part of the song to record */
@@ -124,7 +150,7 @@ export async function exportVideo(opts: ExportOptions, onProgress: (p: Progress)
       tint2: css.getPropertyValue('--tint2').trim() || '#101010',
       showSong: opts.showSong,
       totalMs: total * 1000,
-      fontFamily: getComputedStyle(document.body).fontFamily || 'Inter, system-ui, sans-serif'
+      ...lookInputs(opts.look, css.getPropertyValue('--accent').trim() || '#ffffff')
     })
 
     const canvas = document.createElement('canvas')
