@@ -4,6 +4,7 @@ name: Release
 on:
   push:
     tags: ['v*']
+  workflow_dispatch: # a dry run: builds the installer, publishes nothing
 
 permissions:
   contents: write
@@ -12,8 +13,8 @@ jobs:
   windows:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-node@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
@@ -23,6 +24,7 @@ jobs:
       - name: Build installer
         run: npm run dist
       - name: Publish release
+        if: ${{ github.ref_type == 'tag' }}
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
