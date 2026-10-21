@@ -61,8 +61,9 @@ export function createBackgroundResolver(host: ResolverHost): (track: Track) => 
     if (s.backgroundStyle === 'youtube') {
       // "Video": YouTube first, then Apple's clip, then your file, then living artwork
       const r = await yt()
-      if (r.state === 'found') return { ...base, spec: await ytSpec(r.video, 'auto'), youtube: 'found' }
-      return { ...base, spec: (await asClip()) ?? globalSpec ?? living, ...report(r) }
+      const clip = await asClip()
+      if (r.state === 'found') return { ...base, spec: await ytSpec(r.video, 'auto'), youtube: 'found', ...(clip ? { fallback: clip } : {}) }
+      return { ...base, spec: clip ?? globalSpec ?? living, ...report(r) }
     }
 
     // Auto
@@ -71,7 +72,7 @@ export function createBackgroundResolver(host: ResolverHost): (track: Track) => 
     // a 640p clip looks soft on a big screen: prefer a 1080p YouTube video when the user has a key
     if (clip && clip.width < 1280 && youtube.hasKey()) {
       const hd = await yt()
-      if (hd.state === 'found') return { ...base, spec: await ytSpec(hd.video, 'auto'), youtube: 'found' }
+      if (hd.state === 'found') return { ...base, spec: await ytSpec(hd.video, 'auto'), youtube: 'found', fallback: clip }
     }
     if (clip) return { ...base, spec: clip, youtube: youtube.hasKey() ? 'off' : 'no-key' }
     const r = await yt()

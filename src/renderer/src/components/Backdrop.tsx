@@ -335,12 +335,17 @@ export function Backdrop({ rich = false, animated = false }: { rich?: boolean; a
   const root = useRef<HTMLDivElement>(null)
   const videoRef = useRef<HTMLVideoElement | null>(null)
 
-  const spec = res?.spec ?? null
+  // a YouTube video that can not be played here (embedding blocked, never started) hands over to the Apple clip
+  const [ytFailed, setYtFailed] = useState<string | null>(null)
+  const baseSpec = res?.spec ?? null
+  useEffect(() => setYtFailed(null), [res])
+  const ytDead = baseSpec?.kind === 'youtube' && ytFailed === baseSpec.videoId
+  const spec = ytDead && res?.fallback ? res.fallback : baseSpec
   const specKey = spec?.kind === 'youtube' ? `yt:${spec.videoId}` : spec && 'url' in spec ? spec.url : (spec?.kind ?? '')
   useEffect(() => setFailed(null), [specKey])
-  const fail = (): void => setFailed(specKey)
+  const fail = (): void => (spec?.kind === 'youtube' ? setYtFailed(spec.videoId) : setFailed(specKey))
 
-  const usable = animated && !reduced && !(failed && failed === specKey)
+  const usable = animated && !reduced && !(failed && failed === specKey) && !(ytDead && !res?.fallback)
   const isVideoFile = !!spec && (spec.kind === 'preview' || (spec.kind === 'media' && spec.media === 'video'))
   const isImage = !!spec && spec.kind === 'media' && spec.media === 'image'
   const isYt = spec?.kind === 'youtube'
@@ -363,6 +368,20 @@ export function Backdrop({ rich = false, animated = false }: { rich?: boolean; a
       useBgState.getState().set({ media: 'none', kind: null })
     }
   }, [hasMedia, rich, spec?.kind])
+
+  // when a video was expected but none is playing, say why (the mini player shows it)
+  const settingStyle = useSettings((s) => s.settings.backgroundStyle)
+  useEffect(() => {
+    let text: string | null = null
+    if (animated && !reduced && res && !hasMedia && (settingStyle === 'auto' || settingStyle === 'youtube')) {
+      if (ytDead) text = 'This video can’t be played in Lyra (the uploader blocks it).'
+      else if (res.youtube === 'no-key') text = 'No video for this song yet. Add a YouTube key or pick a video.'
+      else if (res.youtube === 'none') text = 'No music video found for this song.'
+      else if (res.youtube === 'error') text = res.youtubeMessage ? `Video search failed: ${res.youtubeMessage}` : 'Video search failed.'
+    }
+    useBgState.getState().setReason(text ? { text } : null)
+    return () => useBgState.getState().setReason(null)
+  }, [animated, reduced, res, hasMedia, ytDead, settingStyle])
 
   // gentle parallax: the picture drifts against the cursor
   useEffect(() => {

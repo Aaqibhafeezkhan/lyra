@@ -732,3 +732,10 @@
 [data-bg-media='mini'] .mini.is-idle .mini__lyrics {
   height: clamp(280px, 48vh, 460px);
 }
+
+/* why no video is playing (mini player) */
+.mini__bgnote { position: absolute; z-index: 4; left: 12px; right: 12px; top: 46px; display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 12px; background: rgba(14, 14, 18, 0.72); border: 1px solid var(--line-2); backdrop-filter: blur(14px); font-size: 11.5px; color: var(--fg-2); }
+.mini__bgnote span { flex: 1; min-width: 0; line-height: 1.3; }
+.mini__bgnote button { flex: none; border: 0; border-radius: 999px; padding: 4px 10px; background: var(--glass-2); color: var(--fg); font-size: 11px; font-weight: 600; }
+.mini__bgnote button:last-child { padding: 4px 7px; background: transparent; color: var(--fg-3); }
+.mini.is-idle .mini__bgnote { opacity: 0; pointer-events: none; transition: opacity 0.4s; }

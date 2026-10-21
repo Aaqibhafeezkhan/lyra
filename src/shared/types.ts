@@ -196,6 +196,8 @@ export interface BackgroundResolution {
   /** why YouTube isn't (or is) being used, for the panel */
   youtube: 'off' | 'no-key' | 'found' | 'none' | 'error' | 'pinned'
   youtubeMessage?: string
+  /** the free Apple clip, kept ready in case the YouTube video can not be played in the app */
+  fallback?: BackgroundSpec
   hasSongMedia: boolean
   hasGlobalMedia: boolean
 }
