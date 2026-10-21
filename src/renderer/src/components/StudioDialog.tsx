@@ -70,6 +70,8 @@ export function StudioDialog({ onClose }: { onClose(): void }) {
   const [previewStage, setPreviewStage] = useState<StageSource | null>(null)
   // which video plays behind the lyrics, and a way to swap it before recording
   const [pickOpen, setPickOpen] = useState(false)
+  /** the tallest picture YouTube offers for the chosen video (0 = not known yet) */
+  const [bestHeight, setBestHeight] = useState(0)
   const [cands, setCands] = useState<Array<{ videoId: string; title: string; channel: string; durationSec: number | null }> | null>(null)
   const chooseVideo = async (videoId: string): Promise<void> => {
     if (!track) return
@@ -95,7 +97,10 @@ export function StudioDialog({ onClose }: { onClose(): void }) {
     let gone = false
     const s = new StageSource(ytCrop)
     void window.lyra.studio.stageStart({ videoId: ytId, width: 640, height: 360, fps: 8, startSec: startSecRef.current }).then((r) => {
-      if (!gone && r.ok) setPreviewStage(s)
+      if (!gone && r.ok) {
+        setPreviewStage(s)
+        setBestHeight(r.bestHeight ?? 0)
+      }
     })
     return () => {
       gone = true
@@ -376,6 +381,9 @@ export function StudioDialog({ onClose }: { onClose(): void }) {
                       >
                         {pickOpen ? 'Close the list' : 'Wrong video? Choose another'}
                       </button>
+                      {bestHeight > 0 && bestHeight < 720 && (
+                        <small style={{ color: '#ffb36b' }}>This video is only {bestHeight}p on YouTube, so the picture will look soft. Another video or Cover colours will look sharper.</small>
+                      )}
                       {pickOpen && (
                         <div className="studio__choices" style={{ flexDirection: 'column', alignItems: 'stretch' }}>
                           {(cands ?? []).slice(0, 8).map((c) => (

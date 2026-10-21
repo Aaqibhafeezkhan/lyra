@@ -153,6 +153,15 @@ export function createScene(inp: SceneInput): Scene {
     veil.addColorStop(1, `rgba(0,0,0,${hasMedia ? 0.78 : 0.7})`)
     ctx.fillStyle = veil
     ctx.fillRect(0, 0, w, h)
+    // a soft dark band behind the lyrics so white text stays readable on any picture (bright faces, white walls)
+    if (hasMedia && portrait) {
+      const band = ctx.createLinearGradient(0, h * 0.28, 0, h * 0.72)
+      band.addColorStop(0, 'rgba(0,0,0,0)')
+      band.addColorStop(0.5, 'rgba(0,0,0,0.24)')
+      band.addColorStop(1, 'rgba(0,0,0,0)')
+      ctx.fillStyle = band
+      ctx.fillRect(0, h * 0.28, w, h * 0.44)
+    }
 
     // ---- lyrics
     const idx = activeIndex(posMs)
@@ -179,7 +188,7 @@ export function createScene(inp: SceneInput): Scene {
         const edge = Math.max(0, Math.min(1, Math.min((mid - h * (tall ? 0.15 : 0.05)) / (h * 0.12), (h * (tall ? (inp.showSong ? 0.66 : 0.76) : inp.showSong ? 0.8 : 0.9) - mid) / (h * 0.12))))
         // the current line is bright; the ones around it step down quickly (like Lyra on the phone) so the picture stays clear
         const ring = isNow ? 0 : Math.max(1, Math.min(3, Math.round(Math.abs(d))))
-        const alpha = (isNow ? 1 : inp.style === 'scroll' ? [1, 0.4, 0.16, 0][ring]! : 0.3) * edge
+        const alpha = (isNow ? 1 : inp.style === 'scroll' ? [1, 0.5, 0.22, 0][ring]! : 0.3) * edge
         if (alpha <= 0.01) continue
         const sc = isNow ? 1 : inp.style === 'scroll' ? [1, 0.86, 0.78, 0.74][ring]! : 0.92
         ctx.save()

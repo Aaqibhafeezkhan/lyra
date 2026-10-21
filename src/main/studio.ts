@@ -102,7 +102,7 @@ function stopStage(): void {
   stage = null
 }
 
-async function startStage(o: { videoId: string; width: number; height: number; fps: number; startSec: number }): Promise<{ ok: boolean; reason?: string; quality?: string }> {
+async function startStage(o: { videoId: string; width: number; height: number; fps: number; startSec: number }): Promise<{ ok: boolean; reason?: string; quality?: string; bestHeight?: number }> {
   stopStage()
   if (!/^[A-Za-z0-9_-]{11}$/.test(String(o.videoId))) return { ok: false, reason: 'Bad video id' }
   // up to 1440p: the sharpest picture that the hidden window can hand over at 30 pictures a second without choking the PC
@@ -154,7 +154,10 @@ async function startStage(o: { videoId: string; width: number; height: number; f
       const state = (await win.webContents.executeJavaScript(
         "(() => { const v = document.querySelector('video'); const err = document.querySelector('.ytp-error-content-wrap-reason, .ytp-error'); return err ? 'error:' + (err.textContent || '').trim().slice(0, 120) : v && v.readyState >= 3 && !v.paused ? 'ok' : v && v.paused && v.readyState >= 3 ? 'paused' : 'wait' })()"
       )) as string
-      if (state === 'ok') return { ok: true, quality: await settleQuality(win, height) }
+      if (state === 'ok') {
+        const q = await settleQuality(win, height)
+        return { ok: true, quality: q.res, bestHeight: q.best }
+      }
       if (state === 'paused') await win.webContents.executeJavaScript("document.querySelector('video')?.play()")
       if (state.startsWith('error:')) return { ok: false, reason: state.slice(6) || 'This video can not be played here.' }
       await new Promise((r) => setTimeout(r, 500))
@@ -170,11 +173,12 @@ async function startStage(o: { videoId: string; width: number; height: number; f
  * bigger than the picture we will hand over, then wait (up to 12 s) until it really arrives, so the first seconds
  * of the export are not blurry. Returns what we got, e.g. "2560x1440".
  */
-async function settleQuality(win: BrowserWindow, height: number): Promise<string> {
+async function settleQuality(win: BrowserWindow, height: number): Promise<{ res: string; best: number }> {
   const order = [['hd2160', 2160], ['hd1440', 1440], ['hd1080', 1080], ['hd720', 720], ['large', 480], ['medium', 360]] as const
   let seen = ''
+  let best = 0
   for (let i = 0; i < 24; i++) {
-    if (win.isDestroyed()) return seen
+    if (win.isDestroyed()) return { res: seen.split('|')[0] ?? '', best }
     seen = (await win.webContents
       .executeJavaScript(
         `(() => { const p = document.getElementById('movie_player'); const v = document.querySelector('video');
@@ -182,15 +186,17 @@ async function settleQuality(win: BrowserWindow, height: number): Promise<string
           const have = p && p.getAvailableQualityLevels ? p.getAvailableQualityLevels() : [];
           const pick = order.find(([l, h]) => h <= cap && have.includes(l)) || order.find(([l]) => have.includes(l)) || order[2];
           if (p && p.setPlaybackQualityRange) { p.setPlaybackQualityRange(pick[0], pick[0]); p.setPlaybackQuality && p.setPlaybackQuality(pick[0]); }
-          return (v ? v.videoWidth + 'x' + v.videoHeight : '') + '|' + pick[1] })()`
+          const top = order.find(([l]) => have.includes(l));
+          return (v ? v.videoWidth + 'x' + v.videoHeight : '') + '|' + pick[1] + '|' + (top ? top[1] : 0) })()`
       )
       .catch(() => '')) as string
-    const [res, want] = seen.split('|')
+    const [res, want, top] = seen.split('|')
+    best = Number(top ?? 0)
     const vh = Number((res ?? '').split('x')[1] ?? 0)
-    if (vh && vh >= Number(want) * 0.95) return res ?? ''
+    if (vh && vh >= Math.min(Number(want), best || Number(want)) * 0.95) return { res: res ?? '', best }
     await new Promise((r) => setTimeout(r, 500))
   }
-  return seen.split('|')[0] ?? ''
+  return { res: seen.split('|')[0] ?? '', best }
 }
 
 /** Captures only the Spotify app's sound with resources/lyra-audio.exe and forwards the PCM to the app window. */
