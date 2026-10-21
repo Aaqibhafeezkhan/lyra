@@ -1,178 +1,167 @@
-# Android lyric video: sound that works, smooth 60 fps, a Reels-ready look
+# Android lyric video, designed again from zero: listen, then render
 
-Status: plan (nothing here is built yet). Owner: Dhruv. Written 2026-10-21 against Lyra Android 0.3.2. Companion to [windows-export-quality.md](windows-export-quality.md); the Windows work (0.11-0.13) is the model for the quality bar.
+Status: plan v2 (replaces the screen-recording plan). Nothing here is built yet. Owner: Dhruv. Written 2026-10-21 for Lyra Android 0.3.x; the quality bar is the Windows "Smooth" export (see [windows-export-quality.md](windows-export-quality.md)).
 
-Goal: on a normal phone, one tap makes a **1080x1920 video with the song's real sound, smooth motion and the same polished look as the Windows export**, ready to post.
+**Why a new plan.** The first Android version filmed the phone's screen. That design is the source of the pain: the picture is whatever is on the screen (notifications, odd shape), the frame rate is whatever the display does, the sound depends on a phone setting we cannot control, and any hiccup while recording is permanent. Windows got smooth and reliable only when it stopped *recording the video live* and started *recording the song, then drawing the video afterwards at exact times*. Android gets the same treatment, with the parts that do not exist on a phone (screen capture of other apps' sound, a hidden YouTube window) replaced by things that do.
 
 ---
 
-## 1. Where Android stands today (measured on the Galaxy A54, Android 16)
+## 1. Goal and non-goals
 
-How it works now: `RecordActivity` shows a web page (`record.tsx`, plain HTML/CSS lyrics over the song's video), `RecordService` holds a MediaProjection (screen capture consent), and `ScreenRecorder` mirrors the **whole display** into a H.264 encoder and records sound into an AAC encoder.
+Goal: tap once, get a **1080x1920, 30/60 fps MP4 with the song's sound and the same polished look as Windows**, saved to Movies/Lyra and ready to share. It must work the same on every phone, never film notifications, never stutter, never produce a silent file without saying so.
 
-| Area | Finding |
-|---|---|
-| Picture | Works and looks good in a short test. Output is **1080x2340** (the phone's own shape, 19.5:9), not 9:16, so Instagram/TikTok crop or letterbox it. |
-| Frame rate | A 42 s test file had 2,300 frames = **55 fps average, variable**. Frames come at whatever rate the screen produces them; nothing guarantees 60. No smoothness test exists for Android yet. |
-| Sound, Android capture | Capture starts, Lyra's own test tone is captured, but **Spotify's sound never arrives** (all zeros). Spotify is allowed to be captured (`ALLOW_AUDIO_PLAYBACK_CAPTURE`), its player is `USAGE_MEDIA`, but its stream stays on the speaker output; the capture's output thread stays in standby. Same result for a fresh Spotify stream. Not confirmed for other apps. |
-| Sound, microphone fallback (0.3.1) | Works: the song is heard through the mic after 5 s of silence. Measured level about **-30 dB mean**: quiet, unnormalized, depends on volume and room. Useless with headphones. |
-| Look | Different from Windows: DOM/CSS page, no safe zones, no look options (style, font, highlight), no cover picture, simpler end card. |
-| While recording | The **whole screen** is filmed: notifications and the status bar can show up; leaving the app ends the recording; the red screen-share chip is shown. |
-| Reliability | A failed start once left the capture registered ("could not register audio policy"); fixed in 0.3.2. Nothing reports problems to the user in plain words. |
-| Test devices | One phone. |
+Non-goals (stated so nobody is surprised): the YouTube music video as a background on Android (a phone has no way to read another app's video frames; see 4.5), capturing Spotify's own digital sound on phones that block it, 4K.
 
-## 2. Requirements
+## 2. What we learned (facts, not guesses)
+
+- On the Galaxy A54 (Android 16) Android's audio playback capture accepts our request, captures Lyra's own sound, and **never receives Spotify's sound** (flinger shows Spotify's track on the speaker thread, the capture thread idle). Not confirmed for other apps.
+- The microphone path works but was quiet (-30 dB) because nothing normalized it.
+- Screen-mirroring gave 55 fps variable, the phone's own shape (1080x2340), and showed notifications.
+- WebView + canvas + the shared TypeScript scene already draws the Windows look; only the *recording* differs per platform.
+- The Windows pipeline (record sound and song position; render frames at exact times with WebCodecs; AAC; MP4) measured 60.0 fps constant, zero gaps, -13 LUFS.
+
+## 3. Requirements
 
 Functional
-- F1. Record a lyric video of the song playing now (Spotify first) with its sound.
-- F2. Same looks as Windows: layouts, fonts, highlight colour, text position, end card, cover picture.
-- F3. 9:16 1080x1920 (and 720p); 30 or 60 fps.
-- F4. Save to Movies/Lyra and offer to share.
-- F5. Optional: lyric video from the user's **own audio file** (always has perfect sound).
+- F1. Make a lyric video of the song playing now (Spotify) for a chosen part (default: the next 30 s, or until the song ends).
+- F2. Make one from the user's own audio file (no listening needed).
+- F3. Same looks and options as Windows: style, font, highlight, text position, song bar, safe zones, end card, cover picture.
+- F4. Backgrounds: cover motion (default), procedural motion styles, the Apple clip, the user's own video/photo.
+- F5. 9:16 1080x1920 or 720x1280; 30 or 60 fps; saved to MediaStore; share sheet.
 
 Non-functional
-- N1. **Sound present and clean on every supported phone**: either the real stream or an honest fallback, never a silent file without a warning.
-- N2. **No visible freeze**: p99 frame gap under 1.5x frame time, no gap over 3x, measured with the same analyzer as Windows.
-- N3. Output loudness -14 LUFS +/- 1, peak under -1 dBFS.
-- N4. Works while the user does other things where Android allows it; survives a phone call, screen lock and low battery in a defined way (stop and save what exists).
-- N5. Privacy: nothing leaves the phone; clear consent text for screen and microphone use.
-- N6. Open source friendly: no proprietary SDKs; compatibility data can be reported by contributors.
+- N1. **Sound honest and good**: loudness -14 LUFS +/- 1, peak under -1 dBFS, fades; if the sound is silent or very quiet the user is told before saving.
+- N2. **Smooth by construction**: constant frame rate, no gap over 1.5x frame time (same analyzer as Windows).
+- N3. **No screen involvement**: no screen-share consent, no notifications in the video, works with the screen off or another app in front.
+- N4. **Recoverable**: if the app dies mid-render, the recorded sound is kept and rendering can be resumed.
+- N5. Privacy: microphone and files stay on the phone; temporary data is deleted after success.
+- N6. Open source, no proprietary SDK; minSdk 26.
 
-Constraints: Kotlin shell + the shared React UI in a WebView, minSdk 26, AudioPlaybackCapture needs API 29, Android 14+ MediaProjection rules (consent each time, foreground service type), one test phone, solo maintainer.
-
-## 3. Root causes and what we do not know yet
-
-1. **No frame-rate control.** The VirtualDisplay mirrors the screen at its refresh rate (the A54 switches between 60 and 120 Hz); the encoder is told 30 fps. Result: variable rate, some stalls under load.
-2. **The picture is the screen, not a render.** Anything on screen (notifications, the system bars during gestures, other apps) can enter the video, and the shape follows the phone.
-3. **Sound depends on the phone's audio policy**, which we do not control. The microphone is the only universal fallback and it is acoustic.
-4. **Live audio is encoded as it arrives**, so it cannot be normalized or cleaned afterwards.
-5. **The look lives in HTML/CSS** and has drifted from the Windows scene.
-
-Unknowns (to be settled by the first spike, section 8):
-- Is the capture failure specific to Spotify, or does the A54 not route *any* other app's sound? (Test with YouTube Music, VLC, the browser.)
-- Does playback capture work for Spotify on other phones (Pixel, other Samsung, Xiaomi)?
-- Does WebCodecs (`VideoEncoder`, `AudioEncoder` AAC) work in the Android WebView of current phones? That decides whether an offline render like Windows' "Smooth" method can run inside the app.
-- Does a **private virtual display with a `Presentation`** (own content, no screen mirroring) work with a WebView and a YouTube iframe on this phone?
+Constraints: Kotlin shell + shared React UI in a WebView; one test phone; solo maintainer; Android 14+ foreground-service rules.
 
 ## 4. Design
 
-### 4.1 Three ways to get sound (a ladder, tried in this order)
+### 4.1 Overview: two steps and a mux
 
 ```
- 1. Real stream      AudioPlaybackCapture (Spotify only: addMatchingUid)        best, when the phone allows it
- 2. Own audio file   user picks the song file; no capture, no microphone         perfect, needs the file
- 3. Microphone       acoustic recording of the speaker (auto fallback)           works everywhere, lower quality
+ STEP 1  LISTEN  (real time, tiny work, screen may be off)
+   sound source --PCM--> audio.pcm (temp file)        +  timeline.json: song position every 100 ms
+   (own file | microphone | playback capture)             + track info, cover, chosen options
+
+ STEP 2  RENDER  (any speed, deterministic, cannot stutter)
+   audio.pcm -> loudness gain -> ceiling -> fades ---------------------------> AAC (native)  --+
+   timeline  -> lyric position for frame n                                                     +--> MediaMuxer --> MediaStore
+   shared scene.ts draws frame n on a canvas -> WebCodecs H.264 chunks --RPC--> native -------+
 ```
 
-- **Probe before recording.** In the dialog, a 3-second "sound check" starts the capture and the mic listener while the song plays, and reports in plain words: "Lyra can capture the song directly" / "Your phone does not share this app's sound; Lyra will listen through the microphone (play it on the speaker)" / "Headphones are connected: the microphone cannot hear them; pick an audio file instead". The user decides *before* the 3-minute recording, not after.
-- **Headphones detection** (`AudioManager.getDevices`, output types wired/Bluetooth/USB): warn and steer to the own-file mode.
-- **Remember the result per phone + app** (a small settings entry) so the next recording skips the probe.
-- Keep the 5-second silence switch as a safety net, but shorten to 2 s after the probe has said capture works.
+Nothing in step 2 depends on what the phone is doing. A slow phone only takes longer.
 
-### 4.2 Two-step audio, like Windows' Smooth method
+### 4.2 Step 1: three sound sources (a ladder, with a sound check first)
 
-Today audio is encoded live. New: **keep the raw sound as PCM in a temporary file while recording, then post-process and encode at the end**:
+| Rung | What | Quality | Needs |
+|---|---|---|---|
+| 1. Own audio file | the user picks a file; no listening step | perfect | the file |
+| 2. Microphone | acoustic recording of the phone speaker | usable after cleanup | speaker, volume, quiet room |
+| 3. Playback capture | Android's capture of the music app | perfect, when it works | phone allows it; MediaProjection consent |
 
-```
- RECORD   PCM (capture or mic) ---> temp .pcm file (48 kHz stereo 16-bit, about 35 MB per 3 min)
- FINISH   read the .pcm  ->  loudness estimate  ->  gain to -14 LUFS  ->  soft ceiling -1 dBFS
-          -> 80 ms fade in / 300 ms fade out  ->  AAC encode (fast, offline)  ->  mux with the finished video
-```
+- **Sound check (3 s) before listening starts.** It tries rung 3 and rung 2 while the song plays and tells the user in plain words what will happen: *"Lyra can capture the song directly"* / *"Your phone does not share Spotify's sound. Lyra will listen with the microphone: keep the sound on the phone speaker, turn it up, stay quiet"* / *"Headphones are connected: the microphone cannot hear them. Pick an audio file instead."* The result is remembered per phone and app.
+- **Rung 3 is optional and last in the plan**: it only appears if the A0 spikes show it works on any phone; otherwise it is dropped to keep the product simple.
+- **Microphone cleanup (in step 2, offline):** 60 Hz high-pass, a noise-floor estimate with light gating, then normalization. The earlier -30 dB result becomes -14 LUFS.
+- **Where it runs:** a foreground service of type `microphone` started from the visible app (Android 14 rule), writing PCM to disk; the user can lock the phone. A phone call or lost audio focus stops listening and keeps what exists.
+- **Song position** comes from the existing `MediaMonitor` (the media session): position, state, track id, every 100 ms, saved to `timeline.json`. Seeks and pauses are recorded as events; a take with a seek is cut at the seek or marked invalid.
 
-- For the **microphone** path add a gentle clean-up: high-pass at 60 Hz, a noise floor estimate with light gating, and normalization (the measured -30 dB result would become -14 LUFS).
-- The video is first written as a video-only MP4 by the encoder; the final step muxes video + AAC with `MediaMuxer`/`MediaExtractor`. Cost: a few seconds at the end.
+### 4.3 Step 2: render engine = the shared scene in a hidden WebView
 
-### 4.3 Picture: render a 9:16 page ourselves instead of filming the screen
+- A hidden `WebView` loads `android.html?render=1`. The page reads `audio.pcm` and `timeline.json` through a small asset-loader handler (`/rec/<id>/...`, streamed with range support), loads the cover, and runs the **same `scene.ts`** as Windows on a `canvas` at exact frame times.
+- Frames go to `VideoEncoder` (WebCodecs, H.264 High, hardware where available). Encoded chunks (plus the codec description) are sent to Kotlin over the existing RPC bridge in small batches; Kotlin writes them to a `MediaMuxer` video track. Bitrate about 12 Mbps at 1080p60, 8 Mbps at 30 fps.
+- **Audio is processed and encoded natively** from the PCM file (`MediaCodec` AAC-LC, 192 kbps), because AAC in WebCodecs is not available on every Android WebView. The processing (loudness estimate, soft ceiling, fades, high-pass for mic) is plain Kotlin with JVM unit tests.
+- **If the phone's WebView cannot encode video** (spike S1 decides): *frame stepping fallback*: the page exposes `renderAt(t)`; Kotlin calls it for each frame, copies the drawn view into an EGL surface of a `MediaCodec` with an exact presentation time (the classic Grafika pattern). Slower (about 2-3x real time at 30 fps) but equally deterministic.
+- Progress and cancel are RPC events; the render runs inside a foreground service so it survives leaving the app.
+- Output: 1080x1920 (or 720x1280), constant frame rate, `moov` finalized by `MediaMuxer`, inserted in MediaStore with `IS_PENDING` until done.
 
-**Preferred design (spike S3): a private virtual display with a Presentation.**
+### 4.4 Look parity (one scene for both platforms)
 
-```
- RecordService --creates--> VirtualDisplay 1080x1920 (own content, 60 fps) ---> H.264 surface encoder
-        |
-        +--> Presentation (a Dialog on that display) hosting the record WebView
-```
+The Windows scene already has safe zones for Reels/TikTok/Shorts, a readability band, bigger lyrics, an end card and a cover picture. Android uses it unchanged; only the dialog is new. Anything added to the scene later appears on both platforms.
 
-- Output is exactly 1080x1920 whatever the phone's shape.
-- **No notifications, no status bar, no other apps in the picture**, and no screen-share consent for the video (consent is only needed for audio capture; if the user picks the own-file or microphone path, no MediaProjection is needed at all).
-- The user can leave the app and use the phone while it records (the service keeps running, the display is private).
-- Lock the page to a steady 60 Hz (`Surface.setFrameRate`, `preferredRefreshRate`) and set the encoder to 60 fps, constant frame rate (`KEY_FRAME_RATE`, `KEY_MAX_FPS_TO_ENCODER`, `KEY_REPEAT_PREVIOUS_FRAME_AFTER`), High profile, bitrate 12 Mbps (1080p60) / 8 Mbps (30 fps).
+### 4.5 Backgrounds without YouTube (and why)
 
-**Fallback design:** keep mirroring the real display (today's method) but set the activity to `preferredRefreshRate = 60`, portrait lock, immersive mode, and record at 1080x1920 by scaling and cropping the mirrored display to 9:16.
+A phone cannot read the frames of another app or of a cross-origin YouTube player; the only way would be filming the screen, which is what this redesign removes. Android therefore ships with backgrounds we can draw ourselves:
 
-### 4.4 One look for both platforms
+1. **Cover motion (default):** blurred cover, slow zoom, colour-graded from the cover palette.
+2. **Procedural motion styles** (a small set: aurora, slow gradient, soft particles, film grain) drawn by the scene with the cover's colours: premium look, no copyright, deterministic, tiny.
+3. **Apple clip:** the free 30 s preview video looped (already proxied by `WebSetup`), drawn by seeking per frame.
+4. **Your own video / GIF / photo** (the existing picker).
 
-Move the record page from DOM/CSS to the **shared canvas scene** (`src/renderer/src/lib/studio/scene.ts`): the page draws the scene at 60 fps into a full-screen `<canvas>`; the layouts, fonts, highlight, text position, safe zones, readability band, badge and end card then match Windows by construction. The page gets the same options as the Windows dialog (style, font, highlight, position, show song) in `RecordDialog`.
+(The "Wrong video?" list and the YouTube background stay Windows-only.)
 
-- Background: the song's YouTube video (iframe under the canvas, as in the mini player) or the Apple clip or the cover colours; the Windows "bars" crop and "wrong video?" list are reused.
-- End card and a **cover JPEG** (saved next to the video) are produced the same way as on Windows.
+### 4.6 Own-audio mode is the same pipeline
 
-### 4.5 Own-audio lyric video on Android (always smooth, always has sound)
+Step 1 is skipped: the audio file is decoded to PCM (Kotlin `MediaExtractor`/`MediaCodec` decode or the page's `decodeAudioData`) and step 2 runs unchanged. This is the first thing to build because it proves the whole render path without any listening problem.
 
-If the WebView supports WebCodecs (spike S2): reuse `fileExport.ts` as is: decode the audio, draw frames at exact times, encode, mux to MediaStore. It runs faster than real time and cannot stutter. If WebCodecs is missing: a native renderer is needed (Skia-free path via `Canvas` on a `Surface` into `MediaCodec`), which is a larger task; decide after S2.
+### 4.7 Interfaces
 
-This also gives a cheap way to get **real sound for Spotify users on phones that block capture**: the Spotify song is not available as a file, so the own-file mode serves people with their own music files, and the microphone path serves everyone else.
+RPC (Kotlin <-> page), all small and versioned:
+- `listenStart({ source, partMs, trackId })` / `listenStop()` / `listenStatus` event (level meter, seconds, source in use, warnings).
+- `soundCheck()` -> `{ capture: boolean, mic: boolean, headphones: boolean, advice: string }`.
+- `renderOpen({ recordingId, width, height, fps })`, `renderChunk({ bytes, ptsUs, key })`, `renderConfig({ description })`, `renderFinish()` -> `{ uri }`, `renderCancel()`.
+- Files: `cache/rec/<id>/{audio.pcm, timeline.json, meta.json, cover.jpg}`; deleted after success or after 7 days.
 
-### 4.6 Failure handling
+### 4.8 Failure handling
 
 | Situation | Behaviour |
 |---|---|
-| User denies microphone / screen consent | Plain message and a button to try again or choose the own-file mode. |
-| Start fails halfway | Release every piece (already in 0.3.2), delete the half-made file, tell the user why. |
-| Phone call / audio focus lost | Stop, save what exists, say so. |
-| Screen locks / battery saver | Hold a wake lock during recording; at under 10% battery warn before starting; at 3% stop and save. |
-| Storage under 500 MB | Warn before starting; stop and save when under 100 MB. |
-| Song changes / user pauses | Same rules as Windows (stop after 5 s of pause, or when the track changes for 2 s). |
-| The phone does not support 1080p60 | Use 1080p30 or 720p, automatically, and say so (probe with `MediaCodecList`). |
-| Spotify plays on another device (Connect) | Detect `playbackState` device = not this phone; tell the user the phone makes no sound to capture. |
-
-### 4.7 Privacy and store notes
-- Screen capture and microphone are used only while recording and are described in `PRIVACY.md` (already updated for 0.3.1).
-- F-Droid / IzzyOnDroid: no proprietary libraries; `FOREGROUND_SERVICE_MEDIA_PROJECTION` and `_MICROPHONE` types declared.
+| Microphone permission denied | Explain, offer own-file mode. |
+| Headphones plugged | Warn before; if plugged mid-listening, stop and keep what exists. |
+| Silent or very quiet take | Show a level graph and ask: render anyway, retake, or use a file. Never save silently. |
+| Phone call, audio focus lost, low battery (<5%), storage < 300 MB | Stop listening, keep the PCM, say why, allow rendering. |
+| App killed while rendering | On next launch: "Finish your video?" resumes from the saved PCM and timeline. |
+| WebView lacks H.264 encode | Frame-stepping fallback; if that fails, 720p30. |
+| Thermal status moderate or higher | Offer 30 fps; slow down rendering instead of overheating. |
+| Spotify playing on another device | Detect that this phone is not the player; tell the user there is nothing to hear. |
 
 ## 5. Trade-offs
 
-| Decision | Gain | Cost / risk |
+| Decision | Gain | Cost |
 |---|---|---|
-| Private virtual display + Presentation | Exact 9:16, clean picture, multitasking, no screen consent for video | Needs a spike: WebView and YouTube iframe on a secondary display may behave differently; fallback exists |
-| Canvas scene instead of DOM | Identical look on both platforms, less code to maintain | The page must hold 60 fps in the WebView on mid-range phones; mitigate with 30 fps option |
-| PCM temp file then encode at the end | Normalization, cleaner mic audio, exact length | Few seconds more at the end; ~35 MB temp per 3 min |
-| Sound check before recording | The user knows what they will get | One extra step (3 s) the first time |
-| Microphone fallback stays | Works on every phone | Acoustic; poor with headphones |
-| Own-file mode | Perfect sound | Needs the file; needs WebCodecs or a native renderer |
-| One test phone | Fast | Blind spots: need a compatibility report from contributors |
+| Offline render instead of screen recording | Smooth, exact 9:16, no notifications, no consent chip, screen may be off | New pipeline to build; backgrounds limited to what we can draw |
+| Shared TypeScript scene | Same look as Windows, one place to improve | Needs the WebView to hold decent drawing speed (30 fps option) |
+| Native audio encode and mux | Works on every WebView | More Kotlin (PCM processing, MediaCodec, MediaMuxer) |
+| No YouTube background | Removes the unreliable, un-testable part | Fewer backgrounds than Windows; replaced by procedural looks |
+| Mic as a first-class rung with cleanup | Works on every phone | Still acoustic; headphones impossible |
+| Sound check first | No surprises after a long take | One extra step the first time |
+| Keep old screen recorder meanwhile | Nothing breaks during the build | Dead code until removed (planned for the phase after R3) |
 
 ## 6. Test plan
 
-- **Smoothness:** pull the saved MP4 and run `node scripts/analyze-video.js` (same gates as Windows: p99 gap < 1.5x frame time, max gap < 3x, constant 60 fps). A script `scripts/android-record-bench.sh` drives the flow over `adb` (taps, wait, pull, analyze) so a regression shows up in minutes.
-- **Sound:** analyzer loudness gate (-14 +/- 1 LUFS, peak < -1 dBFS); a click-track test (a short tone burst played in the app and in the video) to measure the audio/video offset (target under 40 ms).
-- **Capture matrix** (issue #19): table of phone model x Android version x app (Spotify, YouTube Music, VLC) x result (stream / silent / mic). Add an in-app **"Copy compatibility report"** button (model, Android version, which path worked, no personal data) so contributors can paste results into the issue.
-- **Interruptions:** call, lock, low battery, headphones plugged mid-recording, low storage, app killed.
-- Unit tests for the PCM post-processing (loudness, ceiling, fades) in the shared TypeScript so they run in CI.
+- **Smoothness and sound:** pull the MP4 and run `scripts/analyze-video.js` (constant fps, p99 gap < 1.5x, loudness -14 +/- 1, peak < -1 dB). A script `scripts/android-render-bench.sh` drives the flow over `adb` (own-file render, then a mic take with a played test track), pulls and analyzes, so every build is judged by numbers.
+- **Audio/video offset:** a test track with a click every second and a flash in the scene; offset must be under 40 ms.
+- **Unit tests (JVM/Vitest):** loudness estimate, ceiling, fades, high-pass, timeline interpolation, PCM chunking.
+- **Interruption tests (manual checklist):** call, lock, headphones in/out, low storage, kill during render, rotate.
+- **Compatibility report:** a "Copy compatibility report" button (model, Android and WebView versions, which rungs worked, render speed; no personal data) so contributors can fill the matrix in issue #19.
+- Old recorder code is deleted once the new path passes the gates on the A54.
 
-## 7. Rollout
+## 7. Rollout (each phase ends with numbers, not opinions)
 
-| Phase | Content | Done when |
+| Phase | Content | Exit gate |
 |---|---|---|
-| **A0** (1-2 days) | Baseline numbers: run the analyzer on a fresh recording; sound check of YouTube Music and VLC with the capture; write the compatibility-report button; add `scripts/android-record-bench.sh` | We know if capture is Spotify-only or device-wide |
-| **A1** (3-4 days) | 60 Hz lock + encoder 60 fps CFR settings; wake lock, portrait lock; headphone detection and the sound-check dialog; friendly error texts; storage/battery guards | Bench passes smoothness gates on the A54; no silent file without a warning |
-| **A2** (about 1 week) | PCM temp file, loudness + ceiling + mic clean-up, final AAC encode + mux | Mic videos reach -14 LUFS +/- 1; analyzer passes sound gates |
-| **A3** (about 1 week) | Canvas scene page + look options + cover picture + end card parity | A side-by-side with Windows looks the same |
-| **A4** (spike then 1 week) | Presentation on a private virtual display, exact 1080x1920, multitasking | Recording survives leaving the app; no notifications in the video |
-| **A5** (spike S2 then 1-2 weeks) | Own-audio render on Android (WebCodecs) | Own-file video exports faster than real time, smooth |
-
-Spikes first (each half a day): **S1** YouTube Music/VLC capture on the A54; **S2** WebCodecs encode support in the phone's WebView (`isConfigSupported` for avc1.640034 and mp4a.40.2 from the page); **S3** a Presentation with a WebView and a YouTube iframe on a private virtual display.
+| **R0 Spikes** (1-2 days) | S1: WebView `VideoEncoder.isConfigSupported` for avc1.640034 1080x1920@60, and a 300-frame draw+encode speed test. S2: native AAC encode + `MediaMuxer` of WebCodecs chunks (description bytes) into a playable MP4. S3: mic path quality with the planned cleanup. S4: playback capture of other apps (YouTube Music, VLC) to settle the capture question. | We know which render path (WebCodecs or frame-stepping) and whether rung 3 exists |
+| **R1 Render core** (3-4 days) | Own-audio file -> render -> MP4 in Movies/Lyra, shared scene, cover background, end card, progress + cancel, foreground service | Bench passes smoothness + loudness gates on the A54 |
+| **R2 Listen** (3-4 days) | Mic listening service, timeline, sound check, headphone detection, cleanup, resume after kill | A mic take renders to -14 LUFS; offset under 40 ms |
+| **R3 Dialog and look** (4-5 days) | New dialog: part, look options, sound source with check, progress, done + share + cover picture; Windows parity side by side | Looks identical to Windows on the same song |
+| **R4 Backgrounds** (3-4 days) | Procedural styles, Apple clip, user media | Each background renders smoothly at 30/60 fps |
+| **R5 Hardening** (3 days) | Interruptions, storage/battery/thermal guards, compatibility report, bench in the repo, remove the old screen recorder | Checklist green; old code gone |
+| **R6 Optional** | Rung 3 capture (only if S4 says it works), research: align Apple's 30 s audio preview to the take to replace the mic sound with clean audio for short reels | Decided after R5 |
 
 ## 8. Risks and what to revisit
 
-- **Capture may never work for Spotify on Samsung.** Then the microphone + own-file ladder is the product; revisit if Spotify or Samsung change their audio policy.
-- **Presentation on a virtual display** may break YouTube playback (DRM/hardware decode on non-primary displays). Fallback: mirror the real display at 1080x1920.
-- **WebCodecs on Android WebView** may lack the AAC encoder; then audio is encoded natively (MediaCodec) from the PCM file anyway (already planned in 4.2), and only video uses WebCodecs, or both are native.
-- **Thermal and battery** at 1080p60 for 3+ minutes on mid-range phones; offer 30 fps when the phone reports thermal status "moderate" or higher (`PowerManager.getCurrentThermalStatus`).
-- **Android 15/16 changes** to MediaProjection (partial screen sharing, single-use tokens) can change the consent flow; keep the code behind one small class.
-- Revisit later: cloud rendering of own-audio videos (separate plan), 4K, stereo-aware mic cleanup, more music apps.
+- **WebCodecs on Android WebView** may be missing or slow: the frame-stepping fallback exists; measure in S1 before building anything else.
+- **Mic quality** has a ceiling; if users reject it, the own-file mode and the Apple-preview alignment idea are the answer, not more filtering.
+- **Large PCM files** (35 MB per 3 min) are small enough; keep the part limited to 5 minutes.
+- **Android policy changes** (microphone from background services, MediaProjection) are isolated in the listening service.
+- Revisit later: a cloud render of the same step 2 (the cloud plan reuses it), more procedural styles, 4K, Apple/YouTube Music support.
 
-## 9. Open questions
+## 9. Questions for you
 
-1. Do you have a second Android phone (or a friend) for the compatibility matrix? Even one other brand helps a lot.
-2. Is 9:16 only enough for Android, or do you also want 4:5 / 1:1 like Windows?
-3. Should the default sound mode be "ask me" (probe each time) or "remember the last choice"?
+1. Are you fine with **no YouTube video on Android** (procedural motion + cover + Apple clip + your own media instead)?
+2. Do you want the old screen recorder kept as a hidden "quick record" until the new path is proven, or removed right away?
+3. Default part length for a live take: 30 s? or until the song ends?
