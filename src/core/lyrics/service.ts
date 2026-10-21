@@ -3,6 +3,7 @@ import type { LyricsResult, Track } from '@shared/types'
 import { logger, platform, type BlobCache, type Store } from '../platform'
 import { demoLyrics } from '../demo/lyrics'
 import { LrcLibProvider } from './lrclib'
+import { PublicDomainLyricsProvider } from './public-domain'
 import { LyricsProviderError, type LyricsCandidate, type LyricsProvider, type LyricsQuery } from './provider'
 
 const log = logger('lyrics')
@@ -23,7 +24,7 @@ interface Pin {
 
 class LyricsService {
   private pinStore: Store<{ pins: Record<string, Pin> }> | null = null
-  private readonly providers: LyricsProvider[] = [new LrcLibProvider()]
+  private readonly providers: LyricsProvider[] = [new LrcLibProvider(), new PublicDomainLyricsProvider()]
   private readonly memory = new Map<string, CacheEntry>()
   private readonly inflight = new Map<string, Promise<LyricsResult>>()
   private blob: BlobCache | null = null
