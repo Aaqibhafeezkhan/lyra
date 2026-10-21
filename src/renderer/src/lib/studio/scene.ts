@@ -12,6 +12,8 @@ export interface SceneInput {
   title: string
   artist: string
   art: HTMLImageElement | null
+  /** a YouTube video playing in the hidden window: its newest frame is drawn behind the lyrics */
+  stage?: { bitmap: ImageBitmap | null; crop: { t: number; r: number; b: number; l: number } | null } | null
   /** a looping video or a photo behind the lyrics; null = the cover's colours */
   media: HTMLVideoElement | HTMLImageElement | null
   logo: HTMLImageElement | null
@@ -127,13 +129,23 @@ export function createScene(inp: SceneInput): Scene {
     ctx.fillStyle = g
     ctx.fillRect(0, 0, w, h)
     const m = inp.media
-    if (m instanceof HTMLVideoElement && m.readyState >= 2 && m.videoWidth) cover(ctx, m, m.videoWidth, m.videoHeight)
+    const sb = inp.stage?.bitmap
+    if (sb) {
+      const c = inp.stage?.crop ?? { t: 0, r: 0, b: 0, l: 0 }
+      const sx = c.l * sb.width
+      const sy = c.t * sb.height
+      const sw = sb.width * (1 - c.l - c.r)
+      const sh = sb.height * (1 - c.t - c.b)
+      const k = Math.max(w / sw, h / sh)
+      ctx.drawImage(sb, sx, sy, sw, sh, (w - sw * k) / 2, (h - sh * k) / 2, sw * k, sh * k)
+    } else if (m instanceof HTMLVideoElement && m.readyState >= 2 && m.videoWidth) cover(ctx, m, m.videoWidth, m.videoHeight)
     else if (m instanceof HTMLImageElement && m.naturalWidth) cover(ctx, m, m.naturalWidth, m.naturalHeight, 1.04 + Math.sin(t / 12) * 0.02, Math.sin(t / 9) * base * 0.01, Math.cos(t / 11) * base * 0.01)
     else if (blurred) cover(ctx, blurred, blurred.width, blurred.height, 1.1 + Math.sin(t / 10) * 0.05, Math.sin(t / 7) * w * 0.03, Math.cos(t / 8) * h * 0.03)
     const veil = ctx.createLinearGradient(0, 0, 0, h)
-    veil.addColorStop(0, `rgba(0,0,0,${m ? 0.38 : 0.18})`)
-    veil.addColorStop(0.5, `rgba(0,0,0,${m ? 0.46 : 0.26})`)
-    veil.addColorStop(1, `rgba(0,0,0,${m ? 0.72 : 0.6})`)
+    const hasMedia = !!m || !!sb
+    veil.addColorStop(0, `rgba(0,0,0,${hasMedia ? 0.38 : 0.18})`)
+    veil.addColorStop(0.5, `rgba(0,0,0,${hasMedia ? 0.46 : 0.26})`)
+    veil.addColorStop(1, `rgba(0,0,0,${hasMedia ? 0.72 : 0.6})`)
     ctx.fillStyle = veil
     ctx.fillRect(0, 0, w, h)
 

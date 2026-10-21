@@ -27,7 +27,7 @@ Word-by-word synced lyrics over the music video of what you play. For Windows an
 - **Every word, on time.** Words fill in as they are sung, including Hindi, Punjabi and other scripts.
 - **Over the music video.** The official video (or your own clip) plays softly behind the lyrics, and the whole UI takes on the cover's colours.
 - **A floating widget on Windows, a screen saver on Android.** Fullscreen lyrics, a lock-screen card, and an ambient mode with a clock for the desk.
-- **Export a lyric video.** One button makes a finished MP4 of the chorus or the whole song, from what is playing or from your own audio file (faster than real time) (Reels 9:16, 4:5, square or 16:9 up to 1440p) with the music, word-by-word lyrics, and a moving Lyra mark. Windows.
+- **Export a lyric video.** One button makes a finished MP4 of the chorus or the whole song, from what is playing or from your own audio file (faster than real time) (Reels 9:16, 4:5, square or 16:9 up to 1440p) with the music, word-by-word lyrics and a small Lyra badge. The official YouTube video can play behind the lyrics. Windows.
 - **Share a lyric card.** Tap the share icon on any line to make a story-sized image with the song, the cover colours and your lines.
 - **Listen together.** Share a room link and friends see your synced lyrics live in any browser. Friends with Lyra can join and keep their own player in sync with yours.
 - **TV mode and Jam nearby.** Put big lyrics on a TV or phone over your Wi-Fi, and optionally stream the PC's sound there too.

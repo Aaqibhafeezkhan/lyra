@@ -85,7 +85,12 @@ const api: LyraApi = {
     close: (id) => invoke(CH.studioClose, id),
     discard: (path) => invoke(CH.studioDiscard, path),
     end: () => invoke(CH.studioEnd),
-    reveal: (path) => invoke(CH.studioReveal, path)
+    reveal: (path) => invoke(CH.studioReveal, path),
+    stageStart: (o) => invoke(CH.studioStageStart, o),
+    stageSeek: (sec) => invoke(CH.studioStageSeek, sec),
+    stageSync: (sec) => invoke(CH.studioStageSync, sec),
+    stageStop: () => invoke(CH.studioStageStop),
+    onFrame: (cb) => subscribe(EV.studioFrame, cb)
   },
   lan: {
     info: () => invoke(CH.lanInfo),

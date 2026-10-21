@@ -7,6 +7,7 @@ import { useOffsets } from '@/store/offsets'
 import { useSettings } from '@/store/settings'
 import logoUrl from '@/assets/logo.png'
 import { createScene } from './scene'
+import { StageSource } from './stage'
 
 export type Ratio = '9:16' | '4:5' | '1:1' | '16:9'
 export type Quality = '720p' | '1080p' | '1440p'
@@ -48,6 +49,8 @@ export interface ExportOptions {
   mediaKind: 'video' | 'image' | null
   /** a free-to-read 30 s clip to loop behind the lyrics (from the background resolver) */
   clipUrl: string | null
+  /** a YouTube video to play behind the lyrics */
+  youtube: { videoId: string; crop: { t: number; r: number; b: number; l: number } | null } | null
 }
 
 export interface Progress {
@@ -122,6 +125,7 @@ export async function exportVideo(opts: ExportOptions, onProgress: (p: Progress)
   if (!file) throw new Error('cancelled')
 
   let capture: MediaStream | null = null
+  let stageRef: StageSource | null = null
   let aborted = false
   const abort = (): void => {
     aborted = true
@@ -135,8 +139,17 @@ export async function exportVideo(opts: ExportOptions, onProgress: (p: Progress)
     if (opts.mediaUrl && opts.mediaKind === 'video') media = await loadVideo(opts.mediaUrl)
     else if (opts.mediaUrl && opts.mediaKind === 'image') media = await loadImage(opts.mediaUrl)
     else if (opts.clipUrl) media = await loadVideo(opts.clipUrl)
+    // a YouTube background plays in a hidden window; its frames arrive here
+    let stage: StageSource | null = null
+    if (opts.youtube) {
+      stage = stageRef = new StageSource(opts.youtube.crop)
+      const st = await window.lyra.studio.stageStart({ videoId: opts.youtube.videoId, width: opts.quality === '720p' ? 1280 : 1920, height: opts.quality === '720p' ? 720 : 1080, fps: FPS, startSec: startMs / 1000 })
+      if (!st.ok) throw new Error(`The YouTube video can not be used: ${st.reason ?? 'unknown reason'}. Pick Cover colours instead.`)
+      await stage.firstFrame()
+    }
     const css = getComputedStyle(document.documentElement)
     const scene = createScene({
+      stage,
       w,
       h,
       lines,
@@ -217,6 +230,7 @@ export async function exportVideo(opts: ExportOptions, onProgress: (p: Progress)
     recording = true
     let nextFrame = 0
     let lastReport = 0
+    let lastSync = 0
     const startPos = getPosition()
     const trackId = track.id
     let stalled = 0
@@ -244,6 +258,10 @@ export async function exportVideo(opts: ExportOptions, onProgress: (p: Progress)
               encError = e as Error
               return resolve()
             }
+          }
+          if (stage && nowMs - lastSync > 1500) {
+            lastSync = nowMs
+            void window.lyra.studio.stageSync(pos / 1000)
           }
           if (nowMs - lastReport > 500) {
             lastReport = nowMs
@@ -295,6 +313,8 @@ export async function exportVideo(opts: ExportOptions, onProgress: (p: Progress)
   } finally {
     signal.removeEventListener('abort', abort)
     capture?.getTracks().forEach((t) => t.stop())
+    stageRef?.close()
+    void window.lyra.studio.stageStop()
     await window.lyra.studio.end()
   }
 }

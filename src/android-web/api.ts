@@ -323,7 +323,7 @@ export const androidApi: LyraApi & { android: NonNullable<LyraApi['android']> } 
     install: async () => undefined,
     onState: () => noop
   },
-  studio: { open: async () => null, write: async () => undefined, close: async () => undefined, discard: async () => undefined, end: async () => undefined, reveal: async () => undefined },
+  studio: { open: async () => null, write: async () => undefined, close: async () => undefined, discard: async () => undefined, end: async () => undefined, reveal: async () => undefined, stageStart: async () => ({ ok: false, reason: 'Not available on Android' }), stageSeek: async () => undefined, stageSync: async () => undefined, stageStop: async () => undefined, onFrame: () => () => undefined },
   lan: { info: async () => ({ running: false, urls: [], qr: null }), onOffer: () => () => undefined, answer: async () => undefined },
   app: {
     info: async () => ({ version: await rpc<string>('version'), platform: 'android', envClientId: false }),

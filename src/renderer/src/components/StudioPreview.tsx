@@ -3,6 +3,7 @@ import type { LyricLine, Track } from '@shared/types'
 import logoUrl from '@/assets/logo.png'
 import { dimensions, loadImage, loadVideo, lookInputs, type Look, type Ratio } from '@/lib/studio/recorder'
 import { createScene } from '@/lib/studio/scene'
+import type { StageSource } from '@/lib/studio/stage'
 
 interface Props {
   track: Track
@@ -12,12 +13,14 @@ interface Props {
   showSong: boolean
   /** a looping video or photo behind the lyrics, or null for the cover's colours */
   media: { url: string; kind: 'video' | 'image' } | null
+  /** a YouTube video playing in the hidden window */
+  stage: StageSource | null
   startMs: number
   endMs: number
 }
 
 /** A small live preview of the finished video: the same drawing code the export uses, looping over the chosen part. */
-export function StudioPreview({ track, lines, ratio, look, showSong, media, startMs, endMs }: Props) {
+export function StudioPreview({ track, lines, ratio, look, showSong, media, stage, startMs, endMs }: Props) {
   const canvas = useRef<HTMLCanvasElement>(null)
   const { w, h } = dimensions(ratio, '720p')
   const pw = Math.round(w / 2)
@@ -42,6 +45,7 @@ export function StudioPreview({ track, lines, ratio, look, showSong, media, star
         title: track.title,
         artist: track.artists.join(', '),
         art,
+        stage,
         media: m,
         logo,
         accent: css.getPropertyValue('--accent').trim() || '#d8d8d8',
@@ -75,7 +79,7 @@ export function StudioPreview({ track, lines, ratio, look, showSong, media, star
       cancelAnimationFrame(raf)
       video?.pause()
     }
-  }, [track, lines, pw, ph, showSong, media, startMs, endMs, look])
+  }, [track, lines, pw, ph, showSong, media, stage, startMs, endMs, look])
 
   return <canvas ref={canvas} className="studio__preview" style={{ aspectRatio: `${pw} / ${ph}` }} aria-label="Preview of the video" />
 }

@@ -65,6 +65,10 @@ export const CH = {
   studioDiscard: 'studio:discard',
   studioEnd: 'studio:end',
   studioReveal: 'studio:reveal',
+  studioStageStart: 'studio:stage-start',
+  studioStageSeek: 'studio:stage-seek',
+  studioStageSync: 'studio:stage-sync',
+  studioStageStop: 'studio:stage-stop',
   appDiagnostics: 'app:diagnostics',
   appCopy: 'app:copy',
   appCopyImage: 'app:copy-image',
@@ -92,7 +96,8 @@ export const EV = {
   command: 'ev:command',
   update: 'ev:update',
   fade: 'ev:fade',
-  lanOffer: 'ev:lan-offer'
+  lanOffer: 'ev:lan-offer',
+  studioFrame: 'ev:studio-frame'
 } as const
 
 export interface LanInfo {
@@ -221,6 +226,16 @@ export interface LyraApi {
     /** Export finished (or failed): sound capture is switched off again. */
     end(): Promise<void>
     reveal(path: string): Promise<void>
+    /**
+     * Play a YouTube video in a hidden window and stream its picture back as JPEG frames (onFrame), so it can be
+     * used as a background in an exported video. Resolves ok:false with a reason when the video can not be played.
+     */
+    stageStart(o: { videoId: string; width: number; height: number; fps: number; startSec: number }): Promise<{ ok: boolean; reason?: string }>
+    stageSeek(sec: number): Promise<void>
+    /** Nudge the hidden video to the given time if it has drifted. */
+    stageSync(sec: number): Promise<void>
+    stageStop(): Promise<void>
+    onFrame(cb: (jpeg: Uint8Array) => void): Unsubscribe
   }
   lan: {
     /** TV & party mode: whether the viewer is running, its links and a QR code of the first one. */

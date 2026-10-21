@@ -5,6 +5,7 @@ import { estimateWords } from '@shared/wordTiming'
 import { decodeAudio, exportFromFile } from '@/lib/studio/fileExport'
 import { dimensions, exportVideo, type ExportOptions, type FontChoice, type Highlight, type LayoutStyle, type Look, type Quality, type Ratio, type TextPosition } from '@/lib/studio/recorder'
 import { autoChorus } from '@/lib/studio/sections'
+import { StageSource } from '@/lib/studio/stage'
 import { useLyrics } from '@/store/lyrics'
 import { usePlayer } from '@/store/player'
 import { useUi } from '@/store/ui'
@@ -61,12 +62,38 @@ export function StudioDialog({ onClose }: { onClose(): void }) {
   const [preset, setPreset] = useState<Preset>('chorus')
   const [range, setRange] = useState<{ startMs: number; endMs: number }>({ startMs: 0, endMs: 30_000 })
   const abort = useRef<AbortController | null>(null)
+  const [previewStage, setPreviewStage] = useState<StageSource | null>(null)
 
   useEffect(() => {
     if (!track) return
     void window.lyra.background.resolve(track).then((r) => setSpec(r.spec)).catch(() => setSpec(null))
   }, [track])
   useEffect(() => () => abort.current?.abort(), [])
+
+  // a YouTube background plays in a hidden window, small, just for the preview (stopped as soon as you export or leave)
+  const ytId = bg === 'auto' && source === 'live' && spec?.kind === 'youtube' ? spec.videoId : null
+  const ytCrop = spec?.kind === 'youtube' ? spec.crop : null
+  const startSecRef = useRef(0)
+  startSecRef.current = range.startMs / 1000
+  useEffect(() => {
+    if (!ytId || phase.name !== 'setup') return
+    let gone = false
+    const s = new StageSource(ytCrop)
+    void window.lyra.studio.stageStart({ videoId: ytId, width: 640, height: 360, fps: 8, startSec: startSecRef.current }).then((r) => {
+      if (!gone && r.ok) setPreviewStage(s)
+    })
+    return () => {
+      gone = true
+      setPreviewStage(null)
+      s.close()
+      void window.lyra.studio.stageStop()
+    }
+  }, [ytId, ytCrop, phase.name])
+  useEffect(() => {
+    if (!previewStage) return
+    const id = setTimeout(() => void window.lyra.studio.stageSeek(range.startMs / 1000), 350)
+    return () => clearTimeout(id)
+  }, [previewStage, range.startMs])
 
   // what the video is about: the playing song, or the file you picked
   const ownLines: LyricLine[] = useMemo(() => {
@@ -111,7 +138,7 @@ export function StudioDialog({ onClose }: { onClose(): void }) {
 
   const { w, h } = dimensions(ratio, quality)
   const partMs = Math.max(0, range.endMs - range.startMs)
-  const autoUsable = source === 'live' && (spec?.kind === 'preview' || spec?.kind === 'media')
+  const autoUsable = source === 'live' && (spec?.kind === 'preview' || spec?.kind === 'media' || spec?.kind === 'youtube')
   const approxMb = Math.round(((quality === '720p' ? 5 : quality === '1080p' ? 9 : 16) * (partMs / 1000 + 3)) / 8)
   const media: { url: string; kind: 'video' | 'image' } | null =
     bg === 'file' && file
@@ -139,7 +166,8 @@ export function StudioDialog({ onClose }: { onClose(): void }) {
           showSong,
           mediaUrl: bg === 'file' ? (file?.url ?? null) : bg === 'auto' && spec?.kind === 'media' ? spec.url : null,
           mediaKind: bg === 'file' ? (file?.kind ?? null) : bg === 'auto' && spec?.kind === 'media' ? spec.media : null,
-          clipUrl: bg === 'auto' && spec?.kind === 'preview' ? spec.url : null
+          clipUrl: bg === 'auto' && spec?.kind === 'preview' ? spec.url : null,
+          youtube: bg === 'auto' && spec?.kind === 'youtube' ? { videoId: spec.videoId, crop: spec.crop } : null
         }
         const r = await exportVideo(opts, onProgress, ctl.signal)
         setPhase({ name: 'done', path: r.path })
@@ -252,7 +280,7 @@ export function StudioDialog({ onClose }: { onClose(): void }) {
             {ready && subjectTrack && (
               <>
                 <div className="studio__preview-wrap">
-                  <StudioPreview track={subjectTrack} lines={lines} ratio={ratio} look={look} showSong={showSong} media={media} startMs={range.startMs} endMs={range.endMs} />
+                  <StudioPreview track={subjectTrack} lines={lines} ratio={ratio} look={look} showSong={showSong} media={media} stage={previewStage} startMs={range.startMs} endMs={range.endMs} />
                 </div>
 
                 <div className="studio__group">
