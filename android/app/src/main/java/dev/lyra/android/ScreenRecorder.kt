@@ -171,16 +171,11 @@ class ScreenRecorder(
         val surface = venc.createInputSurface()
         venc.start()
 
-        val cfg = AudioPlaybackCaptureConfiguration.Builder(projection)
-            .addMatchingUsage(AudioAttributes.USAGE_MEDIA)
-            .addMatchingUsage(AudioAttributes.USAGE_GAME)
-            .addMatchingUsage(AudioAttributes.USAGE_UNKNOWN)
-            .apply { if (soundUid != null) addMatchingUid(soundUid) }
-            .build()
         val fmt = AudioFormat.Builder().setEncoding(AudioFormat.ENCODING_PCM_16BIT).setSampleRate(RATE).setChannelMask(AudioFormat.CHANNEL_IN_STEREO).build()
-        val rec = AudioRecord.Builder().setAudioPlaybackCaptureConfig(cfg).setAudioFormat(fmt).setBufferSizeInBytes(RATE * 4).build()
-        check(rec.state == AudioRecord.STATE_INITIALIZED) { "Android would not let Lyra capture the sound" }
-        capture = Tap(rec, File(dir, "capture.pcm"))
+        // The music app's own sound is a bonus, not a requirement: some phones refuse to register the capture
+        // ("could not register audio policy"), and most do not hand Spotify's sound over anyway. If it fails (after one
+        // retry, in case an earlier recording was still letting go) the recording simply goes on with the microphone.
+        capture = openCapture(fmt)
 
         // the microphone runs from the first second too, so a phone that refuses the capture loses nothing at the start
         if (micEnabled) {
@@ -208,9 +203,32 @@ class ScreenRecorder(
         }, Handler(Looper.getMainLooper()))
         display = projection.createVirtualDisplay("lyra-record", width, height, dpi, DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR, surface, null, null)
 
-        capture!!.start()
+        check(capture != null || mic != null) { "Lyra could not start recording the sound. Check that the microphone permission is allowed for Lyra." }
+        capture?.start()
         mic?.start()
         vThread = Thread({ drainVideo() }, "lyra-rec-video").also { it.isDaemon = true; it.start() }
+    }
+
+    /** The playback capture of the music app, or null when this phone will not give it to us. */
+    @SuppressLint("MissingPermission")
+    private fun openCapture(fmt: AudioFormat): Tap? {
+        for (attempt in 1..2) {
+            try {
+                val cfg = AudioPlaybackCaptureConfiguration.Builder(projection)
+                    .addMatchingUsage(AudioAttributes.USAGE_MEDIA)
+                    .addMatchingUsage(AudioAttributes.USAGE_GAME)
+                    .addMatchingUsage(AudioAttributes.USAGE_UNKNOWN)
+                    .apply { if (soundUid != null) addMatchingUid(soundUid) }
+                    .build()
+                val rec = AudioRecord.Builder().setAudioPlaybackCaptureConfig(cfg).setAudioFormat(fmt).setBufferSizeInBytes(RATE * 4).build()
+                if (rec.state == AudioRecord.STATE_INITIALIZED) return Tap(rec, File(dir, "capture.pcm"))
+                rec.release()
+            } catch (e: Exception) {
+                android.util.Log.w("LyraRec", "playback capture refused (attempt $attempt): " + e.message)
+            }
+            if (attempt == 1) Thread.sleep(400)
+        }
+        return null
     }
 
     private fun fail(e: Exception) {
