@@ -1,6 +1,7 @@
 import { memo, useMemo, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import type { LyricLine, LyricsResult } from '@shared/types'
+import { romanizeLyrics as romanize } from '@core/lyrics/romanize'
 import { useActiveLine, useFrame, lyricPosition } from '@/hooks/useLyricsSync'
 import { useReducedMotion } from '@/hooks/useMotion'
 import { clamp } from '@/lib/format'
@@ -98,6 +99,7 @@ export function LyricsView({ variant }: Props) {
 
 function SyncedLyrics({ result, variant }: { result: LyricsResult; variant: 'mini' | 'full' }) {
   const wordByWord = useSettings((x) => x.settings.wordByWord)
+  const showRomanization = useSettings((x) => x.settings.romanizeLyrics)
   const durationMs = usePlayer((x) => x.snapshot?.track?.durationMs)
   const estimated = wordByWord && !result.wordSynced
   const lines = useMemo(() => (estimated ? estimateWords(result.lines, durationMs) : result.lines), [estimated, result.lines, durationMs])
@@ -202,6 +204,7 @@ function SyncedLyrics({ result, variant }: { result: LyricsResult; variant: 'min
             <LyricRow
               key={i}
               line={line}
+              showRomanization={showRomanization}
               ref={(el) => {
                 refs.current[i] = el
               }}
@@ -238,6 +241,7 @@ function SyncedLyrics({ result, variant }: { result: LyricsResult; variant: 'min
 
 interface RowProps {
   line: LyricLine
+  showRomanization: boolean
   dist: number
   nextTime: number | undefined
   canSeek: boolean
@@ -247,7 +251,7 @@ interface RowProps {
   ref: React.Ref<HTMLDivElement>
 }
 
-const LyricRow = memo(function LyricRow({ line, dist, nextTime, canSeek, onSeek, onSave, onShare, ref }: RowProps) {
+const LyricRow = memo(function LyricRow({ line, showRomanization, dist, nextTime, canSeek, onSeek, onSave, onShare, ref }: RowProps) {
   const isActive = dist === 0
   const d = Math.min(Math.abs(dist), 6)
   const gap = line.text === ''
@@ -274,6 +278,11 @@ const LyricRow = memo(function LyricRow({ line, dist, nextTime, canSeek, onSeek,
             onClick={() => onSeek(line)}
           >
             {isActive && line.words && line.words.length > 1 ? <WordLine line={line} nextTime={nextTime} /> : line.text}
+            {showRomanization && romanize(line.text) !== line.text && (
+              <span style={{ display: 'block', fontSize: '0.72em', opacity: 0.78, fontWeight: 400, lineHeight: 1.35 }}>
+                {romanize(line.text)}
+              </span>
+            )}
           </button>
           <button type="button" className="lyric__save" aria-label="Save this line to your moments" title="Save line" onClick={() => onSave(line)}>
             <Icon name="bookmark" size={14} />
@@ -330,6 +339,7 @@ function WordLine({ line, nextTime }: { line: LyricLine; nextTime: number | unde
 // ---------------------------------------------------------------------------------------------
 
 function PlainLyrics({ result }: { result: LyricsResult }) {
+  const showRomanization = useSettings((x) => x.settings.romanizeLyrics)
   const paragraphs = (result.plain ?? '').split(/\n{2,}/)
   return (
     <div className="lyrics__scroller lyrics__scroller--plain" data-nodrag tabIndex={-1}>
@@ -340,7 +350,12 @@ function PlainLyrics({ result }: { result: LyricsResult }) {
         {paragraphs.map((p, i) => (
           <p key={i} className="plain__stanza">
             {p.split('\n').map((l, j) => (
-              <span key={j}>{l}</span>
+              <span key={j} style={{ display: 'block' }}>
+                {l}
+                {showRomanization && romanize(l) !== l && (
+                  <span style={{ display: 'block', fontSize: '0.82em', opacity: 0.78 }}>{romanize(l)}</span>
+                )}
+              </span>
             ))}
           </p>
         ))}
