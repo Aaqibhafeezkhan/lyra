@@ -1,7 +1,7 @@
 {
   "name": "lyra",
   "productName": "Lyra",
-  "version": "0.7.0",
+  "version": "0.6.2",
   "description": "Glassmorphism lyrics & playback companion for Spotify",
   "author": "Dhruv Harani",
   "license": "MIT",
@@ -86,7 +86,7 @@
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.1.2",
-    "electron": "^44.7.2",
+    "electron": "^44.9.0",
     "electron-builder": "^26.15.3",
     "electron-vite": "^6.0.0",
     "typescript": "^7.0.2",
