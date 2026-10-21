@@ -17,6 +17,9 @@ updates:
         update-types: ['version-update:semver-minor', 'version-update:semver-major']
       - dependency-name: gradle-wrapper
         update-types: ['version-update:semver-major']
+      # AGP 9 needs Gradle 9.6+ and a Kotlin setup migration: do it by hand, then remove these lines
+      - dependency-name: com.android.application
+        update-types: ['version-update:semver-major']
   - package-ecosystem: github-actions
     directory: /
     schedule: { interval: weekly }
