@@ -671,6 +671,9 @@ export function SettingsPanel() {
       {tab === 'lyrics' && (
       <section>
         <h4>Lyrics</h4>
+        <Row label="Romanized lyrics" info="Shows a Roman-letter reading below Hindi (Devanagari) and Punjabi (Gurmukhi) lyrics. This is transliteration, not translation." hint="Off by default">
+          <Toggle label="Romanized lyrics" checked={s.romanizeLyrics} onChange={up('romanizeLyrics')} />
+        </Row>
         <Row label="Typeface">
           <Segmented
             label="Typeface"

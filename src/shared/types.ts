@@ -243,6 +243,8 @@ export interface Settings {
   lyricFontSize: number // px, fullscreen base
   lineSpacing: number // 1 - 2
   lyricAnimation: LyricAnimation
+  /** Show a Roman-letter transliteration below Hindi and Punjabi lyrics. */
+  romanizeLyrics: boolean
   /** highlight each word as it is sung (estimated unless the source has real word timing) */
   wordByWord: boolean
   /** Android: keep the screen on while a song plays */
@@ -292,6 +294,7 @@ export const DEFAULT_SETTINGS: Settings = {
   lineSpacing: 1.35,
   lyricAnimation: 'glide',
   wordByWord: true,
+  romanizeLyrics: false,
   keepScreenOn: false,
   keepRunning: false,
   ambientStyle: 'glow',
