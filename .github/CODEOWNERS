@@ -1,0 +1,5 @@
+# Everything needs the maintainer's review. Release, signing and security files especially.
+*                    @DhruvHarani1
+/.github/            @DhruvHarani1
+/android/app/build.gradle.kts @DhruvHarani1
+/SECURITY.md         @DhruvHarani1
