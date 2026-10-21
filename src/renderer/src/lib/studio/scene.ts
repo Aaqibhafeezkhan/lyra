@@ -20,6 +20,8 @@ export interface SceneInput {
   tint2: string
   showSong: boolean
   fontFamily: string
+  /** length of the song in ms (the badge turns into a call to action near the end) */
+  totalMs: number
 }
 
 interface Placed {
@@ -33,8 +35,6 @@ interface Placed {
 export interface Scene {
   draw(ctx: CanvasRenderingContext2D, posMs: number, tSec: number): void
 }
-
-const LOGO_TEXT = 'Lyra'
 
 export function createScene(inp: SceneInput): Scene {
   const { w, h } = inp
@@ -96,7 +96,6 @@ export function createScene(inp: SceneInput): Scene {
 
   let scroll = 0
   let lastT = 0
-  const logoH = Math.round(base * 0.058)
 
   function cover(ctx: CanvasRenderingContext2D, el: CanvasImageSource, sw: number, sh: number, zoom = 1, dx = 0, dy = 0): void {
     const s = Math.max(w / sw, h / sh) * zoom
@@ -213,20 +212,77 @@ export function createScene(inp: SceneInput): Scene {
       ctx.fillText(fit(ctx, inp.artist, maxW), tx, sy + cs * 0.55)
     }
 
-    // ---- moving Lyra mark (it wanders across the frame, so it cannot be cropped out)
-    const lw = logoH * 3.1
-    const lx = margin * 0.7 + (w - margin * 1.4 - lw) * (0.5 + 0.5 * Math.sin(t * 0.11 + 0.6))
-    const ly = margin * 0.7 + (h - margin * 1.4 - logoH) * (0.5 + 0.5 * Math.sin(t * 0.07 + 2.2))
-    ctx.save()
-    ctx.globalAlpha = 0.88
-    ctx.shadowColor = 'rgba(0,0,0,0.55)'
-    ctx.shadowBlur = logoH * 0.4
-    if (inp.logo?.naturalWidth) ctx.drawImage(inp.logo, lx, ly, logoH, logoH)
-    ctx.fillStyle = '#fff'
-    ctx.textBaseline = 'middle'
-    ctx.font = `800 ${Math.round(logoH * 0.62)}px ${inp.fontFamily}`
-    ctx.fillText(LOGO_TEXT, lx + logoH * 1.2, ly + logoH * 0.52)
-    ctx.restore()
+    // ---- "Made with Lyra ♥": a fixed, tasteful badge (top centre in tall videos, bottom right in wide ones).
+    // In the last seconds it grows into a small call to action.
+    {
+      const endIn = inp.totalMs > 0 ? Math.min(1, Math.max(0, (posMs - (inp.totalMs - 4500)) / 900)) : 0
+      const ease = endIn * endIn * (3 - 2 * endIn)
+      const bh = base * 0.062 * (1 + 0.55 * ease)
+      const f1 = `800 ${Math.round(bh * 0.4)}px ${inp.fontFamily}`
+      const f2 = `600 ${Math.round(bh * 0.27)}px ${inp.fontFamily}`
+      const t1 = 'Made with Lyra'
+      const t2 = 'Free lyric videos · lyra-website-rho.vercel.app'
+      ctx.font = f1
+      const w1 = ctx.measureText(t1).width
+      const heartW = ctx.measureText(' ♥').width
+      ctx.font = f2
+      const w2 = ctx.measureText(t2).width
+      const iconS = bh * 0.9
+      const pad = bh * 0.28
+      const textW = Math.max(w1 + heartW, w2)
+      const bw = pad * 2 + iconS + pad * 0.8 + textW
+      const bhh = bh * 1.12
+      let bx: number
+      let by: number
+      if (portrait || w === h) {
+        bx = (w - bw) / 2 - ease * 0
+        by = h * 0.085 + ease * (h * 0.1)
+      } else {
+        bx = w - margin - bw
+        by = h - margin - bhh - ease * (h * 0.25)
+      }
+      ctx.save()
+      ctx.shadowColor = 'rgba(0,0,0,0.45)'
+      ctx.shadowBlur = bh * 0.5
+      ctx.fillStyle = 'rgba(12,12,16,0.62)'
+      ctx.beginPath()
+      ctx.roundRect(bx, by, bw, bhh, bhh / 2)
+      ctx.fill()
+      ctx.shadowBlur = 0
+      ctx.lineWidth = Math.max(1.5, bh * 0.03)
+      const edge = ctx.createLinearGradient(bx, by, bx + bw, by + bhh)
+      edge.addColorStop(0, 'rgba(255,122,89,0.9)')
+      edge.addColorStop(0.5, 'rgba(198,76,255,0.9)')
+      edge.addColorStop(1, 'rgba(63,208,255,0.9)')
+      ctx.strokeStyle = edge
+      ctx.stroke()
+      if (inp.logo?.naturalWidth) {
+        ctx.save()
+        ctx.beginPath()
+        ctx.roundRect(bx + pad, by + (bhh - iconS) / 2, iconS, iconS, iconS * 0.24)
+        ctx.clip()
+        ctx.drawImage(inp.logo, bx + pad, by + (bhh - iconS) / 2, iconS, iconS)
+        ctx.restore()
+      }
+      const tx = bx + pad + iconS + pad * 0.8
+      ctx.textBaseline = 'alphabetic'
+      ctx.fillStyle = '#ffffff'
+      ctx.font = f1
+      ctx.fillText(t1, tx, by + bhh * 0.46)
+      const pulse = 1 + 0.14 * Math.max(0, Math.sin(t * 4))
+      ctx.save()
+      ctx.translate(tx + w1 + heartW * 0.5, by + bhh * 0.46 - bh * 0.13)
+      ctx.scale(pulse, pulse)
+      ctx.fillStyle = '#ff4d6d'
+      ctx.textAlign = 'center'
+      ctx.fillText('♥', 0, bh * 0.13)
+      ctx.restore()
+      ctx.textAlign = 'left'
+      ctx.fillStyle = 'rgba(255,255,255,0.72)'
+      ctx.font = f2
+      ctx.fillText(t2, tx, by + bhh * 0.8)
+      ctx.restore()
+    }
 
     // ---- thin progress line
     ctx.fillStyle = 'rgba(255,255,255,0.18)'

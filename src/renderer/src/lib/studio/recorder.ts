@@ -119,6 +119,7 @@ export async function exportVideo(opts: ExportOptions, onProgress: (p: Progress)
       tint1: css.getPropertyValue('--tint1').trim() || '#1a1a1a',
       tint2: css.getPropertyValue('--tint2').trim() || '#101010',
       showSong: opts.showSong,
+      totalMs: total * 1000,
       fontFamily: getComputedStyle(document.body).fontFamily || 'Inter, system-ui, sans-serif'
     })
 

@@ -156,7 +156,7 @@ export function StudioDialog({ onClose }: { onClose(): void }) {
             </label>
 
             <p className="hint">
-              Lyra restarts the song and records it in real time, so a {whole ? fmt(secs) : '0:30'} video takes {whole ? fmt(secs) : '0:30'}. Keep Lyra open, don’t play other sounds, and leave the volume up. A small Lyra mark drifts across the video.
+              Lyra restarts the song and records it in real time, so a {whole ? fmt(secs) : '0:30'} video takes {whole ? fmt(secs) : '0:30'}. Keep Lyra open, don’t play other sounds, and leave the volume up. A small “Made with Lyra ♥” badge is added.
             </p>
             <div className="sharecard__row sharecard__row--end">
               <button type="button" className="pill pill--primary" onClick={() => void start()} disabled={bg === 'file' && !file}>
