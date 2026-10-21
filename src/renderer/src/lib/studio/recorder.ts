@@ -33,6 +33,7 @@ const RATIOS: Record<Ratio, [number, number]> = { '9:16': [9, 16], '4:5': [4, 5]
 const SHORT_SIDE: Record<Quality, number> = { '720p': 720, '1080p': 1080, '1440p': 1440 }
 const BITRATE: Record<Quality, number> = { '720p': 5_000_000, '1080p': 9_000_000, '1440p': 16_000_000 }
 const FPS = 30
+const END_SECONDS = 2.8
 
 export function dimensions(ratio: Ratio, quality: Quality): { w: number; h: number } {
   const [rw, rh] = RATIOS[ratio]
@@ -228,6 +229,18 @@ export async function exportVideo(opts: ExportOptions, onProgress: (p: Progress)
     recording = false
     running = false
     onProgress({ stage: 'finishing', seconds: total, total })
+    // closing card: a few seconds of black with the logo and "Download Lyra" (encoded faster than real time)
+    if (!aborted && !encError) {
+      const baseMs = performance.now() - t0
+      const n = Math.round(END_SECONDS * FPS)
+      for (let i = 0; i < n; i++) {
+        scene.endCard(ctx, (i + 1) / n, baseMs / 1000 + i / FPS)
+        const frame = new VideoFrame(canvas, { timestamp: Math.round((baseMs + (i * 1000) / FPS) * 1000) })
+        venc.encode(frame, { keyFrame: i === 0 })
+        frame.close()
+        while (venc.encodeQueueSize > 8) await sleep(8)
+      }
+    }
     audioTrack.stop()
     try {
       await reader.cancel()

@@ -20,7 +20,6 @@ export interface SceneInput {
   tint2: string
   showSong: boolean
   fontFamily: string
-  /** length of the song in ms (the badge turns into a call to action near the end) */
   totalMs: number
 }
 
@@ -34,6 +33,8 @@ interface Placed {
 
 export interface Scene {
   draw(ctx: CanvasRenderingContext2D, posMs: number, tSec: number): void
+  /** the closing card; k runs 0..1 over its duration */
+  endCard(ctx: CanvasRenderingContext2D, k: number, tSec: number): void
 }
 
 export function createScene(inp: SceneInput): Scene {
@@ -191,7 +192,7 @@ export function createScene(inp: SceneInput): Scene {
     // ---- song
     if (inp.showSong) {
       const cs = Math.round(base * 0.085)
-      const sy = h - margin - cs - (portrait ? Math.round(h * 0.035) : 0)
+      const sy = portrait || w === h ? h - margin * 0.7 - base * 0.05 - base * 0.035 - cs : h - margin - cs
       const sx = margin
       if (inp.art) {
         ctx.save()
@@ -212,12 +213,9 @@ export function createScene(inp: SceneInput): Scene {
       ctx.fillText(fit(ctx, inp.artist, maxW), tx, sy + cs * 0.55)
     }
 
-    // ---- "Made with Lyra ♥": a fixed, tasteful badge (top centre in tall videos, bottom right in wide ones).
-    // In the last seconds it grows into a small call to action.
+    // ---- "Made with Lyra ♥": a small, quiet badge at the bottom (bottom right in wide videos)
     {
-      const endIn = inp.totalMs > 0 ? Math.min(1, Math.max(0, (posMs - (inp.totalMs - 4500)) / 900)) : 0
-      const ease = endIn * endIn * (3 - 2 * endIn)
-      const bh = base * 0.062 * (1 + 0.55 * ease)
+      const bh = base * 0.045
       const f1 = `800 ${Math.round(bh * 0.4)}px ${inp.fontFamily}`
       const f2 = `600 ${Math.round(bh * 0.27)}px ${inp.fontFamily}`
       const t1 = 'Made with Lyra'
@@ -232,23 +230,14 @@ export function createScene(inp: SceneInput): Scene {
       const textW = Math.max(w1 + heartW, w2)
       const bw = pad * 2 + iconS + pad * 0.8 + textW
       const bhh = bh * 1.12
-      let bx: number
-      let by: number
-      if (portrait || w === h) {
-        bx = (w - bw) / 2 - ease * 0
-        by = h * 0.085 + ease * (h * 0.1)
-      } else {
-        bx = w - margin - bw
-        by = h - margin - bhh - ease * (h * 0.25)
-      }
+      const bx = portrait || w === h ? (w - bw) / 2 : w - margin - bw
+      const by = h - margin * 0.7 - bhh
       ctx.save()
-      ctx.shadowColor = 'rgba(0,0,0,0.45)'
-      ctx.shadowBlur = bh * 0.5
-      ctx.fillStyle = 'rgba(12,12,16,0.62)'
+      ctx.globalAlpha = 0.9
+      ctx.fillStyle = 'rgba(12,12,16,0.6)'
       ctx.beginPath()
       ctx.roundRect(bx, by, bw, bhh, bhh / 2)
       ctx.fill()
-      ctx.shadowBlur = 0
       ctx.lineWidth = Math.max(1.5, bh * 0.03)
       const edge = ctx.createLinearGradient(bx, by, bx + bw, by + bhh)
       edge.addColorStop(0, 'rgba(255,122,89,0.9)')
@@ -289,7 +278,53 @@ export function createScene(inp: SceneInput): Scene {
     ctx.fillRect(0, h - 5, w, 5)
   }
 
-  return { draw }
+  /** The closing card: a few seconds of black with the Lyra logo and an invitation to make a video like this. */
+  function endCard(ctx: CanvasRenderingContext2D, k: number, t: number): void {
+    const ease = (x: number): number => 1 - Math.pow(1 - Math.min(1, Math.max(0, x)), 3)
+    ctx.fillStyle = '#050505'
+    ctx.fillRect(0, 0, w, h)
+    // a soft glow in the three Lyra colours behind the logo
+    const cx = w / 2
+    const cy = h * 0.46
+    const R = base * 0.75
+    for (const [dx, dy, col] of [[-0.18, -0.1, 'rgba(255,122,89,0.34)'], [0.2, 0.0, 'rgba(198,76,255,0.34)'], [0, 0.2, 'rgba(63,208,255,0.3)']] as Array<[number, number, string]>) {
+      const g = ctx.createRadialGradient(cx + dx * R, cy + dy * R, 0, cx + dx * R, cy + dy * R, R * 0.9)
+      g.addColorStop(0, col)
+      g.addColorStop(1, 'rgba(0,0,0,0)')
+      ctx.globalAlpha = ease(k * 2)
+      ctx.fillStyle = g
+      ctx.fillRect(0, 0, w, h)
+    }
+    ctx.globalAlpha = 1
+    const logoS = base * 0.2 * (0.82 + 0.18 * ease(k * 2.2))
+    ctx.save()
+    ctx.globalAlpha = ease(k * 2.2)
+    if (inp.logo?.naturalWidth) {
+      ctx.shadowColor = 'rgba(198,76,255,0.6)'
+      ctx.shadowBlur = base * 0.06
+      ctx.beginPath()
+      ctx.roundRect(cx - logoS / 2, cy - logoS * 0.9, logoS, logoS, logoS * 0.24)
+      ctx.clip()
+      ctx.drawImage(inp.logo, cx - logoS / 2, cy - logoS * 0.9, logoS, logoS)
+    }
+    ctx.restore()
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'alphabetic'
+    const line = (text: string, size: number, weight: number, y: number, alpha: number, color = '#ffffff'): void => {
+      ctx.globalAlpha = alpha
+      ctx.fillStyle = color
+      ctx.font = `${weight} ${Math.round(size)}px ${inp.fontFamily}`
+      ctx.fillText(text, cx, y)
+    }
+    line('Make lyric videos like this', base * 0.058, 800, cy + base * 0.17, ease(k * 2 - 0.4))
+    line('Download Lyra, free', base * 0.044, 700, cy + base * 0.255, ease(k * 2 - 0.7), '#ffd5a8')
+    line('lyra-website-rho.vercel.app', base * 0.034, 600, cy + base * 0.33, ease(k * 2 - 0.9) * 0.8, '#a9d7ff')
+    ctx.globalAlpha = 1
+    ctx.textAlign = 'left'
+    void t
+  }
+
+  return { draw, endCard }
 }
 
 function fit(ctx: CanvasRenderingContext2D, text: string, maxW: number): string {
