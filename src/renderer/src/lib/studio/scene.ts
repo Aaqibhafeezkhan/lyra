@@ -1,3 +1,4 @@
+import { romanizeLyrics } from '@core/lyrics/romanize'
 import type { LyricLine } from '@shared/types'
 
 /**
@@ -28,6 +29,8 @@ export interface SceneInput {
   /** the colour a word fills with while it is sung */
   fill: string
   position: 'upper' | 'middle' | 'lower'
+  /** a smaller Roman-letter line under Hindi / Punjabi lines */
+  romanize?: boolean
 }
 
 interface Placed {
@@ -36,6 +39,8 @@ interface Placed {
   rowWidths: number[]
   top: number
   height: number
+  /** the Roman-letter reading, wrapped into rows (empty when not shown) */
+  roman: string[]
 }
 
 export interface Scene {
@@ -57,6 +62,9 @@ export function createScene(inp: SceneInput): Scene {
   const fontSize = Math.round(base * (tall ? 0.082 : portrait ? 0.074 : 0.078) * sizeMul)
   const lineH = Math.round(fontSize * 1.18)
   const gap = Math.round(fontSize * 0.55)
+  const romanSize = Math.round(fontSize * 0.58)
+  const romanLineH = Math.round(romanSize * 1.25)
+  const romanGap = Math.round(fontSize * 0.1)
   // lyrics column: the whole width in portrait/square, the right 62% in landscape (the song sits left)
   const colX = portrait ? margin : Math.round(w * 0.36)
   const colW = w - colX - margin - (tall ? Math.round(w * 0.1) : 0)
@@ -88,8 +96,26 @@ export function createScene(inp: SceneInput): Scene {
       rows.push(cur)
       rowWidths.push(curW)
     }
-    const height = Math.max(1, rows.length) * lineH
-    placed.push({ words, rows, rowWidths, top: y, height })
+    // the Roman-letter reading, smaller, wrapped to the same column
+    const roman: string[] = []
+    if (inp.romanize) {
+      const reading = romanizeLyrics(line.text)
+      if (reading !== line.text) {
+        measure.font = `600 ${romanSize}px ${inp.fontFamily}`
+        let row = ''
+        for (const word of reading.split(/\s+/).filter(Boolean)) {
+          const trial = row ? `${row} ${word}` : word
+          if (row && measure.measureText(trial).width > colW) {
+            roman.push(row)
+            row = word
+          } else row = trial
+        }
+        if (row) roman.push(row)
+        measure.font = `800 ${fontSize}px ${inp.fontFamily}`
+      }
+    }
+    const height = Math.max(1, rows.length) * lineH + (roman.length ? romanGap + roman.length * romanLineH : 0)
+    placed.push({ words, rows, rowWidths, top: y, height, roman })
     y += height + gap
   }
 
@@ -185,7 +211,7 @@ export function createScene(inp: SceneInput): Scene {
         if (inp.style === 'subtitle' && i !== idx) continue
         // fade near the top and above the song bar so the text never runs into it
         const mid = yy + p.height / 2
-        const edge = Math.max(0, Math.min(1, Math.min((mid - h * (tall ? 0.15 : 0.05)) / (h * 0.12), (h * (tall ? (inp.showSong ? 0.66 : 0.76) : inp.showSong ? 0.8 : 0.9) - mid) / (h * 0.12))))
+        const edge = Math.max(0, Math.min(1, Math.min((mid - h * (tall ? 0.19 : 0.05)) / (h * 0.12), (h * (tall ? (inp.showSong ? 0.66 : 0.76) : inp.showSong ? 0.8 : 0.9) - mid) / (h * 0.12))))
         // the current line is bright; the ones around it step down quickly (like Lyra on the phone) so the picture stays clear
         const ring = isNow ? 0 : Math.max(1, Math.min(3, Math.round(Math.abs(d))))
         const alpha = (isNow ? 1 : inp.style === 'scroll' ? [1, 0.5, 0.22, 0][ring]! : 0.3) * edge
@@ -222,6 +248,16 @@ export function createScene(inp: SceneInput): Scene {
             x += ww + space
           }
         })
+        if (p.roman.length) {
+          ctx.font = `600 ${romanSize}px ${inp.fontFamily}`
+          ctx.fillStyle = `rgba(255,255,255,${(isNow ? 0.82 : Math.min(0.7, alpha + 0.12)) * edge})`
+          p.roman.forEach((row, r) => {
+            const rw = ctx.measureText(row).width
+            const rx = centered ? Math.max(0, (colW / sc - rw) / 2) : 0
+            ctx.fillText(row, rx, p.rows.length * lineH + romanGap + r * romanLineH)
+          })
+          ctx.font = `800 ${fontSize}px ${inp.fontFamily}`
+        }
         ctx.restore()
       }
       ctx.shadowBlur = 0

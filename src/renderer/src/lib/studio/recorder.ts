@@ -23,6 +23,8 @@ export interface Look {
   font: FontChoice
   highlight: Highlight
   position: TextPosition
+  /** show a Roman-letter line under Hindi / Punjabi lyrics */
+  romanize?: boolean
 }
 
 const FONT_STACKS: Record<FontChoice, string> = {
@@ -33,8 +35,8 @@ const FONT_STACKS: Record<FontChoice, string> = {
 }
 
 /** The scene settings that come from a Look (and the cover's colours). */
-export function lookInputs(look: Look, accent: string): { style: LayoutStyle; fill: string; position: TextPosition; fontFamily: string } {
-  return { style: look.style, position: look.position, fontFamily: FONT_STACKS[look.font], fill: look.highlight === 'white' ? '#ffffff' : look.highlight === 'gold' ? '#ffd166' : accent }
+export function lookInputs(look: Look, accent: string): { style: LayoutStyle; fill: string; position: TextPosition; fontFamily: string; romanize: boolean } {
+  return { style: look.style, position: look.position, romanize: !!look.romanize, fontFamily: FONT_STACKS[look.font], fill: look.highlight === 'white' ? '#ffffff' : look.highlight === 'gold' ? '#ffd166' : accent }
 }
 
 export interface ExportOptions {

@@ -9,6 +9,7 @@ import { autoChorus } from '@/lib/studio/sections'
 import { StageSource } from '@/lib/studio/stage'
 import { useLyrics } from '@/store/lyrics'
 import { usePlayer } from '@/store/player'
+import { useSettings } from '@/store/settings'
 import { useUi } from '@/store/ui'
 import { StudioPreview } from './StudioPreview'
 
@@ -56,7 +57,7 @@ export function StudioDialog({ onClose }: { onClose(): void }) {
   const [quality, setQuality] = useState<Quality>('1080p')
   // a PC that dropped frames last time starts at 30 fps
   const [fps, setFps] = useState<Fps>(() => (localStorage.getItem('lyra.studio.slowPc') ? 30 : 60))
-  const [look, setLook] = useState<Look>({ style: 'scroll', font: 'sans', highlight: 'white', position: 'middle' })
+  const [look, setLook] = useState<Look>({ style: 'scroll', font: 'sans', highlight: 'white', position: 'middle', romanize: useSettings.getState().settings.romanizeLyrics })
   const [showSong, setShowSong] = useState(true)
   // smooth: record the song first, draw the video afterwards (never stutters, takes longer); instant: draw while it plays
   const [method, setMethod] = useState<'smooth' | 'instant'>(() => (localStorage.getItem('lyra.studio.method') === 'instant' ? 'instant' : 'smooth'))
@@ -359,6 +360,12 @@ export function StudioDialog({ onClose }: { onClose(): void }) {
                   {seg<LayoutStyle>('Layout', look.style, [{ v: 'scroll', label: 'Scrolling' }, { v: 'focus', label: 'One big line' }, { v: 'subtitle', label: 'Subtitle' }], pickStyle)}
                   {seg<FontChoice>('Font', look.font, [{ v: 'sans', label: 'Sans' }, { v: 'serif', label: 'Serif' }, { v: 'rounded', label: 'Round' }, { v: 'mono', label: 'Mono' }], (font) => setLook((l) => ({ ...l, font })))}
                   {seg<Highlight>('Highlight colour', look.highlight, [{ v: 'white', label: 'White' }, { v: 'accent', label: 'Cover colour' }, { v: 'gold', label: 'Gold' }], (highlight) => setLook((l) => ({ ...l, highlight })))}
+                  {lines.some((l) => /[\u0900-\u097F\u0A00-\u0A7F]/.test(l.text)) && (
+                    <>
+                      <span>Roman letters</span>
+                      {seg<string>('Roman letters', look.romanize ? 'on' : 'off', [{ v: 'off', label: 'Original only' }, { v: 'on', label: 'Add Roman letters' }], (v) => setLook((l) => ({ ...l, romanize: v === 'on' })))}
+                    </>
+                  )}
                   {seg<TextPosition>('Text position', look.position, [{ v: 'upper', label: 'Upper' }, { v: 'middle', label: 'Middle' }, { v: 'lower', label: 'Lower' }], (position) => setLook((l) => ({ ...l, position })))}
                 </div>
 

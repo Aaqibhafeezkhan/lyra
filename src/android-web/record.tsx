@@ -2,6 +2,7 @@ import '@fontsource-variable/inter'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import { estimateWords } from '@shared/wordTiming'
+import { romanizeLyrics } from '@core/lyrics/romanize'
 import logoUrl from '@/assets/logo.png'
 import { Backdrop } from '@/components/Backdrop'
 import { useArtwork, usePalette } from '@/hooks/useArtwork'
@@ -71,6 +72,7 @@ function CurrentLine({ line, offset }: { line: ReturnType<typeof estimateWords>[
 }
 
 function Column({ lines, idx, offset }: { lines: ReturnType<typeof estimateWords>; idx: number; offset: number }) {
+  const showRoman = useSettings((s) => s.settings.romanizeLyrics)
   const area = useRef<HTMLDivElement>(null)
   const els = useRef<Array<HTMLParagraphElement | null>>([])
   const [shift, setShift] = useState(0)
@@ -85,6 +87,7 @@ function Column({ lines, idx, offset }: { lines: ReturnType<typeof estimateWords
         {lines.map((l, i) => (
           <p key={i} ref={(el) => void (els.current[i] = el)} className={`amb__line amb__d${Math.min(Math.abs(i - idx), 3)}`}>
             {i === idx ? <CurrentLine line={l} offset={offset} /> : l.text || '♪'}
+            {showRoman && l.text && romanizeLyrics(l.text) !== l.text && <span style={{ display: 'block', fontSize: '0.6em', fontWeight: 600, opacity: 0.8 }}>{romanizeLyrics(l.text)}</span>}
           </p>
         ))}
       </div>
