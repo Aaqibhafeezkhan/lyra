@@ -52,7 +52,10 @@ class RecordActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         current = this
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-        window.attributes = window.attributes.apply { layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS }
+        window.attributes = window.attributes.apply {
+            layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
+            preferredRefreshRate = 60f // a steady 60 pictures a second to film (the A54 otherwise switches between 60 and 120)
+        }
         WindowCompat.setDecorFitsSystemWindows(window, false)
         WindowInsetsControllerCompat(window, window.decorView).apply {
             hide(WindowInsetsCompat.Type.systemBars())
@@ -128,7 +131,12 @@ class RecordActivity : ComponentActivity() {
                     leave(problem ?: "The video could not be saved.")
                 } else {
                     done(null)
-                    Toast.makeText(this, "Saved to Movies/Lyra", Toast.LENGTH_LONG).show()
+                    val sound = when (RecordService.lastSound) {
+                        "capture" -> "Saved to Movies/Lyra"
+                        "microphone" -> "Saved to Movies/Lyra. The sound came from the microphone."
+                        else -> "Saved to Movies/Lyra, but no sound could be recorded (is the song playing out loud on this phone?)."
+                    }
+                    Toast.makeText(this, sound, Toast.LENGTH_LONG).show()
                     startActivity(Intent(this, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT))
                     val send = Intent(Intent.ACTION_SEND).apply {
                         type = "video/mp4"

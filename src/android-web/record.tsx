@@ -49,9 +49,14 @@ function CurrentLine({ line, offset }: { line: ReturnType<typeof estimateWords>[
         el.style.setProperty('--p', Math.min(1, Math.max(0, (pos - w.timeMs) / Math.max(1, stop - w.timeMs))).toFixed(2))
       })
     }
-    tick()
-    const id = setInterval(tick, 33) // smooth: this is what gets filmed
-    return () => clearInterval(id)
+    // every animation frame (60 a second): the screen only makes a new picture when something changes, so this sets the frame rate of the video
+    let raf = 0
+    const loop = (): void => {
+      tick()
+      raf = requestAnimationFrame(loop)
+    }
+    loop()
+    return () => cancelAnimationFrame(raf)
   }, [words, end, offset])
   if (!words) return <>{line.text}</>
   return (
@@ -104,7 +109,7 @@ function Progress({ active }: { active: boolean }) {
   )
 }
 
-type Phase = { name: 'count'; n: number } | { name: 'rec' } | { name: 'end' } | { name: 'problem'; message: string }
+type Phase = { name: 'count'; n: number } | { name: 'rec' } | { name: 'end' } | { name: 'saving' } | { name: 'problem'; message: string }
 
 function Record() {
   const track = usePlayer((s) => s.snapshot?.track ?? null)
@@ -136,6 +141,7 @@ function Record() {
     finished.current = true
     setPhase({ name: 'end' })
     window.setTimeout(() => {
+      setPhase({ name: 'saving' })
       void rpc<{ ok: boolean; error?: string }>('recordFinish').then((r) => {
         if (!r.ok) setPhase({ name: 'problem', message: r.error ?? 'The video could not be saved.' })
       })
@@ -236,6 +242,7 @@ function Record() {
         </div>
       )}
       {phase.name === 'problem' && <div className="rec__count rec__count--msg">{phase.message}</div>}
+      {phase.name === 'saving' && <div className="rec__count rec__count--msg">Finishing your video… mixing the sound</div>}
       {phase.name === 'end' && (
         <div className="rec__end">
           <img src={logoUrl} alt="" />

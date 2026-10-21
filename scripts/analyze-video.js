@@ -53,8 +53,11 @@ console.log(stream)
 console.log(result)
 
 const fails = []
-if (result.gapP99Ms > frameMs * 1.5) fails.push(`p99 frame gap ${result.gapP99Ms} ms is over ${(frameMs * 1.5).toFixed(1)} ms`)
-if (result.gapMaxMs > frameMs * 3) fails.push(`longest freeze ${result.gapMaxMs} ms is over ${(frameMs * 3).toFixed(1)} ms`)
+// a phone mirrors its screen and may skip a frame or two (a 50 ms hiccup is not seen as a freeze): --phone allows that
+const phone = process.argv.includes('--phone')
+const p99Limit = phone ? 3 : 1.5
+if (phone ? result.gapP99Ms > 1000 / 60 * p99Limit : result.gapP99Ms > frameMs * p99Limit) fails.push(`p99 frame gap ${result.gapP99Ms} ms is over the limit`)
+if (result.gapMaxMs > (phone ? 70 : frameMs * 3)) fails.push(`longest freeze ${result.gapMaxMs} ms is too long`)
 if (result.loudnessLufs !== null && result.loudnessLufs < -60) console.log('note: the sound is silent (a test run with nothing playing?)')
 else if (result.loudnessLufs !== null && Math.abs(result.loudnessLufs + 14) > 3) fails.push(`loudness ${result.loudnessLufs} LUFS is far from -14`)
 if (result.truePeakDb !== null && result.truePeakDb > -0.5) fails.push(`peak ${result.truePeakDb} dBFS is too hot`)

@@ -80,6 +80,9 @@ class RecordService : Service() {
         private var uri: Uri? = null
         private var cacheFile: File? = null
 
+        /** which sound the last saved video got: "capture", "microphone" or "none" */
+        @Volatile var lastSound: String = "none"
+
         fun begin(ctx: Context, code: Int, data: Intent) {
             ctx.startForegroundService(Intent(ctx, RecordService::class.java).putExtra("code", code).putExtra("data", data))
         }
@@ -117,15 +120,23 @@ class RecordService : Service() {
                 } catch (_: Exception) {
                     null
                 }
-                val r = ScreenRecorder(p, fd.fileDescriptor, width, height, dpi, uid)
+                val r = ScreenRecorder(p, fd.fileDescriptor, ctx.cacheDir, width, height, dpi, uid)
                 r.start()
                 recorder = r
                 null
             } catch (e: Exception) {
                 android.util.Log.e("LyraRec", "could not start", e)
                 discard(ctx)
-                e.message ?: "Recording could not start."
+                friendly(e.message)
             }
+        }
+
+        /** Plain words for the errors people actually hit. */
+        private fun friendly(m: String?): String = when {
+            m == null -> "Recording could not start."
+            m.contains("audio policy", true) -> "Android is still holding the sound capture from an earlier recording. Close Lyra completely (swipe it away) and try again."
+            m.contains("capture the sound", true) -> "Android would not let Lyra capture the sound. Close Lyra completely and try again."
+            else -> m
         }
 
         /** Stop and save. Returns the video's address (null when nothing was recorded) and any problem. */
@@ -138,6 +149,7 @@ class RecordService : Service() {
                 return Pair(null, "Nothing was recorded.")
             }
             r.stop()
+            lastSound = r.soundSource
             val problem = r.failure
             pfd?.close()
             pfd = null

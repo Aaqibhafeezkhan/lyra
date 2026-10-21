@@ -1,4 +1,4 @@
-import { useState, type ReactElement } from 'react'
+import { useEffect, useState, type ReactElement } from 'react'
 import { usePlayer } from '@/store/player'
 
 /** Android: record a lyric video of the song playing now (the phone films Lyra's screen and Spotify's sound). */
@@ -6,6 +6,10 @@ export function RecordDialog({ onClose }: { onClose: () => void }): ReactElement
   const track = usePlayer((s) => s.snapshot?.track ?? null)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const [phones, setPhones] = useState(false)
+  useEffect(() => {
+    void window.lyra.android?.audioRoute().then((r) => setPhones(r.headphones)).catch(() => undefined)
+  }, [])
 
   const start = async (fromStart: boolean): Promise<void> => {
     setBusy(true)
@@ -37,6 +41,11 @@ export function RecordDialog({ onClose }: { onClose: () => void }): ReactElement
           Lyra films its own screen (lyrics and the song's video) together with the song's sound, then saves the video to Movies/Lyra and lets you share it. Android asks first for sound and screen recording.
           Some phones do not hand Spotify's sound to other apps. Then Lyra listens through the microphone instead: keep the music on the phone speaker (not headphones), turn it up, and stay quiet. Do Not Disturb keeps notifications out of the picture.
         </p>
+        {phones && (
+          <p className="studio__song" style={{ color: '#ffb36b' }}>
+            Headphones or a Bluetooth speaker are connected. If this phone does not hand over the song's sound, the microphone would hear nothing: unplug them or switch the sound to the phone speaker first.
+          </p>
+        )}
         {error && <p className="studio__song" style={{ color: "#ff8a8a" }}>{error}</p>}
         <div className="studio__group">
           <button type="button" className="pill pill--primary" disabled={!track || busy} onClick={() => void start(true)}>

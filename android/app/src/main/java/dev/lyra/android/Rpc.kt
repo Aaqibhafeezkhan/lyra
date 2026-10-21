@@ -107,6 +107,12 @@ class Rpc(private val ctx: Context, private val web: LyraWebView, private val ac
                 ctx.startActivity(Intent.createChooser(send, "Share lyric card").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
                 ok(true)
             }
+            "audioRoute" -> {
+                val am = ctx.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
+                val types = am.getDevices(android.media.AudioManager.GET_DEVICES_OUTPUTS).map { it.type }
+                val phones = types.any { it == android.media.AudioDeviceInfo.TYPE_WIRED_HEADPHONES || it == android.media.AudioDeviceInfo.TYPE_WIRED_HEADSET || it == android.media.AudioDeviceInfo.TYPE_BLUETOOTH_A2DP || it == android.media.AudioDeviceInfo.TYPE_BLE_HEADSET || it == android.media.AudioDeviceInfo.TYPE_USB_HEADSET || it == android.media.AudioDeviceInfo.TYPE_HEARING_AID }
+                ok(JSONObject().put("headphones", phones))
+            }
             "recordVideo" -> ui {
                 if (android.os.Build.VERSION.SDK_INT >= 29) {
                     RecordActivity.start(ctx, args.optBoolean(0, true))

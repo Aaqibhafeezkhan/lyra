@@ -5,8 +5,15 @@
 .amb--rec .amb__bg .backdrop__dim {
   opacity: 0.12 !important;
 }
+/* darker where the lyrics sit, so white text stays readable on any picture */
 .amb--rec::after {
-  background: linear-gradient(180deg, rgba(0, 0, 0, 0.12) 0%, rgba(0, 0, 0, 0) 26%, rgba(0, 0, 0, 0.38) 58%, rgba(0, 0, 0, 0.72) 100%);
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.12) 0%, rgba(0, 0, 0, 0.08) 18%, rgba(0, 0, 0, 0.34) 40%, rgba(0, 0, 0, 0.5) 62%, rgba(0, 0, 0, 0.78) 100%);
+}
+.amb--rec .amb__d1 {
+  opacity: 0.5;
+}
+.amb--rec .amb__d2 {
+  opacity: 0.22;
 }
 .rec__content {
   position: absolute;
@@ -16,7 +23,8 @@
   flex-direction: column;
   justify-content: flex-end;
   gap: 3vh;
-  padding: 0 8vw calc(env(safe-area-inset-bottom, 0px) + 4.5vh);
+  /* Reels, TikTok and Shorts cut a 9:16 picture out of this taller screen: keep everything inside that middle part */
+  padding: 9vh 14vw calc(env(safe-area-inset-bottom, 0px) + 13vh) 8vw;
 }
 .rec__lyrics {
   height: 52vh;

@@ -222,6 +222,8 @@ export interface LyraApi {
     toggleAmbient(): Promise<void>
     /** record a lyric video of the song playing now (screen + Spotify's sound); Android asks for permission first */
     recordVideo(fromStart: boolean): Promise<{ ok: boolean; error?: string }>
+    /** are headphones / a Bluetooth speaker connected? (the microphone cannot hear those) */
+    audioRoute(): Promise<{ headphones: boolean }>
     /** ask Android to add the "Lyra ambient" tile to Quick Settings (Android 13+) */
     addAmbientTile(): Promise<boolean>
     /** needsPermission: Android opened the "Display over other apps" screen; the user must allow it, then try again */
