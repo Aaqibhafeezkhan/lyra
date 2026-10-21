@@ -11,6 +11,12 @@ updates:
     directory: /android
     schedule: { interval: weekly }
     open-pull-requests-limit: 3
+    ignore:
+      # both need Android Gradle Plugin 9 (we are on 8.11); upgrade them together by hand
+      - dependency-name: androidx.core:core-ktx
+        update-types: ['version-update:semver-minor', 'version-update:semver-major']
+      - dependency-name: gradle-wrapper
+        update-types: ['version-update:semver-major']
   - package-ecosystem: github-actions
     directory: /
     schedule: { interval: weekly }
