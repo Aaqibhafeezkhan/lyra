@@ -1,7 +1,11 @@
-import { useEffect, useRef, useState } from 'react'
-import type { BackgroundSpec } from '@shared/types'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import type { BackgroundSpec, LyricLine } from '@shared/types'
+import { estimateWords } from '@shared/wordTiming'
 import { dimensions, exportVideo, type ExportOptions, type Quality, type Ratio } from '@/lib/studio/recorder'
+import { autoChorus } from '@/lib/studio/sections'
+import { useLyrics } from '@/store/lyrics'
 import { usePlayer } from '@/store/player'
+import { StudioPreview } from './StudioPreview'
 
 const RATIOS: Array<{ v: Ratio; label: string; hint: string }> = [
   { v: '9:16', label: '9:16', hint: 'Reels, Stories, Shorts, TikTok' },
@@ -16,20 +20,27 @@ const QUALITIES: Array<{ v: Quality; label: string }> = [
 ]
 
 type Phase = { name: 'setup' } | { name: 'running'; stage: string; seconds: number; total: number } | { name: 'done'; path: string; seconds: number } | { name: 'error'; message: string }
+type Preset = 'chorus' | 'whole' | 'first30' | 'custom'
 
 const fmt = (s: number): string => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`
 
-/** Export the song that is playing as a finished lyric video: pick a shape and a quality, press Export. */
+/** Export the song that is playing as a finished lyric video: pick the part, the shape and the quality, check the preview, press Export. */
 export function StudioDialog({ onClose }: { onClose(): void }) {
   const track = usePlayer((s) => s.snapshot?.track)
+  const lyrics = useLyrics((s) => s.state)
+  const lines: LyricLine[] = useMemo(
+    () => (track && lyrics.phase === 'ready' && lyrics.result.status === 'synced' && lyrics.result.trackId === track.id ? estimateWords(lyrics.result.lines, track.durationMs) : []),
+    [lyrics, track]
+  )
   const [ratio, setRatio] = useState<Ratio>('9:16')
   const [quality, setQuality] = useState<Quality>('1080p')
-  const [whole, setWhole] = useState(true)
   const [showSong, setShowSong] = useState(true)
   const [bg, setBg] = useState<'auto' | 'cover' | 'file'>('auto')
   const [file, setFile] = useState<{ url: string; kind: 'video' | 'image'; name: string } | null>(null)
   const [spec, setSpec] = useState<BackgroundSpec | null>(null)
   const [phase, setPhase] = useState<Phase>({ name: 'setup' })
+  const [preset, setPreset] = useState<Preset>('chorus')
+  const [range, setRange] = useState<{ startMs: number; endMs: number }>({ startMs: 0, endMs: 30_000 })
   const abort = useRef<AbortController | null>(null)
 
   useEffect(() => {
@@ -38,17 +49,37 @@ export function StudioDialog({ onClose }: { onClose(): void }) {
   }, [track])
   useEffect(() => () => abort.current?.abort(), [])
 
+  const durationMs = track?.durationMs ?? 0
+  // keep the chosen part in step with the preset (and with the lyrics once they load)
+  useEffect(() => {
+    if (!durationMs || preset === 'custom') return
+    if (preset === 'whole') setRange({ startMs: 0, endMs: durationMs })
+    else if (preset === 'first30') setRange({ startMs: 0, endMs: Math.min(durationMs, 30_000) })
+    else setRange(autoChorus(lines, durationMs))
+  }, [preset, lines, durationMs])
+
   if (!track) return null
   const { w, h } = dimensions(ratio, quality)
-  const secs = track.durationMs / 1000
-  const autoUsable = spec?.kind === 'preview' || (spec?.kind === 'media' && spec.media === 'video') || (spec?.kind === 'media' && spec.media === 'image')
-  const approxMb = Math.round(((quality === '720p' ? 5 : quality === '1080p' ? 9 : 16) * (whole ? secs : 30)) / 8)
+  const partMs = Math.max(0, range.endMs - range.startMs)
+  const autoUsable = spec?.kind === 'preview' || spec?.kind === 'media'
+  const approxMb = Math.round(((quality === '720p' ? 5 : quality === '1080p' ? 9 : 16) * (partMs / 1000 + 3)) / 8)
+
+  // what sits behind the lyrics, for both the preview and the export
+  const media: { url: string; kind: 'video' | 'image' } | null =
+    bg === 'file' && file
+      ? { url: file.url, kind: file.kind }
+      : bg === 'auto' && spec?.kind === 'media'
+        ? { url: spec.url, kind: spec.media }
+        : bg === 'auto' && spec?.kind === 'preview'
+          ? { url: spec.url, kind: 'video' }
+          : null
 
   const start = async (): Promise<void> => {
     const opts: ExportOptions = {
       ratio,
       quality,
-      maxSeconds: whole ? 0 : 30,
+      startMs: range.startMs,
+      endMs: range.endMs,
       showSong,
       mediaUrl: bg === 'file' ? (file?.url ?? null) : bg === 'auto' && spec?.kind === 'media' ? spec.url : null,
       mediaKind: bg === 'file' ? (file?.kind ?? null) : bg === 'auto' && spec?.kind === 'media' ? spec.media : null,
@@ -56,7 +87,7 @@ export function StudioDialog({ onClose }: { onClose(): void }) {
     }
     const ctl = new AbortController()
     abort.current = ctl
-    setPhase({ name: 'running', stage: 'Getting ready…', seconds: 0, total: whole ? secs : 30 })
+    setPhase({ name: 'running', stage: 'Getting ready…', seconds: 0, total: partMs / 1000 })
     try {
       const r = await exportVideo(opts, (p) => setPhase({ name: 'running', stage: p.stage === 'recording' ? 'Recording' : p.stage === 'finishing' ? 'Finishing the file…' : 'Getting ready…', seconds: p.seconds, total: p.total }), ctl.signal)
       setPhase({ name: 'done', path: r.path, seconds: r.seconds })
@@ -64,6 +95,15 @@ export function StudioDialog({ onClose }: { onClose(): void }) {
       const m = (e as Error).message
       setPhase(m === 'cancelled' ? { name: 'setup' } : { name: 'error', message: m })
     }
+  }
+
+  const setStart = (v: number): void => {
+    setPreset('custom')
+    setRange((r) => ({ startMs: Math.min(v, r.endMs - 3000), endMs: r.endMs }))
+  }
+  const setEnd = (v: number): void => {
+    setPreset('custom')
+    setRange((r) => ({ startMs: r.startMs, endMs: Math.max(v, r.startMs + 3000) }))
   }
 
   return (
@@ -79,8 +119,43 @@ export function StudioDialog({ onClose }: { onClose(): void }) {
         {phase.name === 'setup' && (
           <>
             <p className="studio__song">
-              <b>{track.title}</b> · {track.artists.join(', ')} · {fmt(secs)}
+              <b>{track.title}</b> · {track.artists.join(', ')} · {fmt(durationMs / 1000)}
             </p>
+
+            <div className="studio__preview-wrap">
+              <StudioPreview track={track} lines={lines} ratio={ratio} showSong={showSong} media={media} startMs={range.startMs} endMs={range.endMs} />
+            </div>
+
+            <div className="studio__group">
+              <span>Part of the song</span>
+              <div className="seg" role="group" aria-label="Part of the song">
+                <button type="button" className={preset === 'chorus' ? 'is-on' : ''} onClick={() => setPreset('chorus')}>
+                  Chorus
+                </button>
+                <button type="button" className={preset === 'first30' ? 'is-on' : ''} onClick={() => setPreset('first30')}>
+                  First 30 s
+                </button>
+                <button type="button" className={preset === 'whole' ? 'is-on' : ''} onClick={() => setPreset('whole')}>
+                  Whole song
+                </button>
+                <button type="button" className={preset === 'custom' ? 'is-on' : ''} onClick={() => setPreset('custom')}>
+                  Custom
+                </button>
+              </div>
+              <div className="studio__range">
+                <label>
+                  <small>From {fmt(range.startMs / 1000)}</small>
+                  <input type="range" min={0} max={durationMs} step={500} value={range.startMs} onChange={(e) => setStart(Number(e.target.value))} aria-label="Start" />
+                </label>
+                <label>
+                  <small>To {fmt(range.endMs / 1000)}</small>
+                  <input type="range" min={0} max={durationMs} step={500} value={range.endMs} onChange={(e) => setEnd(Number(e.target.value))} aria-label="End" />
+                </label>
+              </div>
+              <small>
+                {fmt(partMs / 1000)} long{preset === 'chorus' && lines.length === 0 ? ' · no synced lyrics yet, using the first 30 s' : ''}
+              </small>
+            </div>
 
             <div className="studio__group">
               <span>Shape</span>
@@ -107,18 +182,6 @@ export function StudioDialog({ onClose }: { onClose(): void }) {
               <small>
                 {w}×{h} · 30 fps · about {approxMb} MB
               </small>
-            </div>
-
-            <div className="studio__group">
-              <span>Length</span>
-              <div className="seg" role="group" aria-label="Length">
-                <button type="button" className={whole ? 'is-on' : ''} onClick={() => setWhole(true)}>
-                  Whole song
-                </button>
-                <button type="button" className={!whole ? 'is-on' : ''} onClick={() => setWhole(false)}>
-                  First 30 s (quick test)
-                </button>
-              </div>
             </div>
 
             <div className="studio__group">
@@ -156,7 +219,7 @@ export function StudioDialog({ onClose }: { onClose(): void }) {
             </label>
 
             <p className="hint">
-              Lyra restarts the song and records it in real time, so a {whole ? fmt(secs) : '0:30'} video takes {whole ? fmt(secs) : '0:30'}. Keep Lyra open, don’t play other sounds, and leave the volume up. A small “Made with Lyra ♥” badge sits at the bottom, and a short “Download Lyra” card closes the video.
+              Lyra jumps to the start of the part and records it in real time, so {fmt(partMs / 1000)} of video takes {fmt(partMs / 1000)}. Keep Lyra open, don’t play other sounds, and leave the volume up. A small “Made with Lyra ♥” badge sits at the bottom, and a short “Download Lyra” card closes the video.
             </p>
             <div className="sharecard__row sharecard__row--end">
               <button type="button" className="pill pill--primary" onClick={() => void start()} disabled={bg === 'file' && !file}>

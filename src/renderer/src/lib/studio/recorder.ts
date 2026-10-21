@@ -13,8 +13,9 @@ export type Quality = '720p' | '1080p' | '1440p'
 export interface ExportOptions {
   ratio: Ratio
   quality: Quality
-  /** 0 = the whole song, otherwise stop after this many seconds (a quick test) */
-  maxSeconds: number
+  /** the part of the song to record */
+  startMs: number
+  endMs: number
   showSong: boolean
   /** a video or photo picked by the user, or null for the cover's colours */
   mediaUrl: string | null
@@ -42,7 +43,7 @@ export function dimensions(ratio: Ratio, quality: Quality): { w: number; h: numb
   return rw <= rh ? { w: even(s), h: even((s * rh) / rw) } : { w: even((s * rw) / rh), h: even(s) }
 }
 
-function loadImage(src: string | null): Promise<HTMLImageElement | null> {
+export function loadImage(src: string | null): Promise<HTMLImageElement | null> {
   return new Promise((resolve) => {
     if (!src) return resolve(null)
     const i = new Image()
@@ -53,7 +54,7 @@ function loadImage(src: string | null): Promise<HTMLImageElement | null> {
   })
 }
 
-function loadVideo(src: string): Promise<HTMLVideoElement | null> {
+export function loadVideo(src: string): Promise<HTMLVideoElement | null> {
   return new Promise((resolve) => {
     const v = document.createElement('video')
     v.crossOrigin = 'anonymous'
@@ -87,7 +88,9 @@ export async function exportVideo(opts: ExportOptions, onProgress: (p: Progress)
   if (!(await VideoEncoder.isConfigSupported(vcfg)).supported) throw new Error(`This PC can not encode ${w}×${h} video. Try a lower quality.`)
 
   onProgress({ stage: 'preparing', seconds: 0, total: 0 })
-  const total = opts.maxSeconds > 0 ? Math.min(opts.maxSeconds, track.durationMs / 1000) : track.durationMs / 1000
+  const startMs = Math.max(0, Math.min(opts.startMs, track.durationMs - 1000))
+  const endMs = Math.min(track.durationMs, Math.max(opts.endMs, startMs + 1000))
+  const total = (endMs - startMs) / 1000
   const safeName = `${track.title} - ${track.artists[0] ?? ''}`.replace(/[^\p{L}\p{N} _-]+/gu, '').trim().slice(0, 80) || 'lyra-video'
   const file = await window.lyra.studio.open(`${safeName} (${opts.ratio.replace(':', 'x')} ${opts.quality}).mp4`)
   if (!file) throw new Error('cancelled')
@@ -178,10 +181,10 @@ export async function exportVideo(opts: ExportOptions, onProgress: (p: Progress)
     })()
 
     // restart the song from the top and wait until it really is at the start
-    await usePlayer.getState().command({ type: 'seek', positionMs: 0 })
+    await usePlayer.getState().command({ type: 'seek', positionMs: startMs })
     if (!usePlayer.getState().snapshot?.isPlaying) await usePlayer.getState().command({ type: 'play' })
-    for (let i = 0; i < 40 && getPosition() > 1500; i++) await sleep(150)
-    if (getPosition() > 3000) throw new Error('Could not restart the song. Press play from the start and try again.')
+    for (let i = 0; i < 40 && Math.abs(getPosition() - startMs) > 1500; i++) await sleep(150)
+    if (Math.abs(getPosition() - startMs) > 3000) throw new Error('Could not jump to the start of the part. Press play and try again.')
 
     // video frames, paced by the clock
     const t0 = performance.now()
@@ -197,7 +200,7 @@ export async function exportVideo(opts: ExportOptions, onProgress: (p: Progress)
         const secs = nowMs / 1000
         const snap = usePlayer.getState().snapshot
         const pos = getPosition()
-        const over = aborted || encError || secs >= total || snap?.track?.id !== trackId || pos >= track.durationMs - 150 || (secs > 3 && pos < startPos - 2000)
+        const over = aborted || encError || secs >= total || snap?.track?.id !== trackId || pos >= endMs || (secs > 3 && pos < startPos - 2000 && startMs === 0) || (secs > 3 && pos < startMs - 2000)
         if (snap && !snap.isPlaying) stalled += 1
         else stalled = 0
         if (over || stalled > 400) return resolve()
