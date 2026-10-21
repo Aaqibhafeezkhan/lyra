@@ -24,3 +24,9 @@ New-Item -ItemType Directory -Force (Split-Path $out) | Out-Null
   (Join-Path $root 'native\lyra-media\Program.cs')
 if ($LASTEXITCODE -ne 0) { throw "csc failed ($LASTEXITCODE)" }
 Write-Host "built $out"
+
+# lyra-audio.exe: captures one program's sound (Spotify) for video export. Plain COM interop, no Windows SDK needed.
+$audioOut = Join-Path $root 'resources\lyra-audio.exe'
+& $csc /nologo /target:exe /optimize+ /platform:x64 "/out:$audioOut" (Join-Path $root 'native\lyra-audio\Program.cs')
+if ($LASTEXITCODE -ne 0) { throw "csc failed for lyra-audio ($LASTEXITCODE)" }
+Write-Host "built $audioOut"

@@ -1,7 +1,7 @@
 {
   "name": "lyra",
   "productName": "Lyra",
-  "version": "0.9.1",
+  "version": "0.10.0",
   "description": "Glassmorphism lyrics & playback companion for Spotify",
   "author": "Dhruv Harani",
   "license": "MIT",
@@ -35,6 +35,10 @@
       {
         "from": "resources/lyra-media.exe",
         "to": "lyra-media.exe"
+      },
+      {
+        "from": "resources/lyra-audio.exe",
+        "to": "lyra-audio.exe"
       },
       {
         "from": "resources/icon.png",

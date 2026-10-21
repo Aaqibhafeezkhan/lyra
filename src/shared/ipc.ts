@@ -65,6 +65,8 @@ export const CH = {
   studioDiscard: 'studio:discard',
   studioEnd: 'studio:end',
   studioReveal: 'studio:reveal',
+  studioAudioStart: 'studio:audio-start',
+  studioAudioStop: 'studio:audio-stop',
   studioStageStart: 'studio:stage-start',
   studioStageSeek: 'studio:stage-seek',
   studioStageSync: 'studio:stage-sync',
@@ -97,7 +99,8 @@ export const EV = {
   update: 'ev:update',
   fade: 'ev:fade',
   lanOffer: 'ev:lan-offer',
-  studioFrame: 'ev:studio-frame'
+  studioFrame: 'ev:studio-frame',
+  studioAudio: 'ev:studio-audio'
 } as const
 
 export interface LanInfo {
@@ -230,6 +233,14 @@ export interface LyraApi {
      * Play a YouTube video in a hidden window and stream its picture back as JPEG frames (onFrame), so it can be
      * used as a background in an exported video. Resolves ok:false with a reason when the video can not be played.
      */
+    /**
+     * Capture only the Spotify app's sound (not notifications or other programs). Resolves ok:false when that is
+     * not possible (Spotify not running, Windows older than 10 version 2004): the export then records the whole PC sound.
+     * The sound arrives through onAudio as 48 kHz stereo 16-bit PCM.
+     */
+    audioStart(): Promise<{ ok: boolean; reason?: string }>
+    audioStop(): Promise<void>
+    onAudio(cb: (pcm: Uint8Array) => void): Unsubscribe
     stageStart(o: { videoId: string; width: number; height: number; fps: number; startSec: number }): Promise<{ ok: boolean; reason?: string }>
     stageSeek(sec: number): Promise<void>
     /** Nudge the hidden video to the given time if it has drifted. */

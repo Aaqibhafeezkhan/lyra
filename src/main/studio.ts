@@ -1,5 +1,8 @@
 import { BrowserWindow, app, dialog, ipcMain, shell } from 'electron'
 import { open, rm, type FileHandle } from 'node:fs/promises'
+import { execFile, spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
+import { existsSync } from 'node:fs'
+import { join } from 'node:path'
 import { CH, EV } from '@shared/ipc'
 import { windows } from './window'
 
@@ -83,7 +86,58 @@ async function startStage(o: { videoId: string; width: number; height: number; f
   }
 }
 
+/** Captures only the Spotify app's sound with resources/lyra-audio.exe and forwards the PCM to the app window. */
+let audio: ChildProcessWithoutNullStreams | null = null
+
+function stopAudio(): void {
+  audio?.kill()
+  audio = null
+}
+
+function spotifyRootPid(): Promise<number | null> {
+  return new Promise((resolve) => {
+    // Spotify runs many processes; the one without a --type flag is the parent, and capturing it includes its children
+    const ps = "(Get-CimInstance Win32_Process -Filter \"Name='Spotify.exe'\" | Where-Object { $_.CommandLine -notmatch '--type=' } | Select-Object -First 1).ProcessId"
+    execFile('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', ps], { windowsHide: true, timeout: 8000 }, (err, out) => {
+      const n = Number(String(out).trim())
+      resolve(!err && Number.isFinite(n) && n > 0 ? n : null)
+    })
+  })
+}
+
+async function startAudio(): Promise<{ ok: boolean; reason?: string }> {
+  stopAudio()
+  const exe = [join(process.resourcesPath ?? '', 'lyra-audio.exe'), join(app.getAppPath(), 'resources', 'lyra-audio.exe')].find((p) => existsSync(p))
+  if (!exe) return { ok: false, reason: 'helper missing' }
+  const pid = await spotifyRootPid()
+  if (!pid) return { ok: false, reason: 'Spotify is not running' }
+  return new Promise((resolve) => {
+    const p = spawn(exe, ['--pid', String(pid)], { windowsHide: true })
+    audio = p
+    let settled = false
+    const done = (r: { ok: boolean; reason?: string }): void => {
+      if (settled) return
+      settled = true
+      resolve(r)
+    }
+    let err = ''
+    p.stderr.on('data', (d: Buffer) => {
+      err += d.toString()
+      if (/ready/.test(err)) done({ ok: true })
+    })
+    p.stdout.on('data', (d: Buffer) => {
+      const w = windows.window
+      if (w && !w.isDestroyed()) w.webContents.send(EV.studioAudio, d)
+    })
+    p.on('error', (e) => done({ ok: false, reason: e.message }))
+    p.on('exit', () => done({ ok: false, reason: err.trim().slice(0, 200) || 'the helper stopped' }))
+    setTimeout(() => done({ ok: false, reason: 'timed out' }), 10_000)
+  })
+}
+
 export function registerStudioIpc(): void {
+  ipcMain.handle(CH.studioAudioStart, () => startAudio())
+  ipcMain.handle(CH.studioAudioStop, () => stopAudio())
   ipcMain.handle(CH.studioStageStart, (_e, o) => startStage(o))
   ipcMain.handle(CH.studioStageSeek, async (_e, sec: number) => {
     if (stage && !stage.isDestroyed() && Number.isFinite(sec)) await stage.webContents.executeJavaScript(`(() => { const v = document.querySelector('video'); if (v) { v.currentTime = ${Math.max(0, sec)}; v.play() } })()`)

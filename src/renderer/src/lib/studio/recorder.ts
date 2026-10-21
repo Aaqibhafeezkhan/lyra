@@ -171,19 +171,27 @@ export async function exportVideo(opts: ExportOptions, onProgress: (p: Progress)
     canvas.height = h
     const ctx = canvas.getContext('2d', { alpha: false })!
 
-    // the PC's own sound
-    // music, not a call: stereo, and none of the voice clean-up that would squash it
-    capture = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: { channelCount: 2, echoCancellation: false, noiseSuppression: false, autoGainControl: false } as MediaTrackConstraints })
-    capture.getVideoTracks().forEach((t) => t.stop())
-    const audioTrack = capture.getAudioTracks()[0]
-    if (!audioTrack) throw new Error('This PC did not provide system sound.')
-    const reader = new (window as unknown as { MediaStreamTrackProcessor: new (o: { track: MediaStreamTrack }) => { readable: ReadableStream<AudioData> } }).MediaStreamTrackProcessor({ track: audioTrack }).readable.getReader()
-    // the first block of sound tells us the real sample rate and channel count
-    const first = await reader.read()
-    if (!first.value) throw new Error('No sound arrived from this PC.')
-    const sampleRate = first.value.sampleRate
-    const channels = first.value.numberOfChannels
-    first.value.close()
+    // sound. First choice: only the Spotify app's own sound (notifications and other programs stay out of the video).
+    // If that is not possible, the PC's whole sound.
+    let audioTrack: MediaStreamTrack | undefined
+    let reader: ReadableStreamDefaultReader<AudioData> | null = null
+    let sampleRate = 48000
+    let channels = 2
+    const helper = await window.lyra.studio.audioStart()
+    if (!helper.ok) {
+      // music, not a call: stereo, and none of the voice clean-up that would squash it
+      capture = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: { channelCount: 2, echoCancellation: false, noiseSuppression: false, autoGainControl: false } as MediaTrackConstraints })
+      capture.getVideoTracks().forEach((t) => t.stop())
+      audioTrack = capture.getAudioTracks()[0]
+      if (!audioTrack) throw new Error('This PC did not provide system sound.')
+      reader = new (window as unknown as { MediaStreamTrackProcessor: new (o: { track: MediaStreamTrack }) => { readable: ReadableStream<AudioData> } }).MediaStreamTrackProcessor({ track: audioTrack }).readable.getReader()
+      // the first block of sound tells us the real sample rate and channel count
+      const first = await reader.read()
+      if (!first.value) throw new Error('No sound arrived from this PC.')
+      sampleRate = first.value.sampleRate
+      channels = first.value.numberOfChannels
+      first.value.close()
+    }
 
     // output file (streamed to disk in pieces: a long video never sits in memory)
     const muxer = new Muxer({
@@ -203,8 +211,46 @@ export async function exportVideo(opts: ExportOptions, onProgress: (p: Progress)
     let audioT0: number | null = null
     let recording = false
     let running = true
+    let helperFrames = 0
+    let dropped = 0
+    let chunks = 0
+    const offAudio = helper.ok
+      ? window.lyra.studio.onAudio((pcm) => {
+          if (!recording) return
+          if (aenc.state !== 'configured' || aenc.encodeQueueSize > 40) {
+            dropped++
+            return
+          }
+          chunks++
+          const frames = Math.floor(pcm.byteLength / 4)
+          if (frames === 0) return
+          const i16 = new Int16Array(pcm.buffer, pcm.byteOffset, frames * 2)
+          const planar = new Float32Array(frames * 2)
+          for (let i = 0; i < frames; i++) {
+            planar[i] = i16[i * 2]! / 32768
+            planar[frames + i] = i16[i * 2 + 1]! / 32768
+          }
+          // the capture sends nothing while Spotify is silent (quiet intros, gaps): fill those gaps with silence so the
+          // sound stays in step with the picture
+          const gap = Math.round(((performance.now() - t0) / 1000) * 48000) - (helperFrames + frames)
+          if (gap > 2400) {
+            for (let left = gap; left > 0; left -= 24000) {
+              const n = Math.min(24000, left)
+              const silence = new AudioData({ format: 'f32-planar', sampleRate: 48000, numberOfFrames: n, numberOfChannels: 2, timestamp: Math.round((helperFrames / 48000) * 1e6), data: new Float32Array(n * 2) })
+              helperFrames += n
+              aenc.encode(silence)
+              silence.close()
+            }
+          }
+          // the timestamp counts the samples we actually received, so the sound can not drift against its own length
+          const ad = new AudioData({ format: 'f32-planar', sampleRate: 48000, numberOfFrames: frames, numberOfChannels: 2, timestamp: Math.round((helperFrames / 48000) * 1e6), data: planar })
+          helperFrames += frames
+          aenc.encode(ad)
+          ad.close()
+        })
+      : null
     const pump = (async () => {
-      while (running) {
+      while (running && reader) {
         const { value, done } = await reader.read()
         if (done || !value) break
         if (!recording) {
@@ -288,9 +334,11 @@ export async function exportVideo(opts: ExportOptions, onProgress: (p: Progress)
         while (venc.encodeQueueSize > 8) await sleep(8)
       }
     }
-    audioTrack.stop()
+    offAudio?.()
+    void window.lyra.studio.audioStop()
+    audioTrack?.stop()
     try {
-      await reader.cancel()
+      await reader?.cancel()
     } catch {
       /* already closed */
     }
@@ -313,6 +361,7 @@ export async function exportVideo(opts: ExportOptions, onProgress: (p: Progress)
   } finally {
     signal.removeEventListener('abort', abort)
     capture?.getTracks().forEach((t) => t.stop())
+    void window.lyra.studio.audioStop()
     stageRef?.close()
     void window.lyra.studio.stageStop()
     await window.lyra.studio.end()
