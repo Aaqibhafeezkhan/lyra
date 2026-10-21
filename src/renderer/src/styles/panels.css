@@ -678,3 +678,20 @@
 .sharecard__row--end { justify-content: flex-end; }
 .pill--primary { background: var(--fg); color: var(--on-fg); }
 .pill:disabled { opacity: 0.4; }
+
+/* ---------- export lyric video ---------- */
+.studio { width: min(460px, 94vw); }
+.studio__song { margin: 0; font-size: 13px; color: var(--fg-2); }
+.studio__group { display: flex; flex-direction: column; gap: 6px; }
+.studio__group > span { font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--fg-3); }
+.studio__group small { font-size: 11.5px; color: var(--fg-3); }
+.studio__choices { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.studio__choices button { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 4px; border: 1px solid var(--line); border-radius: 12px; background: var(--glass); color: var(--fg-2); font-size: 11px; }
+.studio__choices button i { display: block; height: 28px; background: var(--fg-3); border-radius: 4px; }
+.studio__choices button b { font-size: 12.5px; color: var(--fg); }
+.studio__choices button small { font-size: 10px; line-height: 1.2; text-align: center; color: var(--fg-3); }
+.studio__choices button.is-on { border-color: var(--fg); background: var(--glass-2); }
+.studio__choices button.is-on i { background: var(--fg); }
+.studio__check { display: flex; gap: 8px; align-items: center; font-size: 12.5px; color: var(--fg-2); }
+.studio__bar { height: 6px; border-radius: 6px; background: var(--glass-2); overflow: hidden; }
+.studio__bar b { display: block; height: 100%; width: 100%; background: var(--fg); transform-origin: left; transition: transform 0.4s linear; }

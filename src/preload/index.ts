@@ -79,6 +79,14 @@ const api: LyraApi = {
     install: () => invoke(CH.updateInstall),
     onState: (cb) => subscribe(EV.update, cb)
   },
+  studio: {
+    open: (name) => invoke(CH.studioOpen, name),
+    write: (id, position, chunk) => invoke(CH.studioWrite, id, position, chunk),
+    close: (id) => invoke(CH.studioClose, id),
+    discard: (path) => invoke(CH.studioDiscard, path),
+    end: () => invoke(CH.studioEnd),
+    reveal: (path) => invoke(CH.studioReveal, path)
+  },
   lan: {
     info: () => invoke(CH.lanInfo),
     onOffer: (cb) => subscribe(EV.lanOffer, cb),

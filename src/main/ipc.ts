@@ -6,6 +6,7 @@ import { getArtwork } from './artwork'
 import { DemoSource } from './demo/source'
 import { lyricsService } from '@core/lyrics/service'
 import { lanViewer } from './lan/server'
+import { registerStudioIpc } from './studio'
 import QRCode from 'qrcode'
 import { createLogger, readLogTail } from './logger'
 import { moments } from './moments'
@@ -88,6 +89,7 @@ function on(channel: string, fn: () => void): void {
 const pendingOffers = new Map<string, (a: unknown) => void>()
 
 export function registerIpc(): void {
+  registerStudioIpc()
   lanViewer.onOffer = (offer) =>
     new Promise((resolve) => {
       const id = Math.random().toString(36).slice(2)

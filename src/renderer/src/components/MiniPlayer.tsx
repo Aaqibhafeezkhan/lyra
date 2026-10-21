@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useIdle } from '@/hooks/useIdle'
 import { usePlayerView } from '@/hooks/usePlayerView'
 import { useWindowDrag } from '@/hooks/useWindowDrag'
@@ -8,6 +9,7 @@ import { requestMode, useUi } from '@/store/ui'
 import { Artwork } from './Artwork'
 import { IconButton, Transport, VolumeControl, useCaps } from './Controls'
 import { LyricsView } from './LyricsView'
+import { StudioDialog } from './StudioDialog'
 import { ProgressBar } from './ProgressBar'
 import { ConnectScreen, LoadingScreen, NoMusicScreen, OfflineBanner, OfflineScreen } from './StateScreens'
 
@@ -58,9 +60,12 @@ export function MiniPlayer() {
   const videoBehind = useBgState((x) => x.media === 'mini')
   // with a video behind it, the header / title / controls fade away after a few seconds and return on touch
   // a touch screen hides after 4 s; with a mouse, give it a little longer
+  const [studio, setStudio] = useState(false)
   const idle = useIdle(document.documentElement.dataset.platform === 'android' ? 4000 : 6000)
 
   return (
+    <>
+    {studio && <StudioDialog onClose={() => setStudio(false)} />}
     <div className={`mini ${videoBehind && idle && panel === 'none' ? 'is-idle' : ''}`}>
       <header className="mini__head" {...drag}>
         <span className="mini__device" title={device ? `Playing on ${device.name}` : undefined}>
@@ -70,6 +75,7 @@ export function MiniPlayer() {
           {document.documentElement.dataset.platform === 'android' && <AmbientSwitch />}
           {caps.queue && <IconButton icon="queue" label="Queue" active={panel === 'queue'} size={16} onClick={() => togglePanel('queue')} />}
           <IconButton icon="bookmark" label="Saved lyric moments" active={panel === 'moments'} size={16} onClick={() => togglePanel('moments')} />
+          {document.documentElement.dataset.platform !== 'android' && <IconButton icon="film" label="Export lyric video" size={16} onClick={() => setStudio(true)} />}
           <IconButton icon="settings" label="Settings" active={panel === 'settings'} size={16} onClick={() => togglePanel('settings')} />
           <IconButton icon="fullscreen" label="Fullscreen lyrics" size={16} onClick={() => requestMode('full')} />
           <IconButton icon="minus" label="Minimize" size={16} onClick={() => window.lyra.window.minimize()} />
@@ -123,5 +129,6 @@ export function MiniPlayer() {
         </div>
       )}
     </div>
+    </>
   )
 }

@@ -59,6 +59,12 @@ export const CH = {
   appInfo: 'app:info',
   lanInfo: 'lan:info',
   lanAnswer: 'lan:answer',
+  studioOpen: 'studio:open',
+  studioWrite: 'studio:write',
+  studioClose: 'studio:close',
+  studioDiscard: 'studio:discard',
+  studioEnd: 'studio:end',
+  studioReveal: 'studio:reveal',
   appDiagnostics: 'app:diagnostics',
   appCopy: 'app:copy',
   appCopyImage: 'app:copy-image',
@@ -205,6 +211,16 @@ export interface LyraApi {
     addAmbientTile(): Promise<boolean>
     /** needsPermission: Android opened the "Display over other apps" screen; the user must allow it, then try again */
     setOverlay(on: boolean): Promise<{ ok: boolean; needsPermission?: boolean }>
+  }
+  studio: {
+    /** Ask where to save the video. Null if the user cancelled. */
+    open(suggestedName: string): Promise<{ id: number; path: string } | null>
+    write(id: number, position: number, chunk: Uint8Array): Promise<void>
+    close(id: number): Promise<void>
+    discard(path: string): Promise<void>
+    /** Export finished (or failed): sound capture is switched off again. */
+    end(): Promise<void>
+    reveal(path: string): Promise<void>
   }
   lan: {
     /** TV & party mode: whether the viewer is running, its links and a QR code of the first one. */

@@ -17,7 +17,7 @@ const peers = new Set<RTCPeerConnection>()
 async function getAudio(): Promise<MediaStream> {
   if (stream && stream.getAudioTracks().some((t) => t.readyState === 'live')) return stream
   // the main process answers this request with the system's sound ("loopback"); the video part is thrown away
-  const s = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true })
+  const s = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: { channelCount: 2, echoCancellation: false, noiseSuppression: false, autoGainControl: false } as MediaTrackConstraints })
   s.getVideoTracks().forEach((t) => {
     t.stop()
     s.removeTrack(t)

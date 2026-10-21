@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import { createLogger } from './logger'
 import { disposePlayback, registerIpc, setBackground, startPlayback } from './ipc'
 import { lanViewer } from './lan/server'
+import { studio } from './studio'
 import { favorites } from './favorites'
 import { moments } from './moments'
 import { settings } from './settings'
@@ -54,7 +55,7 @@ function installCsp(): void {
   // Jam nearby: the app window may capture the PC's own sound (loopback), nothing else, and only when sharing is on.
   session.defaultSession.setDisplayMediaRequestHandler(
     (_request, cb) => {
-      if (!settings.get().lanAudio) return cb({})
+      if (!settings.get().lanAudio && !studio.capturing) return cb({})
       void desktopCapturer.getSources({ types: ['screen'] }).then((sources) => cb(sources[0] ? { video: sources[0], audio: 'loopback' } : {}))
     },
     { useSystemPicker: false }
@@ -64,8 +65,8 @@ function installCsp(): void {
   // getDisplayMedia asks for 'media' (and sometimes 'display-capture'); nothing else is ever allowed
   const isCapture = (perm: string): boolean => perm === 'display-capture' || perm === 'media'
   const ownPage = (url: string): boolean => url.startsWith('file://') || url.startsWith('http://localhost')
-  session.defaultSession.setPermissionRequestHandler((wc, perm, cb) => cb(isCapture(perm) && settings.get().lanAudio && ownPage(wc.getURL())))
-  session.defaultSession.setPermissionCheckHandler((wc, perm, origin) => isCapture(perm) && settings.get().lanAudio && ownPage(wc?.getURL() ?? origin))
+  session.defaultSession.setPermissionRequestHandler((wc, perm, cb) => cb(isCapture(perm) && (settings.get().lanAudio || studio.capturing) && ownPage(wc.getURL())))
+  session.defaultSession.setPermissionCheckHandler((wc, perm, origin) => isCapture(perm) && (settings.get().lanAudio || studio.capturing) && ownPage(wc?.getURL() ?? origin))
 }
 
 if (!app.requestSingleInstanceLock()) {
