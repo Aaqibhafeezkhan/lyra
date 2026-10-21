@@ -143,15 +143,17 @@ export function createScene(inp: SceneInput): Scene {
     else if (blurred) cover(ctx, blurred, blurred.width, blurred.height, 1.1 + Math.sin(t / 10) * 0.05, Math.sin(t / 7) * w * 0.03, Math.cos(t / 8) * h * 0.03)
     const veil = ctx.createLinearGradient(0, 0, 0, h)
     const hasMedia = !!m || !!sb
-    veil.addColorStop(0, `rgba(0,0,0,${hasMedia ? 0.38 : 0.18})`)
-    veil.addColorStop(0.5, `rgba(0,0,0,${hasMedia ? 0.46 : 0.26})`)
-    veil.addColorStop(1, `rgba(0,0,0,${hasMedia ? 0.72 : 0.6})`)
+    // light at the top so the picture shows, darker towards the lyrics and the song at the bottom
+    veil.addColorStop(0, `rgba(0,0,0,${hasMedia ? 0.12 : 0.1})`)
+    veil.addColorStop(0.28, `rgba(0,0,0,${hasMedia ? 0.04 : 0.08})`)
+    veil.addColorStop(0.58, `rgba(0,0,0,${hasMedia ? 0.4 : 0.34})`)
+    veil.addColorStop(1, `rgba(0,0,0,${hasMedia ? 0.78 : 0.7})`)
     ctx.fillStyle = veil
     ctx.fillRect(0, 0, w, h)
 
     // ---- lyrics
     const idx = activeIndex(posMs)
-    const focusY = h * (inp.position === 'upper' ? 0.28 : inp.position === 'lower' ? 0.6 : portrait ? 0.4 : 0.42)
+    const focusY = h * (inp.position === 'upper' ? 0.3 : inp.position === 'lower' ? 0.62 : portrait ? 0.5 : 0.44)
     if (placed.length) {
       const target = Math.max(0, idx)
       scroll += (target - scroll) * (1 - Math.exp(-dt / 0.2))
@@ -172,9 +174,11 @@ export function createScene(inp: SceneInput): Scene {
         // fade near the top and above the song bar so the text never runs into it
         const mid = yy + p.height / 2
         const edge = Math.max(0, Math.min(1, Math.min((mid - h * 0.05) / (h * 0.12), (h * (inp.showSong ? 0.8 : 0.9) - mid) / (h * 0.12))))
-        const alpha = (isNow ? 1 : inp.style === 'scroll' ? Math.max(0.12, 0.42 - Math.abs(d) * 0.08) : 0.3) * edge
+        // the current line is bright; the ones around it step down quickly (like Lyra on the phone) so the picture stays clear
+        const ring = isNow ? 0 : Math.max(1, Math.min(3, Math.round(Math.abs(d))))
+        const alpha = (isNow ? 1 : inp.style === 'scroll' ? [1, 0.4, 0.16, 0][ring]! : 0.3) * edge
         if (alpha <= 0.01) continue
-        const sc = isNow ? 1 : 0.92
+        const sc = isNow ? 1 : inp.style === 'scroll' ? [1, 0.86, 0.78, 0.74][ring]! : 0.92
         ctx.save()
         ctx.translate(colX, yy)
         ctx.scale(sc, sc)

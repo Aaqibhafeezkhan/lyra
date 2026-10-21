@@ -214,8 +214,8 @@ function YoutubeLayer({ spec, run, onFail }: { spec: Extract<BackgroundSpec, { k
   // YouTube flashes its own controls for a few seconds after it starts and after the app is reopened: keep it invisible then
   const [masked, setMasked] = useState(phoneInit())
   const maskTimer = useRef(0)
-  const holdMask = (ms = 4000): void => {
-    if (!phone) return
+  const holdMask = (ms = 4000, always = false): void => {
+    if (!phone && !always) return
     setMasked(true)
     window.clearTimeout(maskTimer.current)
     maskTimer.current = window.setTimeout(() => setMasked(false), ms)
@@ -270,7 +270,8 @@ function YoutubeLayer({ spec, run, onFail }: { spec: Extract<BackgroundSpec, { k
       } else if (d?.event === 'infoDelivery' && d.info?.playerState === 1) {
         window.clearTimeout(timer.current)
         setReady((was) => {
-          if (!was) holdMask()
+          // on the PC too, the first seconds: YouTube shows its own previous / pause / next buttons over a fresh video
+          if (!was) holdMask(phone ? 4000 : 6500, true)
           return true
         })
       }
