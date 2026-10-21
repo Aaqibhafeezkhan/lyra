@@ -1,6 +1,6 @@
 # Lyra Cloud Export: render lyric videos on a server
 
-Status: design (nothing built yet). Owner: Dhruv. Written 2026-10-21. Replaces the short cloud notes in issue #25. Related: [windows-export-quality.md](windows-export-quality.md) (the quality bar), [android-export-quality.md](android-export-quality.md) (the on-phone plan this makes mostly unnecessary).
+Status: **PARKED (2026-10-21).** A server cannot get Spotify's sound or the YouTube video, so it could not match the Windows export; the owner chose not to build it for now. Kept as an open design (issue #25) for contributors. Nothing is built. Owner: Dhruv. Written 2026-10-21. Replaces the short cloud notes in issue #25. Related: [windows-export-quality.md](windows-export-quality.md) (the quality bar), [android-export-quality.md](android-export-quality.md) (the on-phone plan this makes mostly unnecessary).
 
 Goal: a phone (or PC, or a web page) sends **a song's sound, its lyrics and a few options**, and gets back a **1080x1920, 60 fps MP4 that looks exactly like the Windows export**, with clean, normalized sound. Free to use, open source, self-hostable.
 

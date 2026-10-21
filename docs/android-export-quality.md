@@ -1,6 +1,6 @@
 # Android lyric video, designed again from zero: listen, then render
 
-Status: plan v2 (replaces the screen-recording plan). Nothing here is built yet. Owner: Dhruv. Written 2026-10-21 for Lyra Android 0.3.x; the quality bar is the Windows "Smooth" export (see [windows-export-quality.md](windows-export-quality.md)).
+Status: **PARKED (2026-10-21).** The owner decided Android will not be built further until it can match the Windows export (the song's real sound and the YouTube video), which today's phones do not allow. The ideas below are kept as open issues for anyone who wants to take them on (see issues #19, #20, #28-#35). Nothing here is built yet. Owner: Dhruv. Written 2026-10-21 for Lyra Android 0.3.x; the quality bar is the Windows "Smooth" export (see [windows-export-quality.md](windows-export-quality.md)).
 
 **Why a new plan.** The first Android version filmed the phone's screen. That design is the source of the pain: the picture is whatever is on the screen (notifications, odd shape), the frame rate is whatever the display does, the sound depends on a phone setting we cannot control, and any hiccup while recording is permanent. Windows got smooth and reliable only when it stopped *recording the video live* and started *recording the song, then drawing the video afterwards at exact times*. Android gets the same treatment, with the parts that do not exist on a phone (screen capture of other apps' sound, a hidden YouTube window) replaced by things that do.
 
