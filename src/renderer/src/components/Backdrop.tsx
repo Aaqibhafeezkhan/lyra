@@ -375,7 +375,8 @@ export function Backdrop({ rich = false, animated = false }: { rich?: boolean; a
   const showMedia = usable && (isVideoFile || isImage)
   const showYt = usable && isYt
   const hasMedia = showMedia || showYt
-  const run = visible && playing // pause (never unmount) when the window is hidden or the song is paused
+  const exporting = useBgState((s) => s.exporting)
+  const run = visible && playing && !exporting // pause (never unmount) when the window is hidden or the song is paused
   const alive = animated && !reduced && spec?.kind !== 'still'
 
   const stats = useFrameStats(videoRef, usable && isVideoFile && run, specKey)

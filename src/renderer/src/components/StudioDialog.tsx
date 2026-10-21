@@ -23,7 +23,7 @@ const QUALITIES: Array<{ v: Quality; label: string }> = [
   { v: '1440p', label: 'Ultra · 1440p' }
 ]
 
-type Phase = { name: 'setup' } | { name: 'running'; stage: string; seconds: number; total: number } | { name: 'done'; path: string; droppedPct?: number } | { name: 'error'; message: string }
+type Phase = { name: 'setup' } | { name: 'running'; stage: string; seconds: number; total: number } | { name: 'done'; path: string; droppedPct?: number; fps?: number; sourceQuality?: string; askedFps?: number } | { name: 'error'; message: string }
 type Preset = 'chorus' | 'whole' | 'first30' | 'custom'
 type Source = 'live' | 'file'
 
@@ -174,7 +174,7 @@ export function StudioDialog({ onClose }: { onClose(): void }) {
         }
         const r = await exportVideo(opts, onProgress, ctl.signal)
         if (r.droppedPct >= 8) localStorage.setItem('lyra.studio.slowPc', '1')
-        setPhase({ name: 'done', path: r.path, droppedPct: r.droppedPct })
+        setPhase({ name: 'done', path: r.path, droppedPct: r.droppedPct, fps: r.fps, sourceQuality: r.sourceQuality, askedFps: fps })
       } else {
         const r = await exportFromFile(
           {
@@ -400,6 +400,16 @@ export function StudioDialog({ onClose }: { onClose(): void }) {
             <p className="studio__song">
               <b>Saved.</b> {phase.path}
             </p>
+            {phase.fps !== undefined && phase.askedFps !== undefined && phase.fps < phase.askedFps && (
+              <p className="studio__song" style={{ color: '#ffb36b' }}>
+                Recorded at {phase.fps} fps: this PC could not draw 60 frames a second smoothly, so Lyra chose a steady {phase.fps} instead.
+              </p>
+            )}
+            {phase.sourceQuality && (
+              <p className="studio__song">
+                Background video quality: {phase.sourceQuality.replace('x', '×')}
+              </p>
+            )}
             {(phase.droppedPct ?? 0) >= 8 && (
               <p className="studio__song" style={{ color: '#ffb36b' }}>
                 This PC could not keep up: about {phase.droppedPct}% of the frames were skipped, so the video looks choppy. Close other programs (free memory), pick 30 fps and a lower quality, or use “My own audio file”, which is not recorded live and always comes out smooth.

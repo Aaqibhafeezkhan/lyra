@@ -3,6 +3,7 @@ import type { LyricLine, Track } from '@shared/types'
 import { estimateWords } from '@shared/wordTiming'
 import { getPosition, usePlayer } from '@/store/player'
 import { useLyrics } from '@/store/lyrics'
+import { useBgState } from '@/store/bgState'
 import { useOffsets } from '@/store/offsets'
 import { useSettings } from '@/store/settings'
 import logoUrl from '@/assets/logo.png'
@@ -112,18 +113,17 @@ const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms
  * lyric video frame by frame, then writes an MP4 straight to the chosen file. Real time: a 4-minute song takes
  * 4 minutes. Resolves with the saved path.
  */
-export async function exportVideo(opts: ExportOptions, onProgress: (p: Progress) => void, signal: AbortSignal): Promise<{ path: string; seconds: number; droppedPct: number }> {
+export async function exportVideo(opts: ExportOptions, onProgress: (p: Progress) => void, signal: AbortSignal): Promise<{ path: string; seconds: number; droppedPct: number; fps: number; sourceQuality: string }> {
   const player = usePlayer.getState()
   const track: Track | undefined = player.snapshot?.track ?? undefined
   if (!track) throw new Error('Play a song first.')
   const lyrics = useLyrics.getState().state
   const lines: LyricLine[] = lyrics.phase === 'ready' && lyrics.result.status === 'synced' ? estimateWords(lyrics.result.lines, track.durationMs) : []
   const { w, h } = dimensions(opts.ratio, opts.quality)
-  const FPS: Fps = opts.fps ?? 60
+  let FPS: Fps = opts.fps ?? 60
 
   if (typeof VideoEncoder === 'undefined') throw new Error('This computer can not encode video here.')
-  const vcfg: VideoEncoderConfig = { codec: codecFor(FPS), width: w, height: h, bitrate: bitrateFor(opts.quality, FPS), framerate: FPS, latencyMode: 'realtime' }
-  if (!(await VideoEncoder.isConfigSupported(vcfg)).supported) throw new Error(`This PC can not encode ${w}×${h} video. Try a lower quality.`)
+  if (!(await VideoEncoder.isConfigSupported(encoderConfig(w, h, opts.quality, FPS))).supported) throw new Error(`This PC can not encode ${w}×${h} video. Try a lower quality.`)
 
   onProgress({ stage: 'preparing', seconds: 0, total: 0 })
   const startMs = Math.max(0, Math.min(opts.startMs, track.durationMs - 1000))
@@ -133,6 +133,7 @@ export async function exportVideo(opts: ExportOptions, onProgress: (p: Progress)
   const file = await window.lyra.studio.open(`${safeName} (${opts.ratio.replace(':', 'x')} ${opts.quality}).mp4`)
   if (!file) throw new Error('cancelled')
 
+  useBgState.getState().setExporting(true)
   let capture: MediaStream | null = null
   let stageRef: StageSource | null = null
   let aborted = false
@@ -150,10 +151,15 @@ export async function exportVideo(opts: ExportOptions, onProgress: (p: Progress)
     else if (opts.clipUrl) media = await loadVideo(opts.clipUrl)
     // a YouTube background plays in a hidden window; its frames arrive here
     let stage: StageSource | null = null
+    let sourceQuality = ''
     if (opts.youtube) {
       stage = stageRef = new StageSource(opts.youtube.crop)
-      const st = await window.lyra.studio.stageStart({ videoId: opts.youtube.videoId, width: opts.quality === '720p' ? 1280 : 1920, height: opts.quality === '720p' ? 720 : 1080, fps: STAGE_FPS, startSec: startMs / 1000 })
+      // the picture is cropped to fill the frame, so it must be as tall as the part of it that we show: ask for the
+      // biggest the hidden window can hand over smoothly (up to 1440p)
+      const needH = Math.min(1440, Math.max(720, Math.ceil(Math.max(h, (w * 9) / 16))))
+      const st = await window.lyra.studio.stageStart({ videoId: opts.youtube.videoId, width: Math.round((needH * 16) / 9 / 2) * 2, height: needH, fps: STAGE_FPS, startSec: startMs / 1000 })
       if (!st.ok) throw new Error(`The YouTube video can not be used: ${st.reason ?? 'unknown reason'}. Pick Cover colours instead.`)
+      sourceQuality = st.quality ?? ''
       await stage.firstFrame()
     }
     const css = getComputedStyle(document.documentElement)
@@ -179,6 +185,22 @@ export async function exportVideo(opts: ExportOptions, onProgress: (p: Progress)
     canvas.width = w
     canvas.height = h
     const ctx = canvas.getContext('2d', { alpha: false })!
+
+    // warm-up: draw a few frames before the clock starts (the first ones are slow while the browser compiles code and
+    // uploads pictures) and time them. A PC that can not draw a frame in about 11 ms can not hold 60 fps, so it gets
+    // a steady 30 instead of a stuttering 60.
+    let drawMs = 0
+    for (let i = 0; i < 24; i++) {
+      const t = performance.now()
+      scene.draw(ctx, opts.startMs, i / 30)
+      const wf = new VideoFrame(canvas, { timestamp: i * 1000 })
+      wf.close()
+      if (i >= 8) drawMs += performance.now() - t
+    }
+    drawMs /= 16
+    if (FPS === 60 && drawMs > 11) FPS = 30
+    const frameMs = 1000 / FPS
+    const vcfg = await pickEncoder(encoderConfig(w, h, opts.quality, FPS))
 
     // sound. First choice: only the Spotify app's own sound (notifications and other programs stay out of the video).
     // If that is not possible, the PC's whole sound.
@@ -280,18 +302,27 @@ export async function exportVideo(opts: ExportOptions, onProgress: (p: Progress)
     for (let i = 0; i < 40 && Math.abs(getPosition() - startMs) > 1500; i++) await sleep(150)
     if (Math.abs(getPosition() - startMs) > 3000) throw new Error('Could not jump to the start of the part. Press play and try again.')
 
-    // video frames, paced by the clock
+    // video frames at a constant rate. Frame number n is stamped n / FPS exactly; if the PC is late, the previous
+    // picture is repeated for the frames that were missed, so the file never has a hole (a hole plays as a freeze)
     const t0 = performance.now()
     recording = true
-    let nextFrame = 0
-    let encoded = 0
+    let nextIndex = 0 // the next frame number to write
+    let fresh = 0 // frames drawn new (the rest are repeats)
     let lastReport = 0
     let lastSync = 0
     const startPos = getPosition()
     const trackId = track.id
     let stalled = 0
+    const emit = (index: number, key: boolean): void => {
+      const frame = new VideoFrame(canvas, { timestamp: Math.round(index * frameMs * 1000) })
+      venc.encode(frame, { keyFrame: key })
+      frame.close()
+    }
+    let stopClock = (): void => undefined
+    let done = false
     await new Promise<void>((resolve) => {
       const tick = (): void => {
+        if (done) return
         const nowMs = performance.now() - t0
         const secs = nowMs / 1000
         const snap = usePlayer.getState().snapshot
@@ -299,23 +330,28 @@ export async function exportVideo(opts: ExportOptions, onProgress: (p: Progress)
         const over = aborted || encError || secs >= total || snap?.track?.id !== trackId || pos >= endMs || (secs > 3 && pos < startPos - 2000 && startMs === 0) || (secs > 3 && pos < startMs - 2000)
         if (snap && !snap.isPlaying) stalled += 1
         else stalled = 0
-        if (over || stalled > 400) return resolve()
-        // the screen refreshes about every 16.7 ms, so allow a frame a little early instead of skipping every other tick
-        if (nowMs >= nextFrame - 5) {
-          nextFrame += 1000 / FPS
-          if (nowMs - nextFrame > 500) nextFrame = nowMs // fell far behind: do not try to catch up
-          if (venc.encodeQueueSize < 12) {
-            try {
-              const lyricPos = pos + offsetNow()
-              scene.draw(ctx, lyricPos, secs)
-              const frame = new VideoFrame(canvas, { timestamp: Math.round(nowMs * 1000) })
-              venc.encode(frame, { keyFrame: Math.round(nowMs / (1000 / FPS)) % (FPS * 2) === 0 })
-              encoded += 1
-              frame.close()
-            } catch (e) {
-              encError = e as Error
-              return resolve()
+        if (over || stalled > 400) {
+          done = true
+          return resolve()
+        }
+        const target = Math.floor((nowMs + 4) / frameMs) // the frame that belongs on screen now (a few ms early is fine)
+        if (nextIndex <= target && venc.encodeQueueSize < 40) {
+          try {
+            // frames we are late for: repeat the last picture (cheap), at most two seconds' worth in one go
+            const gap = Math.min(target - nextIndex, FPS * 2)
+            for (let k = 0; k < gap; k++) {
+              emit(nextIndex, nextIndex % (FPS * 2) === 0)
+              nextIndex++
             }
+            nextIndex = target
+            scene.draw(ctx, pos + offsetNow(), (target * frameMs) / 1000)
+            emit(target, target % (FPS * 2) === 0)
+            nextIndex = target + 1
+            fresh++
+          } catch (e) {
+            encError = e as Error
+            done = true
+            return resolve()
           }
           if (stage && nowMs - lastSync > 1500) {
             lastSync = nowMs
@@ -326,10 +362,13 @@ export async function exportVideo(opts: ExportOptions, onProgress: (p: Progress)
             onProgress({ stage: 'recording', seconds: secs, total })
           }
         }
-        requestAnimationFrame(tick)
       }
-      requestAnimationFrame(tick)
+      // paced by a worker's clock: it keeps ticking when the window is covered or minimized, unlike animation frames
+      const clock = new Worker(new URL('./ticker.worker.ts', import.meta.url), { type: 'module' })
+      stopClock = () => clock.terminate()
+      clock.onmessage = tick
     })
+    stopClock()
 
     const recordedSecs = (performance.now() - t0) / 1000
     recording = false
@@ -337,13 +376,10 @@ export async function exportVideo(opts: ExportOptions, onProgress: (p: Progress)
     onProgress({ stage: 'finishing', seconds: total, total })
     // closing card: a few seconds of black with the logo and "Download Lyra" (encoded faster than real time)
     if (!aborted && !encError) {
-      const baseMs = performance.now() - t0
       const n = Math.round(END_SECONDS * FPS)
       for (let i = 0; i < n; i++) {
-        scene.endCard(ctx, (i + 1) / n, baseMs / 1000 + i / FPS)
-        const frame = new VideoFrame(canvas, { timestamp: Math.round((baseMs + (i * 1000) / FPS) * 1000) })
-        venc.encode(frame, { keyFrame: i === 0 })
-        frame.close()
+        scene.endCard(ctx, (i + 1) / n, (nextIndex * frameMs) / 1000 + i / FPS)
+        emit(nextIndex + i, i === 0)
         while (venc.encodeQueueSize > 8) await sleep(8)
       }
     }
@@ -366,9 +402,9 @@ export async function exportVideo(opts: ExportOptions, onProgress: (p: Progress)
       await window.lyra.studio.discard(file.path)
       throw new Error('cancelled')
     }
-    // how many of the frames this PC should have made were really made (the rest were skipped to keep the sound in step)
-    const expected = Math.max(1, Math.round(recordedSecs * FPS))
-    return { path: file.path, seconds, droppedPct: recordedSecs < 5 ? 0 : Math.max(0, Math.round((1 - encoded / expected) * 100)) }
+    // how many of the frames were drawn new; the rest are repeats of the previous picture (the PC was too busy)
+    const expected = Math.max(1, nextIndex)
+    return { path: file.path, seconds, droppedPct: recordedSecs < 5 ? 0 : Math.max(0, Math.round((1 - fresh / expected) * 100)), fps: FPS, sourceQuality }
   } catch (e) {
     await window.lyra.studio.close(file.id).catch(() => undefined)
     if ((e as Error).message === 'cancelled') await window.lyra.studio.discard(file.path).catch(() => undefined)
@@ -380,7 +416,24 @@ export async function exportVideo(opts: ExportOptions, onProgress: (p: Progress)
     stageRef?.close()
     void window.lyra.studio.stageStop()
     await window.lyra.studio.end()
+    useBgState.getState().setExporting(false)
   }
+}
+
+/** Encoder settings for the output; the hardware encoder is asked for first by pickEncoder. */
+function encoderConfig(w: number, h: number, quality: Quality, fps: Fps): VideoEncoderConfig {
+  return { codec: codecFor(fps), width: w, height: h, bitrate: bitrateFor(quality, fps), framerate: fps, latencyMode: 'realtime' }
+}
+
+/** The graphics chip encodes without loading the CPU that is also drawing the video; use it when it can do this size. */
+async function pickEncoder(cfg: VideoEncoderConfig): Promise<VideoEncoderConfig> {
+  const hw: VideoEncoderConfig = { ...cfg, hardwareAcceleration: 'prefer-hardware' }
+  try {
+    if ((await VideoEncoder.isConfigSupported(hw)).supported) return hw
+  } catch {
+    /* fall through to the default */
+  }
+  return cfg
 }
 
 /** The lyric timing offset (global + this song's nudge), read without a hook. */

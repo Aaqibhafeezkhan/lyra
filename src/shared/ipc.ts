@@ -243,7 +243,7 @@ export interface LyraApi {
     audioStart(): Promise<{ ok: boolean; reason?: string }>
     audioStop(): Promise<void>
     onAudio(cb: (pcm: Uint8Array) => void): Unsubscribe
-    stageStart(o: { videoId: string; width: number; height: number; fps: number; startSec: number }): Promise<{ ok: boolean; reason?: string }>
+    stageStart(o: { videoId: string; width: number; height: number; fps: number; startSec: number }): Promise<{ ok: boolean; reason?: string; quality?: string }>
     stageSeek(sec: number): Promise<void>
     /** Nudge the hidden video to the given time if it has drifted. */
     stageSync(sec: number): Promise<void>

@@ -1,4 +1,4 @@
-import { BrowserWindow, app, dialog, ipcMain, shell } from 'electron'
+import { BrowserWindow, app, dialog, ipcMain, powerSaveBlocker, shell } from 'electron'
 import { open, rm, type FileHandle } from 'node:fs/promises'
 import { execFile, spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
 import { existsSync } from 'node:fs'
@@ -13,6 +13,22 @@ import { windows } from './window'
 const files = new Map<number, FileHandle>()
 let nextId = 1
 let capturing = false
+let blocker: number | null = null
+
+/**
+ * An export is running: keep the app window rendering at full speed even when it is covered or minimized (Chromium
+ * would otherwise slow it right down, which shows up as freezes in the video) and keep Windows awake.
+ */
+function setExporting(on: boolean): void {
+  capturing = on
+  const w = windows.window
+  if (w && !w.isDestroyed()) w.webContents.setBackgroundThrottling(!on)
+  if (on && blocker === null) blocker = powerSaveBlocker.start('prevent-app-suspension')
+  if (!on && blocker !== null) {
+    powerSaveBlocker.stop(blocker)
+    blocker = null
+  }
+}
 
 export const studio = {
   /** The window may capture the PC's sound right now. */
@@ -36,11 +52,12 @@ function stopStage(): void {
   stage = null
 }
 
-async function startStage(o: { videoId: string; width: number; height: number; fps: number; startSec: number }): Promise<{ ok: boolean; reason?: string }> {
+async function startStage(o: { videoId: string; width: number; height: number; fps: number; startSec: number }): Promise<{ ok: boolean; reason?: string; quality?: string }> {
   stopStage()
   if (!/^[A-Za-z0-9_-]{11}$/.test(String(o.videoId))) return { ok: false, reason: 'Bad video id' }
-  const width = Math.max(320, Math.min(1920, Math.round(o.width)))
-  const height = Math.max(180, Math.min(1080, Math.round(o.height)))
+  // up to 1440p: the sharpest picture that the hidden window can hand over at 30 pictures a second without choking the PC
+  const width = Math.max(320, Math.min(2560, Math.round(o.width)))
+  const height = Math.max(180, Math.min(1440, Math.round(o.height)))
   const fps = Math.max(2, Math.min(30, Math.round(o.fps)))
   const win = new BrowserWindow({
     show: false,
@@ -59,12 +76,12 @@ async function startStage(o: { videoId: string; width: number; height: number; f
   win.webContents.on('paint', (_e, _dirty, image) => {
     const target = windows.window
     if (!target || target.isDestroyed()) return
-    target.webContents.send(EV.studioFrame, image.toJPEG(88))
+    target.webContents.send(EV.studioFrame, image.toJPEG(height >= 1200 ? 86 : 90))
   })
   const start = Math.max(0, Math.floor(o.startSec))
   const url =
     `https://www.youtube-nocookie.com/embed/${o.videoId}?autoplay=1&mute=1&controls=0&loop=1&playlist=${o.videoId}&start=${start}` +
-    '&modestbranding=1&playsinline=1&disablekb=1&rel=0&fs=0&iv_load_policy=3&cc_load_policy=0&vq=' + (height >= 1000 ? 'hd1080' : 'hd720')
+    '&modestbranding=1&playsinline=1&disablekb=1&rel=0&fs=0&iv_load_policy=3&cc_load_policy=0&vq=' + (height >= 1300 ? 'hd1440' : height >= 1000 ? 'hd1080' : 'hd720')
   win.webContents.on('dom-ready', () => void win.webContents.insertCSS(HIDE_PLAYER_UI).catch(() => undefined))
   try {
     await win.loadURL(url)
@@ -75,7 +92,7 @@ async function startStage(o: { videoId: string; width: number; height: number; f
       const state = (await win.webContents.executeJavaScript(
         "(() => { const v = document.querySelector('video'); const err = document.querySelector('.ytp-error-content-wrap-reason, .ytp-error'); return err ? 'error:' + (err.textContent || '').trim().slice(0, 120) : v && v.readyState >= 3 && !v.paused ? 'ok' : v && v.paused && v.readyState >= 3 ? 'paused' : 'wait' })()"
       )) as string
-      if (state === 'ok') return { ok: true }
+      if (state === 'ok') return { ok: true, quality: await settleQuality(win, height) }
       if (state === 'paused') await win.webContents.executeJavaScript("document.querySelector('video')?.play()")
       if (state.startsWith('error:')) return { ok: false, reason: state.slice(6) || 'This video can not be played here.' }
       await new Promise((r) => setTimeout(r, 500))
@@ -84,6 +101,34 @@ async function startStage(o: { videoId: string; width: number; height: number; f
   } catch (e) {
     return { ok: false, reason: (e as Error).message }
   }
+}
+
+/**
+ * YouTube starts a video in low resolution and works its way up. Ask the player for the best stream that is not
+ * bigger than the picture we will hand over, then wait (up to 12 s) until it really arrives, so the first seconds
+ * of the export are not blurry. Returns what we got, e.g. "2560x1440".
+ */
+async function settleQuality(win: BrowserWindow, height: number): Promise<string> {
+  const order = [['hd2160', 2160], ['hd1440', 1440], ['hd1080', 1080], ['hd720', 720], ['large', 480], ['medium', 360]] as const
+  let seen = ''
+  for (let i = 0; i < 24; i++) {
+    if (win.isDestroyed()) return seen
+    seen = (await win.webContents
+      .executeJavaScript(
+        `(() => { const p = document.getElementById('movie_player'); const v = document.querySelector('video');
+          const cap = ${height}; const order = ${JSON.stringify(order)};
+          const have = p && p.getAvailableQualityLevels ? p.getAvailableQualityLevels() : [];
+          const pick = order.find(([l, h]) => h <= cap && have.includes(l)) || order.find(([l]) => have.includes(l)) || order[2];
+          if (p && p.setPlaybackQualityRange) { p.setPlaybackQualityRange(pick[0], pick[0]); p.setPlaybackQuality && p.setPlaybackQuality(pick[0]); }
+          return (v ? v.videoWidth + 'x' + v.videoHeight : '') + '|' + pick[1] })()`
+      )
+      .catch(() => '')) as string
+    const [res, want] = seen.split('|')
+    const vh = Number((res ?? '').split('x')[1] ?? 0)
+    if (vh && vh >= Number(want) * 0.95) return res ?? ''
+    await new Promise((r) => setTimeout(r, 500))
+  }
+  return seen.split('|')[0] ?? ''
 }
 
 /** Captures only the Spotify app's sound with resources/lyra-audio.exe and forwards the PCM to the app window. */
@@ -158,7 +203,7 @@ export function registerStudioIpc(): void {
     const fh = await open(r.filePath, 'w')
     const id = nextId++
     files.set(id, fh)
-    capturing = true
+    setExporting(true)
     return { id, path: r.filePath }
   })
   ipcMain.handle(CH.studioWrite, async (_e, id: number, position: number, chunk: Uint8Array) => {
@@ -175,7 +220,7 @@ export function registerStudioIpc(): void {
     if (typeof path === 'string' && path.toLowerCase().endsWith('.mp4')) await rm(path, { force: true })
   })
   ipcMain.handle(CH.studioEnd, () => {
-    capturing = false
+    setExporting(false)
   })
   ipcMain.handle(CH.studioReveal, (_e, path: string) => {
     if (typeof path === 'string' && path.toLowerCase().endsWith('.mp4')) shell.showItemInFolder(path)
