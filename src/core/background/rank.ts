@@ -16,7 +16,7 @@ export interface Wanted {
   durationMs: number
 }
 
-const BAD = /\b(lyrics?|lyrical|audio|cover|karaoke|reaction|remix|slowed|reverb|8d|nightcore|instrumental|tutorial|status|shorts?|mashup|sped\s*up|reprise|visuali[sz]er|live|concert|fan\s*made|fanmade|edit|animated|amv|mv\s*reaction|full\s*album|playlist|compilation)\b/i
+const BAD = /\b(lyrics?|lyrical|audio|cover|karaoke|reaction|remix|slowed|reverb|8d|nightcore|instrumental|tutorial|status|shorts?|mashup|sped\s*up|reprise|visuali[sz]er|live|concert|fan\s*made|fanmade|edit|animated|amv|mv\s*reaction|full\s*album|playlist|compilation|scenes?|trailer|clips?|tribute|aesthetic|vibes?|cinematic|fan|fans|whatsapp|insta(?:gram)?|tiktok|reels?|movie|mix|ai\s*(?:video|generated)|unplugged|acoustic|dance|choreography)\b/i
 const GOOD = /\b(official|vevo|music video|video song|full video|official video)\b/i
 
 /** Remove "(Official Video)", "[HD]", "| T-Series" style noise so the song name is comparable. */
@@ -59,7 +59,9 @@ export function scoreVideo(want: Wanted, v: VideoCandidate): { score: number; ac
   const topic = /\btopic$/i.test(v.channel.trim())
   const variant = BAD.test(v.title) && !BAD.test(want.title)
   if (topic) score -= 0.4
-  return { score, acceptable: titleSim >= 0.6 && artistHit && official && !topic && !variant && score >= 0.62 }
+  // a video far from the song's length is a different cut, a clip or a compilation: never auto-play it
+  const lengthOk = !v.durationSec || want.durationMs <= 0 || Math.abs(v.durationSec - want.durationMs / 1000) <= 30
+  return { score, acceptable: titleSim >= 0.6 && artistHit && official && !topic && !variant && lengthOk && score >= 0.62 }
 }
 
 /** Best-first. `acceptable` ones are safe to auto-play; the rest only appear in the "pick one" list. */

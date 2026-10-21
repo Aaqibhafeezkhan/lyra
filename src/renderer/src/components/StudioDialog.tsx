@@ -23,7 +23,7 @@ const QUALITIES: Array<{ v: Quality; label: string }> = [
   { v: '1440p', label: 'Ultra · 1440p' }
 ]
 
-type Phase = { name: 'setup' } | { name: 'running'; stage: string; seconds: number; total: number } | { name: 'done'; path: string; droppedPct?: number; fps?: number; sourceQuality?: string; askedFps?: number } | { name: 'error'; message: string }
+type Phase = { name: 'setup' } | { name: 'running'; stage: string; seconds: number; total: number } | { name: 'done'; path: string; droppedPct?: number; fps?: number; sourceQuality?: string; askedFps?: number; coverPath?: string | null } | { name: 'error'; message: string }
 type Preset = 'chorus' | 'whole' | 'first30' | 'custom'
 type Source = 'live' | 'file'
 
@@ -65,6 +65,16 @@ export function StudioDialog({ onClose }: { onClose(): void }) {
   const [range, setRange] = useState<{ startMs: number; endMs: number }>({ startMs: 0, endMs: 30_000 })
   const abort = useRef<AbortController | null>(null)
   const [previewStage, setPreviewStage] = useState<StageSource | null>(null)
+  // which video plays behind the lyrics, and a way to swap it before recording
+  const [pickOpen, setPickOpen] = useState(false)
+  const [cands, setCands] = useState<Array<{ videoId: string; title: string; channel: string; durationSec: number | null }> | null>(null)
+  const chooseVideo = async (videoId: string): Promise<void> => {
+    if (!track) return
+    await window.lyra.background.youtubeChoose(track.id, videoId)
+    const r = await window.lyra.background.resolve(track)
+    setSpec(r.spec)
+    setPickOpen(false)
+  }
 
   useEffect(() => {
     if (!track) return
@@ -174,7 +184,7 @@ export function StudioDialog({ onClose }: { onClose(): void }) {
         }
         const r = await exportVideo(opts, onProgress, ctl.signal)
         if (r.droppedPct >= 8) localStorage.setItem('lyra.studio.slowPc', '1')
-        setPhase({ name: 'done', path: r.path, droppedPct: r.droppedPct, fps: r.fps, sourceQuality: r.sourceQuality, askedFps: fps })
+        setPhase({ name: 'done', path: r.path, droppedPct: r.droppedPct, fps: r.fps, sourceQuality: r.sourceQuality, askedFps: fps, coverPath: r.coverPath })
       } else {
         const r = await exportFromFile(
           {
@@ -341,6 +351,35 @@ export function StudioDialog({ onClose }: { onClose(): void }) {
                   <span>Background</span>
                   {seg<'auto' | 'cover' | 'file'>('Background', bg, source === 'live' ? [{ v: 'auto', label: 'Current video' }, { v: 'cover', label: 'Cover colours' }, { v: 'file', label: 'My file' }] : [{ v: 'cover', label: 'Cover colours' }, { v: 'file', label: 'My video or photo' }], setBg)}
                   {source === 'live' && bg === 'auto' && !autoUsable && <small>This song’s video can’t be exported yet, so the cover’s colours are used.</small>}
+                  {source === 'live' && bg === 'auto' && spec?.kind === 'youtube' && (
+                    <>
+                      <small>
+                        Video: {spec.title} · {spec.channel}
+                      </small>
+                      <button
+                        type="button"
+                        className="pill"
+                        onClick={() => {
+                          setPickOpen((o) => !o)
+                          if (!cands && track) void window.lyra.background.youtubeCandidates(track).then((r) => setCands(r.items))
+                        }}
+                      >
+                        {pickOpen ? 'Close the list' : 'Wrong video? Choose another'}
+                      </button>
+                      {pickOpen && (
+                        <div className="studio__choices" style={{ flexDirection: 'column', alignItems: 'stretch' }}>
+                          {(cands ?? []).slice(0, 8).map((c) => (
+                            <button type="button" key={c.videoId} className={`pill ${c.videoId === spec.videoId ? 'pill--primary' : ''}`} onClick={() => void chooseVideo(c.videoId)}>
+                              {c.title} · {c.channel}
+                              {c.durationSec ? ` · ${fmt(c.durationSec)}` : ''}
+                            </button>
+                          ))}
+                          {cands && cands.length === 0 && <small>No other videos found for this song.</small>}
+                          {!cands && <small>Looking…</small>}
+                        </div>
+                      )}
+                    </>
+                  )}
                   {bg === 'file' && (
                     <label className="pill">
                       {file ? file.name : 'Choose a video or photo…'}
@@ -404,6 +443,9 @@ export function StudioDialog({ onClose }: { onClose(): void }) {
               <p className="studio__song" style={{ color: '#ffb36b' }}>
                 Recorded at {phase.fps} fps: this PC could not draw 60 frames a second smoothly, so Lyra chose a steady {phase.fps} instead.
               </p>
+            )}
+            {phase.coverPath && (
+              <p className="studio__song">Cover picture saved next to the video: {phase.coverPath}</p>
             )}
             {phase.sourceQuality && (
               <p className="studio__song">

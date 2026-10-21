@@ -33,7 +33,8 @@ const frameMs = 1000 / Math.round(fps)
 const stream = run(FFPROBE, ['-v', 'error', '-show_entries', 'stream=codec_name,profile,level,width,height,r_frame_rate,sample_rate,channels,bit_rate', '-of', 'compact', file]).trim()
 
 const probe = spawnSync(FFMPEG, ['-hide_banner', '-nostats', '-i', file, '-af', 'ebur128=peak=true', '-vn', '-f', 'null', '-'], { encoding: 'utf8', maxBuffer: 256 * 1024 * 1024 })
-const audio = String(probe.stderr || '')
+const all = String(probe.stderr || '')
+const audio = all.includes('Summary:') ? all.slice(all.lastIndexOf('Summary:')) : all
 const lufs = /I:\s+(-?[\d.]+) LUFS/.exec(audio || '')
 const peak = /Peak:\s+(-?[\d.]+) dBFS/.exec(audio || '')
 

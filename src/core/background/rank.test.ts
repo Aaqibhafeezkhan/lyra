@@ -56,6 +56,19 @@ describe('auto-accept is strict', () => {
   })
 })
 
+describe('fan edits and clips are never auto-played', () => {
+  const want = { title: 'Barsaat', artist: 'Banjaare', durationMs: 185_000 }
+  it('rejects movie-scene edits even with an official-looking title', () => {
+    expect(rankVideos(want, [v('s', 'Barsaat Official Video Banjaare spiderman movie scene whatsapp status', 'Banjaare Music', 185)])[0]!.acceptable).toBe(false)
+  })
+  it('rejects a video that is far from the song length', () => {
+    expect(rankVideos(want, [v('d', 'Banjaare - Barsaat (Official Video)', 'Banjaare', 241)])[0]!.acceptable).toBe(false)
+  })
+  it('still accepts the official video within 30 s of the song length', () => {
+    expect(rankVideos(want, [v('o', 'Banjaare - Barsaat (Official Video)', 'Banjaare', 205)])[0]!.acceptable).toBe(true)
+  })
+})
+
 describe('parseIsoDuration', () => {
   it('parses common shapes', () => {
     expect(parseIsoDuration('PT3M5S')).toBe(185)

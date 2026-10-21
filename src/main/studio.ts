@@ -1,5 +1,5 @@
 import { BrowserWindow, app, dialog, ipcMain, powerSaveBlocker, shell } from 'electron'
-import { open, rm, type FileHandle } from 'node:fs/promises'
+import { open, rm, writeFile, type FileHandle } from 'node:fs/promises'
 import { execFile, spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
@@ -221,6 +221,12 @@ export function registerStudioIpc(): void {
   })
   ipcMain.handle(CH.studioEnd, () => {
     setExporting(false)
+  })
+  ipcMain.handle(CH.studioSaveImage, async (_e, videoPath: string, jpeg: Uint8Array) => {
+    if (typeof videoPath !== 'string' || !videoPath.toLowerCase().endsWith('.mp4') || !(jpeg instanceof Uint8Array) || jpeg.byteLength > 20 * 1024 * 1024) return null
+    const out = videoPath.replace(/\.mp4$/i, ' (cover).jpg')
+    await writeFile(out, jpeg)
+    return out
   })
   ipcMain.handle(CH.studioReveal, (_e, path: string) => {
     if (typeof path === 'string' && path.toLowerCase().endsWith('.mp4')) shell.showItemInFolder(path)

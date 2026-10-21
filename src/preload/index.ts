@@ -86,6 +86,7 @@ const api: LyraApi = {
     discard: (path) => invoke(CH.studioDiscard, path),
     end: () => invoke(CH.studioEnd),
     reveal: (path) => invoke(CH.studioReveal, path),
+    saveImage: (videoPath, jpeg) => invoke(CH.studioSaveImage, videoPath, jpeg),
     audioStart: () => invoke(CH.studioAudioStart),
     audioStop: () => invoke(CH.studioAudioStop),
     onAudio: (cb) => subscribe(EV.studioAudio, cb),

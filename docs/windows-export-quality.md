@@ -1,6 +1,6 @@
 # Windows lyric-video export: smooth, clean, post-ready
 
-Status: **P0 built in 0.11.0** (constant frame rate, worker clock, no throttling, hardware encoder, quiet UI, warm-up, auto 30 fps, 1440p YouTube background, analyzer script). P1-P3 still to do. Owner: Dhruv. Written 2026-10-21 against Lyra 0.10.5.
+Status: **P0 built in 0.11.0, P3 built in 0.12.0** (constant frame rate, worker clock, no throttling, hardware encoder, quiet UI, warm-up, auto 30 fps, 1440p YouTube background, analyzer script). P1 and P2 still to do. Owner: Dhruv. Written 2026-10-21 against Lyra 0.10.5.
 
 Goal: a video made by Lyra on Windows that someone is happy to post to Instagram Reels, TikTok and YouTube Shorts as it is: **smooth motion, clean sound, sharp picture, nothing that looks like a screen recording of a busy PC.**
 
@@ -203,3 +203,12 @@ Same machine, 33 s live recording, 1080x1920, 60 fps, YouTube background:
 | YouTube picture | 1080p stage, upscaled | **2560x1440 stream** (asked for the best size not above the part shown) |
 
 Check any video with `node scripts/analyze-video.js file.mp4` (needs ffprobe/ffmpeg; set `FFPROBE` / `FFMPEG` if they are not on the PATH).
+
+## 11. P3 result (0.12.0)
+
+- Safe zones for tall videos (top 12%, bottom 22%, right 10% kept clear); song bar and the Lyra badge moved into the safe middle; bigger lyrics.
+- Black bars inside the video are detected from the picture itself and trimmed.
+- Auto-pick is stricter: more fan-edit/clip words are rejected, and a video more than 30 s off the song length is never played automatically. The export dialog shows which video is used and lists alternatives ("Wrong video? Choose another").
+- A cover picture (JPEG) is saved next to the video.
+- Own-audio exports are normalized to about -14 LUFS with a soft ceiling at -1 dBFS (measured: -13.4 LUFS, peak -1.4 dB). Live exports get a short fade-in and the same ceiling. (AAC stays at 192 kbps: the Windows encoder rejects 256 kbps.)
+- Not done: fast-start MP4 (needs a rewrite pass after muxing), the thumbnail strip in the video list (YouTube images are blocked by the app's security policy), blur-fill instead of heavy crop.

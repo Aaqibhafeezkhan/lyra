@@ -113,7 +113,7 @@ const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms
  * lyric video frame by frame, then writes an MP4 straight to the chosen file. Real time: a 4-minute song takes
  * 4 minutes. Resolves with the saved path.
  */
-export async function exportVideo(opts: ExportOptions, onProgress: (p: Progress) => void, signal: AbortSignal): Promise<{ path: string; seconds: number; droppedPct: number; fps: number; sourceQuality: string }> {
+export async function exportVideo(opts: ExportOptions, onProgress: (p: Progress) => void, signal: AbortSignal): Promise<{ path: string; seconds: number; droppedPct: number; fps: number; sourceQuality: string; coverPath: string | null }> {
   const player = usePlayer.getState()
   const track: Track | undefined = player.snapshot?.track ?? undefined
   if (!track) throw new Error('Play a song first.')
@@ -236,7 +236,7 @@ export async function exportVideo(opts: ExportOptions, onProgress: (p: Progress)
     const venc = new VideoEncoder({ output: (c, m) => muxer.addVideoChunk(c, m), error: (e) => (encError = e) })
     venc.configure(vcfg)
     const aenc = new AudioEncoder({ output: (c, m) => muxer.addAudioChunk(c, m), error: (e) => (encError = e) })
-    aenc.configure({ codec: 'mp4a.40.2', sampleRate, numberOfChannels: channels, bitrate: 192_000 })
+    aenc.configure({ codec: 'mp4a.40.2', sampleRate, numberOfChannels: channels, bitrate: channels === 1 ? 128_000 : 192_000 })
 
     // audio pump: sound that arrives before recording starts is thrown away
     let audioT0: number | null = null
@@ -258,8 +258,10 @@ export async function exportVideo(opts: ExportOptions, onProgress: (p: Progress)
           const i16 = new Int16Array(pcm.buffer, pcm.byteOffset, frames * 2)
           const planar = new Float32Array(frames * 2)
           for (let i = 0; i < frames; i++) {
-            planar[i] = i16[i * 2]! / 32768
-            planar[frames + i] = i16[i * 2 + 1]! / 32768
+            // a short fade-in (no click at the start) and a soft ceiling so a loud passage can not clip in the AAC encoder
+            const fade = helperFrames + i < 4800 ? (helperFrames + i) / 4800 : 1
+            planar[i] = softCeiling((i16[i * 2]! / 32768) * fade)
+            planar[frames + i] = softCeiling((i16[i * 2 + 1]! / 32768) * fade)
           }
           // the capture sends nothing while Spotify is silent (quiet intros, gaps): fill those gaps with silence so the
           // sound stays in step with the picture
@@ -313,6 +315,8 @@ export async function exportVideo(opts: ExportOptions, onProgress: (p: Progress)
     const startPos = getPosition()
     const trackId = track.id
     let stalled = 0
+    // a cover picture for the post: a frame from about a third of the way in, while a line is being sung
+    let cover: Promise<Blob | null> | null = null
     const emit = (index: number, key: boolean): void => {
       const frame = new VideoFrame(canvas, { timestamp: Math.round(index * frameMs * 1000) })
       venc.encode(frame, { keyFrame: key })
@@ -337,14 +341,15 @@ export async function exportVideo(opts: ExportOptions, onProgress: (p: Progress)
         const target = Math.floor((nowMs + 4) / frameMs) // the frame that belongs on screen now (a few ms early is fine)
         if (nextIndex <= target && venc.encodeQueueSize < 40) {
           try {
-            // frames we are late for: repeat the last picture (cheap), at most two seconds' worth in one go
-            const gap = Math.min(target - nextIndex, FPS * 2)
+            // frames we are late for: repeat the last picture (cheap), at most ten seconds' worth in one go
+            const gap = Math.min(target - nextIndex, FPS * 10)
             for (let k = 0; k < gap; k++) {
               emit(nextIndex, nextIndex % (FPS * 2) === 0)
               nextIndex++
             }
             nextIndex = target
             scene.draw(ctx, pos + offsetNow(), (target * frameMs) / 1000)
+            if (!cover && secs > Math.min(total * 0.33, 25) && secs > 4) cover = new Promise((res) => canvas.toBlob((b) => res(b), 'image/jpeg', 0.93))
             emit(target, target % (FPS * 2) === 0)
             nextIndex = target + 1
             fresh++
@@ -398,13 +403,18 @@ export async function exportVideo(opts: ExportOptions, onProgress: (p: Progress)
     muxer.finalize()
     const seconds = (performance.now() - t0) / 1000
     await window.lyra.studio.close(file.id)
+    let coverPath: string | null = null
+    if (!aborted && cover) {
+      const blob = await (cover as Promise<Blob | null>)
+      if (blob) coverPath = await window.lyra.studio.saveImage(file.path, new Uint8Array(await blob.arrayBuffer())).catch(() => null)
+    }
     if (aborted) {
       await window.lyra.studio.discard(file.path)
       throw new Error('cancelled')
     }
     // how many of the frames were drawn new; the rest are repeats of the previous picture (the PC was too busy)
     const expected = Math.max(1, nextIndex)
-    return { path: file.path, seconds, droppedPct: recordedSecs < 5 ? 0 : Math.max(0, Math.round((1 - fresh / expected) * 100)), fps: FPS, sourceQuality }
+    return { path: file.path, seconds, droppedPct: recordedSecs < 5 ? 0 : Math.max(0, Math.round((1 - fresh / expected) * 100)), fps: FPS, sourceQuality, coverPath }
   } catch (e) {
     await window.lyra.studio.close(file.id).catch(() => undefined)
     if ((e as Error).message === 'cancelled') await window.lyra.studio.discard(file.path).catch(() => undefined)
@@ -418,6 +428,14 @@ export async function exportVideo(opts: ExportOptions, onProgress: (p: Progress)
     await window.lyra.studio.end()
     useBgState.getState().setExporting(false)
   }
+}
+
+/** Leaves quiet and normal sound untouched; bends what goes above 0.8 towards a ceiling of 0.89 (-1 dBFS). */
+export function softCeiling(x: number): number {
+  const a = Math.abs(x)
+  if (a <= 0.8) return x
+  const y = 0.8 + 0.09 * Math.tanh((a - 0.8) / 0.09)
+  return x < 0 ? -y : y
 }
 
 /** Encoder settings for the output; the hardware encoder is asked for first by pickEncoder. */

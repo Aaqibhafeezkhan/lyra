@@ -48,15 +48,18 @@ export function createScene(inp: SceneInput): Scene {
   const { w, h } = inp
   const base = Math.min(w, h)
   const portrait = h >= w
+  // a tall (9:16) video is shown inside Reels / TikTok / Shorts, which cover the top ~12%, the bottom ~22% and the right
+  // ~12% with their own buttons and captions: keep everything that matters inside the safe middle
+  const tall = h / w >= 1.6
   const margin = Math.round(base * (portrait ? 0.085 : 0.07))
   const sizeMul = inp.style === 'focus' ? 1.28 : inp.style === 'subtitle' ? 0.74 : 1
   const centered = inp.style !== 'scroll'
-  const fontSize = Math.round(base * (portrait ? 0.074 : 0.078) * sizeMul)
+  const fontSize = Math.round(base * (tall ? 0.082 : portrait ? 0.074 : 0.078) * sizeMul)
   const lineH = Math.round(fontSize * 1.18)
   const gap = Math.round(fontSize * 0.55)
   // lyrics column: the whole width in portrait/square, the right 62% in landscape (the song sits left)
   const colX = portrait ? margin : Math.round(w * 0.36)
-  const colW = w - colX - margin
+  const colW = w - colX - margin - (tall ? Math.round(w * 0.1) : 0)
   const measure = document.createElement('canvas').getContext('2d')!
   measure.font = `800 ${fontSize}px ${inp.fontFamily}`
   const space = measure.measureText(' ').width
@@ -153,7 +156,7 @@ export function createScene(inp: SceneInput): Scene {
 
     // ---- lyrics
     const idx = activeIndex(posMs)
-    const focusY = h * (inp.position === 'upper' ? 0.3 : inp.position === 'lower' ? 0.62 : portrait ? 0.5 : 0.44)
+    const focusY = h * (inp.position === 'upper' ? 0.3 : inp.position === 'lower' ? 0.6 : tall ? 0.46 : portrait ? 0.5 : 0.44)
     if (placed.length) {
       const target = Math.max(0, idx)
       scroll += (target - scroll) * (1 - Math.exp(-dt / 0.2))
@@ -173,7 +176,7 @@ export function createScene(inp: SceneInput): Scene {
         if (inp.style === 'subtitle' && i !== idx) continue
         // fade near the top and above the song bar so the text never runs into it
         const mid = yy + p.height / 2
-        const edge = Math.max(0, Math.min(1, Math.min((mid - h * 0.05) / (h * 0.12), (h * (inp.showSong ? 0.8 : 0.9) - mid) / (h * 0.12))))
+        const edge = Math.max(0, Math.min(1, Math.min((mid - h * (tall ? 0.15 : 0.05)) / (h * 0.12), (h * (tall ? (inp.showSong ? 0.7 : 0.76) : inp.showSong ? 0.8 : 0.9) - mid) / (h * 0.12))))
         // the current line is bright; the ones around it step down quickly (like Lyra on the phone) so the picture stays clear
         const ring = isNow ? 0 : Math.max(1, Math.min(3, Math.round(Math.abs(d))))
         const alpha = (isNow ? 1 : inp.style === 'scroll' ? [1, 0.4, 0.16, 0][ring]! : 0.3) * edge
@@ -218,7 +221,7 @@ export function createScene(inp: SceneInput): Scene {
     // ---- song
     if (inp.showSong) {
       const cs = Math.round(base * 0.085)
-      const sy = portrait || w === h ? h - margin * 0.7 - base * 0.05 - base * 0.035 - cs : h - margin - cs
+      const sy = tall ? h * 0.775 - cs : portrait || w === h ? h - margin * 0.7 - base * 0.05 - base * 0.035 - cs : h - margin - cs
       const sx = margin
       if (inp.art) {
         ctx.save()
@@ -229,7 +232,7 @@ export function createScene(inp: SceneInput): Scene {
         ctx.restore()
       }
       const tx = sx + (inp.art ? cs + base * 0.026 : 0)
-      const maxW = (portrait ? w - margin : colX - margin * 0.5) - tx
+      const maxW = (portrait ? w - margin - (tall ? w * 0.1 : 0) : colX - margin * 0.5) - tx
       ctx.textBaseline = 'top'
       ctx.fillStyle = '#fff'
       ctx.font = `700 ${Math.round(cs * 0.34)}px ${inp.fontFamily}`
@@ -257,7 +260,7 @@ export function createScene(inp: SceneInput): Scene {
       const bw = pad * 2 + iconS + pad * 0.8 + textW
       const bhh = bh * 1.12
       const bx = portrait || w === h ? (w - bw) / 2 : w - margin - bw
-      const by = h - margin * 0.7 - bhh
+      const by = tall ? h * 0.12 : h - margin * 0.7 - bhh
       ctx.save()
       ctx.globalAlpha = 0.9
       ctx.fillStyle = 'rgba(12,12,16,0.6)'

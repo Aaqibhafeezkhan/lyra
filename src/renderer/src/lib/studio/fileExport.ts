@@ -2,7 +2,7 @@ import { Muxer, StreamTarget } from 'mp4-muxer'
 import type { LyricLine } from '@shared/types'
 import { estimateWords } from '@shared/wordTiming'
 import logoUrl from '@/assets/logo.png'
-import { bitrateFor, codecFor, dimensions, loadImage, loadVideo, lookInputs, type Fps, type Look, type Quality, type Ratio, type Progress } from './recorder'
+import { softCeiling, bitrateFor, codecFor, dimensions, loadImage, loadVideo, lookInputs, type Fps, type Look, type Quality, type Ratio, type Progress } from './recorder'
 import { createScene } from './scene'
 
 /**
@@ -28,6 +28,34 @@ export interface FileExportOptions {
 }
 
 const END_SECONDS = 2.8
+
+/**
+ * Gain that brings the part of the song being exported to about -14 LUFS (what Instagram, TikTok and YouTube
+ * expect), so a quiet file is not much quieter than other videos and a hot one is not clipped. A simple gated loudness
+ * estimate (400 ms blocks, quiet blocks ignored); kept between 0.4x and 3x.
+ */
+function loudnessGain(pcm: AudioBuffer, s0: number, s1: number, channels: number): number {
+  const block = 19200
+  const ms: number[] = []
+  for (let s = s0; s + block <= s1; s += block) {
+    let sum = 0
+    for (let c = 0; c < channels; c++) {
+      const d = pcm.getChannelData(c)
+      for (let i = 0; i < block; i += 4) sum += d[s + i]! * d[s + i]!
+    }
+    ms.push(sum / ((block / 4) * channels))
+  }
+  const loud = ms.filter((m) => 10 * Math.log10(m + 1e-12) - 0.691 > -50)
+  if (!loud.length) return 1
+  const mean0 = loud.reduce((a, b) => a + b, 0) / loud.length
+  const gate = 10 * Math.log10(mean0) - 0.691 - 10
+  const kept = loud.filter((m) => 10 * Math.log10(m + 1e-12) - 0.691 > gate)
+  const mean = (kept.length ? kept : loud).reduce((a, b) => a + b, 0) / (kept.length || loud.length)
+  const lufs = 10 * Math.log10(mean) - 0.691
+  // the estimate has no K-weighting (music reads about 1.5 dB lower than the real LUFS), so aim a little lower
+  const g = Math.pow(10, (-15.5 - lufs) / 20)
+  return Number.isFinite(g) ? Math.min(3, Math.max(0.4, g)) : 1
+}
 
 export async function decodeAudio(buf: ArrayBuffer): Promise<AudioBuffer> {
   const ctx = new AudioContext({ sampleRate: 48000 })
@@ -114,13 +142,14 @@ export async function exportFromFile(opts: FileExportOptions, onProgress: (p: Pr
     const venc = new VideoEncoder({ output: (c, m) => muxer.addVideoChunk(c, m), error: (e) => (encError = e) })
     venc.configure(vcfg)
     const aenc = new AudioEncoder({ output: (c, m) => muxer.addAudioChunk(c, m), error: (e) => (encError = e) })
-    aenc.configure({ codec: 'mp4a.40.2', sampleRate: 48000, numberOfChannels: channels, bitrate: 192_000 })
+    aenc.configure({ codec: 'mp4a.40.2', sampleRate: 48000, numberOfChannels: channels, bitrate: channels === 1 ? 128_000 : 192_000 })
 
     // sound: the chosen part, cut into small blocks (with a short fade at both ends)
     const s0 = Math.floor((startMs / 1000) * 48000)
     const s1 = Math.floor((endMs / 1000) * 48000)
     const block = 4800
     const fade = 14400
+    const gain = loudnessGain(pcm, s0, s1, channels)
     for (let s = s0; s < s1 && !aborted; s += block) {
       const n = Math.min(block, s1 - s)
       const data = new Float32Array(n * channels)
@@ -129,7 +158,7 @@ export async function exportFromFile(opts: FileExportOptions, onProgress: (p: Pr
         for (let i = 0; i < n; i++) {
           const idx = s + i
           const g = Math.min(1, (idx - s0) / fade, (s1 - idx) / fade)
-          data[c * n + i] = src[idx]! * Math.max(0, g)
+          data[c * n + i] = softCeiling(src[idx]! * gain) * Math.max(0, g)
         }
       }
       const ad = new AudioData({ format: 'f32-planar', sampleRate: 48000, numberOfFrames: n, numberOfChannels: channels, timestamp: Math.round(((s - s0) / 48000) * 1e6), data })

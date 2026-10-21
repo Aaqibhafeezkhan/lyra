@@ -65,6 +65,7 @@ export const CH = {
   studioDiscard: 'studio:discard',
   studioEnd: 'studio:end',
   studioReveal: 'studio:reveal',
+  studioSaveImage: 'studio:save-image',
   studioAudioStart: 'studio:audio-start',
   studioAudioStop: 'studio:audio-stop',
   studioStageStart: 'studio:stage-start',
@@ -231,6 +232,8 @@ export interface LyraApi {
     /** Export finished (or failed): sound capture is switched off again. */
     end(): Promise<void>
     reveal(path: string): Promise<void>
+    /** save a JPEG next to the video (same name, ' (cover).jpg'); resolves with its path, or null */
+    saveImage(videoPath: string, jpeg: Uint8Array): Promise<string | null>
     /**
      * Play a YouTube video in a hidden window and stream its picture back as JPEG frames (onFrame), so it can be
      * used as a background in an exported video. Resolves ok:false with a reason when the video can not be played.
