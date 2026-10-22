@@ -213,8 +213,30 @@ function Toggle({ checked, onChange, label }: { checked: boolean; onChange(v: bo
 function Segmented<T extends string>({ value, options, onChange, label }: { value: T; options: Array<{ v: T; label: string }>; onChange(v: T): void; label: string }) {
   return (
     <div className="seg" role="radiogroup" aria-label={label}>
-      {options.map((o) => (
-        <button key={o.v} type="button" role="radio" aria-checked={value === o.v} className={value === o.v ? 'is-on' : ''} onClick={() => onChange(o.v)}>
+      {options.map((o, index) => (
+        <button
+          key={o.v}
+          type="button"
+          role="radio"
+          aria-checked={value === o.v}
+          // roving focus: the chosen option is the tab stop (the first one when none matches, so the group is never unreachable)
+          tabIndex={value === o.v || (index === 0 && !options.some((x) => x.v === value)) ? 0 : -1}
+          className={value === o.v ? 'is-on' : ''}
+          onClick={() => onChange(o.v)}
+          onKeyDown={(e) => {
+            if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].includes(e.key)) return
+            e.preventDefault()
+            const nextIndex =
+              e.key === 'Home'
+                ? 0
+                : e.key === 'End'
+                  ? options.length - 1
+                  : (index + (e.key === 'ArrowRight' || e.key === 'ArrowDown' ? 1 : -1) + options.length) % options.length
+            const next = options[nextIndex]!
+            onChange(next.v)
+            e.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>('[role="radio"]')[nextIndex]?.focus()
+          }}
+        >
           {o.label}
         </button>
       ))}
@@ -574,6 +596,19 @@ export function SettingsPanel() {
     setTabState(id)
     sessionStorage.setItem('lyra.settingsTab', id)
   }
+  const handleTabKeyDown = (e: React.KeyboardEvent<HTMLButtonElement>, index: number): void => {
+    if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].includes(e.key)) return
+    e.preventDefault()
+    const nextIndex =
+      e.key === 'Home'
+        ? 0
+        : e.key === 'End'
+          ? tabs.length - 1
+          : (index + (e.key === 'ArrowRight' || e.key === 'ArrowDown' ? 1 : -1) + tabs.length) % tabs.length
+    const next = tabs[nextIndex]!
+    setTab(next.id)
+    e.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>('[role="tab"]')[nextIndex]?.focus()
+  }
 
   const active: 'local' | 'api' | 'demo' =
     status?.state === 'demo' ? 'demo' : status?.state === 'local' || (status?.state === 'offline' && s.source === 'local') ? 'local' : 'api'
@@ -591,13 +626,25 @@ export function SettingsPanel() {
   return (
     <div className="settings" data-nodrag>
       <nav className="stabs" role="tablist" aria-label="Settings sections">
-        {tabs.map((t) => (
-          <button key={t.id} type="button" role="tab" aria-selected={tab === t.id} className={tab === t.id ? 'is-on' : ''} onClick={() => setTab(t.id)}>
+        {tabs.map((t, index) => (
+          <button
+            key={t.id}
+            id={`settings-tab-${t.id}`}
+            type="button"
+            role="tab"
+            aria-selected={tab === t.id}
+            aria-controls="settings-panel"
+            tabIndex={tab === t.id ? 0 : -1}
+            className={tab === t.id ? 'is-on' : ''}
+            onClick={() => setTab(t.id)}
+            onKeyDown={(e) => handleTabKeyDown(e, index)}
+          >
             {t.label}
           </button>
         ))}
       </nav>
 
+      <div id="settings-panel" role="tabpanel" aria-labelledby={`settings-tab-${tab}`} tabIndex={0}>
       {android && tab === 'phone' && <PhoneSection />}
 
       {!android && tab === 'general' && (
@@ -861,6 +908,7 @@ export function SettingsPanel() {
       </section>
       </>
       )}
+      </div>
     </div>
   )
 }

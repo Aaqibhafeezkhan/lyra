@@ -15,7 +15,7 @@ export function CompactWidget({ minimal }: { minimal: boolean }) {
   const drag = useWindowDrag(() => requestMode('mini'))
 
   return (
-    <div className={`widget ${minimal ? 'widget--minimal' : 'widget--compact'}`} {...drag} role="button" tabIndex={0} aria-label="Open player" onKeyDown={(e) => e.key === 'Enter' && requestMode('mini')}>
+    <div className={`widget ${minimal ? 'widget--minimal' : 'widget--compact'}`} {...drag} role="group" aria-label="Player widget">
       {view === 'playing' && track ? (
         minimal ? <MinimalBody /> : <CompactBody />
       ) : view === 'loading' || view === 'connect' || view === 'offline' || view === 'idle' || view === 'ad' ? (
