@@ -219,7 +219,8 @@ function Segmented<T extends string>({ value, options, onChange, label }: { valu
           type="button"
           role="radio"
           aria-checked={value === o.v}
-          tabIndex={value === o.v ? 0 : -1}
+          // roving focus: the chosen option is the tab stop (the first one when none matches, so the group is never unreachable)
+          tabIndex={value === o.v || (index === 0 && !options.some((x) => x.v === value)) ? 0 : -1}
           className={value === o.v ? 'is-on' : ''}
           onClick={() => onChange(o.v)}
           onKeyDown={(e) => {
