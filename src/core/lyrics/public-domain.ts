@@ -17,7 +17,7 @@ interface PublicDomainRecord {
   source_url?: string
 }
 
-type Fetcher = (url: string, init?: RequestInit) => Promise<Response>
+type Fetcher = (url: string, init?: { headers?: Record<string, string>; signal?: AbortSignal }) => Promise<Response>
 
 export class PublicDomainLyricsProvider implements LyricsProvider {
   readonly id = 'public-domain'
@@ -30,7 +30,8 @@ export class PublicDomainLyricsProvider implements LyricsProvider {
     const titleKeys = new Set(titleVariants(q.title).map(normalize).filter(Boolean))
     if (titleKeys.size === 0) return { kind: 'none' }
 
-    const records = await this.load(signal)
+    const records = await this.load()
+    if (signal.aborted) return { kind: 'none' }
     const matches = records.filter((record) => {
       if (!record.title?.trim() || !record.lyrics?.trim()) return false
       return titleKeys.has(normalize(record.title))
@@ -43,6 +44,10 @@ export class PublicDomainLyricsProvider implements LyricsProvider {
       : []
     const record = artistMatches.length === 1 ? artistMatches[0] : matches.length === 1 ? matches[0] : null
     if (!record) return { kind: 'none' }
+    // A one-word title ("America", "Home", "Evening") says too little: a modern song with that name would get an old
+    // song's words. Accept it only when the artist is the catalogue's author.
+    const words = normalize(q.title).split(' ').filter(Boolean).length
+    if (words < 2 && artistMatches.length !== 1) return { kind: 'none' }
 
     return {
       kind: 'found',
@@ -55,8 +60,10 @@ export class PublicDomainLyricsProvider implements LyricsProvider {
     }
   }
 
-  private load(signal: AbortSignal): Promise<PublicDomainRecord[]> {
+  private load(): Promise<PublicDomainRecord[]> {
     if (!this.recordsPromise) {
+      // its own timeout: the catalogue (about 0.8 MB) is shared by every lookup, so it must not be cancelled with the first one
+      const signal = AbortSignal.timeout(20_000)
       this.recordsPromise = this.fetcher(DATA_URL, {
         headers: { Accept: 'application/json' },
         signal
@@ -72,7 +79,6 @@ export class PublicDomainLyricsProvider implements LyricsProvider {
       }).catch((error: unknown) => {
         this.recordsPromise = null
         if (error instanceof LyricsProviderError) throw error
-        if (signal.aborted) throw error
         throw new LyricsProviderError(`Could not load public-domain lyrics: ${(error as Error).message}`, 'network')
       })
     }

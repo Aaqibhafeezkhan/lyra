@@ -10,6 +10,7 @@ delete that folder; remove it by hand if you want everything gone.
 | Service | Sent | Why |
 |---|---|---|
 | [LRCLIB](https://lrclib.net) | song title, artist, album, duration | find synchronized lyrics |
+| [PublicDomainOnly](https://github.com/kennethyork/PubDomainOnly) on raw.githubusercontent.com | nothing about your music: Lyra downloads the public lyrics file (about 0.8 MB) once per session, only when LRCLIB has no lyrics for a song, and matches it on your device | old public-domain songs as a last resort |
 | [MusicBrainz](https://musicbrainz.org) | song title, artist, duration | look up the release year |
 | [Apple iTunes Search](https://performance-partners.apple.com/search-api) | song title, artist | find a free 30-second music-video preview for the cinematic background (on by default; turn off by choosing "Living" or "Still" as the background style) |
 | Google YouTube Data API + [youtube-nocookie.com](https://www.youtube-nocookie.com) | song title, artist; then the video player loads from YouTube | **only if you paste your own YouTube API key** in Settings → Background: find and play the official music video, muted, behind the lyrics |

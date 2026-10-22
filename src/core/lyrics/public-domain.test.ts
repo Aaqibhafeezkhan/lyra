@@ -33,7 +33,7 @@ describe('PublicDomainLyricsProvider', () => {
       matched: { title: 'Amazing Grace', artist: 'John Newton', durationMs: 180_000 }
     })
     expect(fetcher).toHaveBeenCalledOnce()
-    expect(fetcher.mock.calls[0][0]).toContain('PubDomainOnly/main/lyrics_data.json')
+    expect(fetcher.mock.calls[0]![0]).toContain('PubDomainOnly/main/lyrics_data.json')
   })
 
   it('returns none when a matching catalogue entry has no lyrics', async () => {
@@ -50,6 +50,17 @@ describe('PublicDomainLyricsProvider', () => {
     ])))
     expect(await provider.fetch({ ...query, title: 'Different Song' }, new AbortController().signal)).toEqual({ kind: 'none' })
     expect(await provider.fetch({ ...query, artist: 'No matching author' }, new AbortController().signal)).toEqual({ kind: 'none' })
+  })
+
+  it('does not give a one-word modern title the lyrics of an old song', async () => {
+    const provider = new PublicDomainLyricsProvider(vi.fn().mockResolvedValue(response([{ ...record, title: 'America', author: '' }])))
+    expect(await provider.fetch({ ...query, title: 'America', artist: 'Simon & Garfunkel' }, new AbortController().signal)).toEqual({ kind: 'none' })
+  })
+
+  it('still matches a one-word title when the artist is the catalogue author', async () => {
+    const provider = new PublicDomainLyricsProvider(vi.fn().mockResolvedValue(response([{ ...record, title: 'Dixie', author: 'Daniel Emmett' }])))
+    const r = await provider.fetch({ ...query, title: 'Dixie', artist: 'Daniel Emmett' }, new AbortController().signal)
+    expect(r.kind).toBe('found')
   })
 
   it('surfaces catalogue failures as provider errors', async () => {
