@@ -297,7 +297,7 @@ export const DEFAULT_SETTINGS: Settings = {
   romanizeLyrics: false,
   keepScreenOn: false,
   keepRunning: false,
-  ambientStyle: 'glow',
+  ambientStyle: 'video', // the music video, dimmed (switch to Glow or Minimal in Settings)
   ambientBrightness: 0.2,
   ambientAutoBrightness: true,
   lyricOffsetMs: 0,

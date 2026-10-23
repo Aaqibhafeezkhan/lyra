@@ -48,6 +48,16 @@ try {
 } catch {
   /* storage unavailable: keep what is saved */
 }
+// once: ambient mode shows the dimmed music video by default now; phones that still have the old default (Glow) get it too
+try {
+  if (!localStorage.getItem('lyra.ambientVideoV1')) {
+    localStorage.setItem('lyra.ambientVideoV1', '1')
+    const cur = settingsStore.get()
+    if (cur.ambientStyle === 'glow') settingsStore.set({ ...cur, ambientStyle: 'video' })
+  }
+} catch {
+  /* storage unavailable: keep what is saved */
+}
 const settingsChanged = emitter<Settings>()
 
 function sanitize(s: Settings): Settings {
