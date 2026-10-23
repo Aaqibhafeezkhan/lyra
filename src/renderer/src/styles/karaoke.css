@@ -1,0 +1,298 @@
+/* Karaoke screen: a full overlay over the player */
+.karaoke {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  background: radial-gradient(120% 80% at 50% 0%, rgba(60, 40, 90, 0.9), rgba(8, 8, 14, 0.97) 70%), #08080e;
+  color: #fff;
+  overflow: hidden;
+}
+.karaoke__head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px 8px;
+}
+.karaoke__head b {
+  font-size: 13px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--fg-3, rgba(255, 255, 255, 0.55));
+}
+.karaoke__head span {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 13px;
+  opacity: 0.8;
+}
+/* the karaoke video supplies the music (and shows itself small): YouTube's player needs to be on screen to play */
+.karaoke__frame {
+  order: 99;
+  align-self: center;
+  flex: none;
+  width: 200px;
+  height: 113px;
+  margin: 0 0 12px;
+  border: 0;
+  border-radius: 10px;
+  opacity: 0.9;
+  background: #000;
+}
+.karaoke__body {
+  flex: 1;
+  overflow: auto;
+  padding: 8px 18px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.karaoke__body h4 {
+  margin: 6px 0 0;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.6;
+}
+.karaoke__list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.karaoke__list .pill {
+  text-align: left;
+  white-space: normal;
+  line-height: 1.25;
+}
+.karaoke__paste {
+  display: flex;
+  gap: 8px;
+}
+.karaoke__paste input {
+  flex: 1;
+  min-width: 0;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 999px;
+  padding: 8px 14px;
+  color: inherit;
+  font: inherit;
+  font-size: 13px;
+}
+.karaoke__hint {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.4;
+  opacity: 0.72;
+}
+.karaoke__hint--warn {
+  color: #ffb36b;
+  opacity: 1;
+}
+.karaoke__nudge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+}
+.karaoke__nudge span {
+  opacity: 0.7;
+  margin-right: auto;
+}
+.karaoke__go {
+  align-self: stretch;
+  margin-top: 6px;
+  padding: 12px;
+  font-size: 15px;
+}
+.karaoke__center {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  text-align: center;
+}
+.karaoke__center h1 {
+  margin: 0;
+  font-size: 120px;
+  font-weight: 800;
+  animation: kpop 0.9s ease-out;
+}
+@keyframes kpop {
+  from {
+    transform: scale(1.4);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+.karaoke__stage {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: 0 18px 14px;
+}
+.karaoke__hud {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 4px 0 8px;
+  font-size: 14px;
+  font-weight: 700;
+}
+.karaoke__meter {
+  margin-left: auto;
+  width: 90px;
+  height: 6px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.14);
+  overflow: hidden;
+}
+.karaoke__meter i {
+  display: block;
+  height: 100%;
+  transform-origin: left center;
+  background: linear-gradient(90deg, #3fd0ff, #c64cff);
+  transition: transform 0.06s linear;
+}
+.grade {
+  animation: kpop 0.5s ease-out;
+}
+.grade--perfect {
+  color: #ffd166;
+}
+.grade--great {
+  color: #7cf29a;
+}
+.grade--ok {
+  color: #a9d7ff;
+}
+.grade--miss {
+  color: #ff8a8a;
+}
+.karaoke__lines {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 14px;
+  min-height: 0;
+}
+.kline {
+  text-align: center;
+  font-weight: 800;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  text-wrap: balance;
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+.kline--empty {
+  min-height: 1em;
+}
+.kline--past {
+  font-size: 20px;
+  opacity: 0.28;
+}
+.kline--next {
+  font-size: 22px;
+  opacity: 0.5;
+}
+.kline--now {
+  font-size: 34px;
+  padding: 6px 0;
+}
+.kword {
+  --p: 0;
+  background: linear-gradient(90deg, #ffd166 0, #ffd166 calc(var(--p) * 110% - 10%), rgba(255, 255, 255, 0.4) calc(var(--p) * 110%));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.dots {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  padding: 6px 0;
+}
+.dots i {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+.dots i.is-on {
+  background: #ffd166;
+  transform: scale(1.25);
+}
+.karaoke__controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-top: 8px;
+}
+.stars {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  font-size: 40px;
+  color: rgba(255, 255, 255, 0.2);
+}
+.stars .is-on {
+  color: #ffd166;
+  text-shadow: 0 0 14px rgba(255, 209, 102, 0.6);
+}
+.karaoke__results h2 {
+  margin: 0;
+  text-align: center;
+  font-size: 30px;
+}
+.karaoke__results .karaoke__hint {
+  text-align: center;
+}
+.karaoke__review {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 38vh;
+  overflow: auto;
+  padding-right: 4px;
+}
+.review {
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.06);
+  font-size: 13px;
+}
+.review span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.review--perfect b {
+  color: #ffd166;
+}
+.review--great b {
+  color: #7cf29a;
+}
+.review--ok b {
+  color: #a9d7ff;
+}
+.review--miss b {
+  color: #ff8a8a;
+}

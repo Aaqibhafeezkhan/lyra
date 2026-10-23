@@ -71,6 +71,7 @@ const api: LyraApi = {
     setYoutubeKey: (key) => invoke(CH.bgKeySet, key),
     clearYoutubeKey: () => invoke(CH.bgKeyClear),
     youtubeCandidates: (track) => invoke(CH.bgYtCandidates, track),
+    karaokeVideos: (track) => invoke(CH.bgKaraoke, track),
     youtubeChoose: (trackId, videoId) => invoke(CH.bgYtChoose, trackId, videoId)
   },
   update: {
@@ -86,6 +87,7 @@ const api: LyraApi = {
     discard: (path) => invoke(CH.studioDiscard, path),
     end: () => invoke(CH.studioEnd),
     reveal: (path) => invoke(CH.studioReveal, path),
+    setMic: (on) => invoke(CH.studioMic, on),
     saveImage: (videoPath, jpeg) => invoke(CH.studioSaveImage, videoPath, jpeg),
     frameCaptureStart: () => invoke(CH.studioFrameCaptureStart),
     frameCaptureStop: () => invoke(CH.studioFrameCaptureStop),

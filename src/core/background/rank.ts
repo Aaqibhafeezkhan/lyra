@@ -78,3 +78,38 @@ export function parseIsoDuration(iso: string | undefined): number | null {
   if (!m) return null
   return (Number(m[1] ?? 0) * 24 + Number(m[2] ?? 0)) * 3600 + Number(m[3] ?? 0) * 60 + Number(m[4] ?? 0)
 }
+
+const KARAOKE = /\b(karaoke|instrumental|backing\s*track|minus\s*one|without\s*vocals?|no\s*vocals?|sing\s*along|sing-along|music\s*only)\b/i
+const NOT_KARAOKE = /\b(cover|reaction|remix|slowed|reverb|8d|nightcore|live|concert|tutorial|lesson|review|mashup|sped\s*up|medley|compilation|playlist|full\s*album|piano\s*tutorial)\b/i
+
+/**
+ * Ranks YouTube results for "a version of this song to sing along to": the title says karaoke / instrumental, it is
+ * the same song (title) and about the same length. Pure, like [scoreVideo].
+ */
+export function scoreKaraoke(want: Wanted, v: VideoCandidate): { score: number; acceptable: boolean } {
+  if (!v.embeddable) return { score: -1, acceptable: false }
+  const wantTitle = cleanTitle(want.title)
+  const nTitle = normalize(v.title)
+  const titleSim = Math.max(similarity(wantTitle, cleanVideoTitle(v.title)), nTitle.includes(normalize(wantTitle)) ? 0.9 : 0)
+  const karaoke = KARAOKE.test(v.title)
+  const artists = artistVariants(want.artist).map(normalize).filter(Boolean)
+  const hay = `${nTitle} ${normalize(v.channel)}`
+  const artistHit = artists.some((a) => a.split(' ').every((tok) => tok.length < 3 || hay.includes(tok)))
+  let score = 0.45 * titleSim + (karaoke ? 0.35 : 0) + (artistHit ? 0.08 : 0)
+  if (/karaoke|backing|sing\s*king|karafun|zoom|instrumental/i.test(v.channel)) score += 0.08
+  if (NOT_KARAOKE.test(v.title) && !NOT_KARAOKE.test(want.title)) score -= 0.4
+  let lengthOk = true
+  if (v.durationSec && want.durationMs > 0) {
+    const diff = Math.abs(v.durationSec - want.durationMs / 1000)
+    score += diff <= 15 ? 0.2 : diff <= 45 ? 0.08 : -0.2
+    lengthOk = diff <= 60
+  }
+  return { score, acceptable: karaoke && titleSim >= 0.55 && lengthOk && score >= 0.7 }
+}
+
+export function rankKaraoke(want: Wanted, list: VideoCandidate[]): Array<VideoCandidate & { score: number; acceptable: boolean }> {
+  return list
+    .map((v) => ({ ...v, ...scoreKaraoke(want, v) }))
+    .filter((v) => v.score > 0.2)
+    .sort((a, b) => b.score - a.score)
+}

@@ -26,6 +26,7 @@ const ICONS = {
   volume: { d: 'M11 5 6 9H2v6h4l5 4V5zM15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14' },
   volumeLow: { d: 'M11 5 6 9H2v6h4l5 4V5zM15.5 8.5a5 5 0 0 1 0 7' },
   volumeMute: { d: 'M11 5 6 9H2v6h4l5 4V5zM23 9l-6 6M17 9l6 6' },
+  mic: { d: 'M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3zM19 11v1a7 7 0 0 1-14 0v-1M12 19v3M8 22h8' },
   note: { d: 'M9 18V5l12-2v13M9 18a3 3 0 1 1-6 0 3 3 0 0 1 6 0zM21 16a3 3 0 1 1-6 0 3 3 0 0 1 6 0z' },
   chevronDown: { d: 'm6 9 6 6 6-6' },
   chevronLeft: { d: 'm15 18-6-6 6-6' },

@@ -88,6 +88,8 @@ export const CH = {
   bgKeySet: 'bg:key-set',
   bgKeyClear: 'bg:key-clear',
   bgYtCandidates: 'bg:yt-candidates',
+  bgKaraoke: 'bg:karaoke',
+  studioMic: 'studio:mic',
   bgYtChoose: 'bg:yt-choose',
   updateGet: 'update:get',
   updateCheck: 'update:check',
@@ -197,6 +199,8 @@ export interface LyraApi {
     setYoutubeKey(key: string): Promise<{ ok: boolean; error?: string }>
     clearYoutubeKey(): Promise<void>
     youtubeCandidates(track: Track): Promise<{ items: YoutubeVideo[]; error?: string }>
+    /** karaoke / instrumental versions of the song to sing along to, best first */
+    karaokeVideos(track: Track): Promise<{ items: YoutubeVideo[]; error?: string }>
     /** Pin a specific video for this song (remembered). null = back to automatic. */
     youtubeChoose(trackId: string, videoId: string | null): Promise<void>
   }
@@ -238,6 +242,8 @@ export interface LyraApi {
     /** Export finished (or failed): sound capture is switched off again. */
     end(): Promise<void>
     reveal(path: string): Promise<void>
+    /** the karaoke screen is open: allow the microphone for this window (audio only) */
+    setMic(on: boolean): Promise<void>
     /**
      * Record the YouTube background to a temporary file (instead of sending it to the window), with the time of every
      * picture, so a video can be rendered afterwards at exact times. Start it right when the song starts.

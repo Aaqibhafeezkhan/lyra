@@ -65,8 +65,8 @@ function installCsp(): void {
   // getDisplayMedia asks for 'media' (and sometimes 'display-capture'); nothing else is ever allowed
   const isCapture = (perm: string): boolean => perm === 'display-capture' || perm === 'media'
   const ownPage = (url: string): boolean => url.startsWith('file://') || url.startsWith('http://localhost')
-  session.defaultSession.setPermissionRequestHandler((wc, perm, cb) => cb(isCapture(perm) && (settings.get().lanAudio || studio.capturing) && ownPage(wc.getURL())))
-  session.defaultSession.setPermissionCheckHandler((wc, perm, origin) => isCapture(perm) && (settings.get().lanAudio || studio.capturing) && ownPage(wc?.getURL() ?? origin))
+  session.defaultSession.setPermissionRequestHandler((wc, perm, cb) => cb(isCapture(perm) && (settings.get().lanAudio || studio.capturing || studio.mic) && ownPage(wc.getURL())))
+  session.defaultSession.setPermissionCheckHandler((wc, perm, origin) => isCapture(perm) && (settings.get().lanAudio || studio.capturing || studio.mic) && ownPage(wc?.getURL() ?? origin))
 }
 
 if (!app.requestSingleInstanceLock()) {

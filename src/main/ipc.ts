@@ -248,6 +248,7 @@ export function registerIpc(): void {
   handle(CH.bgKeySet, (key: string) => youtube.setKey(String(key)))
   handle(CH.bgKeyClear, () => youtube.clearKey())
   handle(CH.bgYtCandidates, (t: Track) => youtube.candidates(t))
+  handle(CH.bgKaraoke, (t: Track) => youtube.karaoke(t))
   handle(CH.bgYtChoose, async (trackId: string, videoId: string | null) => {
     if (videoId === null) return background.chooseYoutube(trackId, null)
     if (!/^[A-Za-z0-9_-]{11}$/.test(videoId)) return

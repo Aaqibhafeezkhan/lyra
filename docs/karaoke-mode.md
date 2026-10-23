@@ -1,6 +1,6 @@
 # Lyra Karaoke: sing along to the backing track, with the lyrics
 
-Status: design and feasibility (nothing built yet). Owner: Dhruv. Written 2026-10-23 against Lyra Windows 0.15 / Android 0.3.7.
+Status: **K1 + K2 built in Windows 0.16.0** (karaoke screen, karaoke-video source A, microphone, timing + tuning score, practice nudge). Local vocal separation (C), pitch-vs-melody score, export of the performance and Android are still to do. Owner: Dhruv. Written 2026-10-23 against Lyra Windows 0.15 / Android 0.3.7.
 
 **Short answer: yes, it is possible, but the hard part is not the lyrics or the microphone. It is getting a backing track without the vocals.** Spotify does not offer one, and nobody can take the voice out of Spotify's stream for you. This document says where a backing track *can* come from, what each source gives you, and how to build the mode in steps that each work on their own.
 

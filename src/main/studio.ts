@@ -15,6 +15,7 @@ const files = new Map<number, FileHandle>()
 let nextId = 1
 let capturing = false
 let blocker: number | null = null
+let micOpen = false
 
 /**
  * An export is running: keep the app window rendering at full speed even when it is covered or minimized (Chromium
@@ -35,6 +36,10 @@ export const studio = {
   /** The window may capture the PC's sound right now. */
   get capturing(): boolean {
     return capturing
+  },
+  /** the karaoke screen is open: the app window may use the microphone */
+  get mic(): boolean {
+    return micOpen
   }
 }
 
@@ -251,6 +256,9 @@ async function startAudio(): Promise<{ ok: boolean; reason?: string }> {
 export function registerStudioIpc(): void {
   ipcMain.handle(CH.studioAudioStart, () => startAudio())
   ipcMain.handle(CH.studioAudioStop, () => stopAudio())
+  ipcMain.handle(CH.studioMic, (_e, on: boolean) => {
+    micOpen = !!on
+  })
   ipcMain.handle(CH.studioFrameCaptureStart, () => frameCaptureStart())
   ipcMain.handle(CH.studioFrameCaptureStop, () => frameCaptureStop())
   ipcMain.handle(CH.studioFrameRead, async (_e, index: number) => {
