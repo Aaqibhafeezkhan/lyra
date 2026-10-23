@@ -3,6 +3,7 @@ import { usePlayerView } from '@/hooks/usePlayerView'
 import { joinArtists } from '@/lib/format'
 import { useBgState } from '@/store/bgState'
 import { usePlayer } from '@/store/player'
+import { useSettings } from '@/store/settings'
 import { requestMode, useUi } from '@/store/ui'
 import { Artwork } from './Artwork'
 import { IconButton, Transport, VolumeControl, useCaps } from './Controls'
@@ -26,10 +27,11 @@ export function FullscreenPlayer() {
   const quiet = idle && panel === 'none'
   // cinema layout: a video is playing, so get the UI out of its way
   const cinema = useBgState((s) => s.media === 'full')
+  const layout = useSettings((s) => s.settings.fullLayout)
   const ytVideo = useBgState((s) => s.kind === 'youtube')
 
   return (
-    <div className={`full ${quiet ? 'is-idle' : ''} ${df ? 'is-df' : ''} ${cinema ? 'is-cinema' : ''}`}>
+    <div className={`full ${quiet ? 'is-idle' : ''} ${df ? 'is-df' : ''} ${cinema ? `is-cinema layout-${layout}` : ''}`}>
       <header className="full__top">
         <span className="full__device">{device ? `Playing on ${device.name}` : 'Lyra'}</span>
         <div className="full__tools">

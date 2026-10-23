@@ -836,3 +836,75 @@
   opacity: 0;
   pointer-events: none;
 }
+
+/* scrolling the lyrics by hand shows every line again (the three-line cap only applies while following the song) */
+:root:not([data-platform='android']) .full.is-cinema .lyrics__scroller[data-browsing] .lyric:not(.is-active) {
+  opacity: 0.6;
+  transform: scale(0.7);
+}
+:root:not([data-platform='android']) .full.is-cinema .lyrics__scroller[data-browsing] {
+  mask-image: linear-gradient(to bottom, transparent 0, #000 10%, #000 90%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 10%, #000 90%, transparent 100%);
+}
+
+/* ---- split: video on the left, lyrics on the right ---- */
+:root:not([data-platform='android']) .full.is-cinema.layout-split::before {
+  background: linear-gradient(270deg, rgba(0, 0, 0, 0.8), rgba(0, 0, 0, 0.5) 38%, rgba(0, 0, 0, 0.1) 62%, transparent 74%);
+}
+:root:not([data-platform='android']) .full.is-cinema.layout-split .full__lyrics {
+  left: 52%;
+  right: 5%;
+  top: 8%;
+  bottom: 12%;
+}
+:root:not([data-platform='android']) .full.is-cinema.layout-split .lyrics__inner {
+  padding: 36cqh 0 56cqh;
+}
+:root:not([data-platform='android']) .full.is-cinema.layout-split .lyrics--full .lyric {
+  justify-content: flex-start;
+  transform-origin: left center;
+  font-size: min(calc(var(--lyric-size) * 1.5), 6.4vh);
+}
+:root:not([data-platform='android']) .full.is-cinema.layout-split .lyrics--full .lyric__text {
+  text-align: left;
+}
+:root:not([data-platform='android']) .full.is-cinema.layout-split .lyrics--full .lyric:not(.is-active) {
+  transform: scale(0.6);
+}
+:root:not([data-platform='android']) .full.is-cinema.layout-split .lyrics--full .lyric:not(.is-active)[data-dist='2'] {
+  opacity: 0.3;
+}
+:root:not([data-platform='android']) .full.is-cinema.layout-split .lyrics__scroller[data-browsing] .lyric:not(.is-active) {
+  opacity: 0.6;
+  transform: scale(0.7);
+}
+
+/* ---- poster: one huge centred line ---- */
+:root:not([data-platform='android']) .full.is-cinema.layout-poster::before {
+  background: radial-gradient(72% 58% at 50% 50%, rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.38) 62%, rgba(0, 0, 0, 0.18));
+}
+:root:not([data-platform='android']) .full.is-cinema.layout-poster .full__lyrics {
+  left: 7%;
+  right: 7%;
+  top: 30%;
+  bottom: 24%;
+}
+:root:not([data-platform='android']) .full.is-cinema.layout-poster .lyrics--full .lyric {
+  font-size: min(calc(var(--lyric-size) * 3), 12.5vh);
+}
+:root:not([data-platform='android']) .full.is-cinema.layout-poster .lyrics--full .lyric__text {
+  font-weight: 900;
+  letter-spacing: -0.035em;
+  line-height: 1.04;
+}
+:root:not([data-platform='android']) .full.is-cinema.layout-poster .lyrics--full .lyric:not(.is-active) {
+  opacity: 0;
+}
+:root:not([data-platform='android']) .full.is-cinema.layout-poster .lyrics__scroller {
+  mask-image: linear-gradient(to bottom, transparent 0, #000 8%, #000 92%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 8%, #000 92%, transparent 100%);
+}
+:root:not([data-platform='android']) .full.is-cinema.layout-poster .lyrics__scroller[data-browsing] .lyric:not(.is-active) {
+  opacity: 0.55;
+  transform: scale(0.5);
+}

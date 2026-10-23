@@ -193,6 +193,7 @@ function SyncedLyrics({ result, variant }: { result: LyricsResult; variant: 'min
       <div
         ref={scroller}
         className="lyrics__scroller"
+        data-browsing={showReturn || undefined}
         data-nodrag
         onWheel={userScrolled}
         onTouchMove={userScrolled}

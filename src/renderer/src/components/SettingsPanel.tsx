@@ -752,6 +752,18 @@ export function SettingsPanel() {
             ]}
           />
         </Row>
+        <Row label="Fullscreen layout" hint="When a video plays behind the lyrics">
+          <Segmented
+            label="Fullscreen layout"
+            value={s.fullLayout}
+            onChange={up('fullLayout')}
+            options={[
+              { v: 'cinema', label: 'Cinema' },
+              { v: 'split', label: 'Split' },
+              { v: 'poster', label: 'Poster' }
+            ]}
+          />
+        </Row>
         <Row
           label="Word by word"
           info="Highlights each word as it is sung. Free lyrics only have one time per line, so Lyra estimates the word timing from syllables and pauses: close, but not perfect. If a source has real word timing, that is used instead."

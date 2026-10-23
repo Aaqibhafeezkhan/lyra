@@ -15,6 +15,7 @@ function sanitize(s: Settings): Settings {
     opacity: clamp(s.opacity, 0.4, 1),
     lyricFontSize: clamp(s.lyricFontSize, 24, 72),
     lineSpacing: clamp(s.lineSpacing, 1, 2),
+    fullLayout: (['cinema', 'split', 'poster'] as const).includes(s.fullLayout) ? s.fullLayout : d.fullLayout,
     lyricOffsetMs: clamp(s.lyricOffsetMs, -5000, 5000),
     compactWidth: clamp(s.compactWidth, 320, 520),
     shortcuts: Object.fromEntries(

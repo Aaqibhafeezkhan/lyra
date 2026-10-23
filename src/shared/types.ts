@@ -155,6 +155,8 @@ export interface LyricsResult {
 export type ThemeMode = 'dark' | 'light' | 'adaptive'
 export type LyricFont = 'sans' | 'serif' | 'rounded' | 'mono'
 export type LyricAnimation = 'glide' | 'focus' | 'fade'
+/** how fullscreen lyrics are laid out over a video */
+export type FullLayout = 'cinema' | 'split' | 'poster'
 
 export type SourceKind = 'local' | 'api'
 
@@ -243,6 +245,7 @@ export interface Settings {
   lyricFontSize: number // px, fullscreen base
   lineSpacing: number // 1 - 2
   lyricAnimation: LyricAnimation
+  fullLayout: FullLayout
   /** Show a Roman-letter transliteration below Hindi and Punjabi lyrics. */
   romanizeLyrics: boolean
   /** highlight each word as it is sung (estimated unless the source has real word timing) */
@@ -293,6 +296,7 @@ export const DEFAULT_SETTINGS: Settings = {
   lyricFontSize: 40,
   lineSpacing: 1.35,
   lyricAnimation: 'glide',
+  fullLayout: 'cinema',
   wordByWord: true,
   romanizeLyrics: false,
   keepScreenOn: false,
