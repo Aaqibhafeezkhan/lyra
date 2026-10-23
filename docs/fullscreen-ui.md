@@ -77,7 +77,7 @@ Does not work
 **Chrome and controls**
 11. **Full-bleed video:** the top bar becomes a translucent overlay (gradient from `rgba(0,0,0,.6)` to transparent), never a solid band.
 12. **Idle hiding:** header, buttons, player card and footer fade out after 3 s without mouse movement and return on movement or any key; the cursor hides too.
-13. **Player card** shrinks to a slim dock (art 48 px, title/artist, thin progress with line ticks, play/prev/next) bottom-left; click expands it.
+13. **Player card: keep today's design** (owner likes it). It stays as is, bottom-left; it only joins the idle fade (change 12). The slim dock in the mockups is dropped.
 14. **Footer controls** (provider, "Wrong lyrics?", sync) move into a small "..." popover; the sync nudge also works with `[` and `]`.
 15. **Never cut a line:** the lyric area is clipped with a soft mask (fade over the last 12%), not by hard cropping.
 
