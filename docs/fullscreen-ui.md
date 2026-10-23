@@ -1,6 +1,6 @@
 # Fullscreen lyrics on big screens: a better layout
 
-Status: plan (nothing built yet). Written 2026-10-24 from the owner's screenshot (1918 x 1198, Spotify music video behind the lyrics).
+Status: Cinema layout (video behind the lyrics, Windows) built; the other presets are still plan. Written 2026-10-24 from the owner's screenshot (1918 x 1198, Spotify music video behind the lyrics).
 
 Goal: on a large screen the lyrics should feel like a cinema experience: the music video is the hero, the current line is unmistakable and always readable, everything else gets out of the way. Today the lyric column fills the right half with seven big lines, and the text fights with the picture.
 
