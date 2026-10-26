@@ -250,3 +250,21 @@ h3 { margin: 0 0 8px; font-size: 20px; letter-spacing: -0.02em; }
 .song { position: relative; margin: 34px auto 0; max-width: 1100px; border-radius: 28px; overflow: hidden; border: 1px solid rgba(255, 255, 255, 0.14); background: #000; aspect-ratio: 16 / 10; box-shadow: 0 60px 140px -50px color-mix(in srgb, var(--c2) 60%, #000); }
 .song video { width: 100%; height: 100%; display: block; object-fit: cover; }
 .song__note { margin: 22px auto 0; font-size: 12.5px; color: var(--fg3); max-width: 52ch; text-align: center; }
+
+/* ---------- vega ---------- */
+.vega .cta { margin-top: 30px; }
+.vega .eyebrow { margin-bottom: 22px; }
+.vshot { margin: 56px auto 0; max-width: 1100px; border-radius: 28px; overflow: hidden; border: 1px solid rgba(255, 255, 255, 0.14); background: #000; box-shadow: 0 70px 150px -50px color-mix(in srgb, var(--c1) 55%, #000), 0 0 0 1px rgba(255, 255, 255, 0.03); position: relative; transition: transform 0.8s var(--ease); }
+.vshot:hover { transform: translateY(-6px) scale(1.01); }
+.vshot img { display: block; width: 100%; height: auto; }
+.vshot::after { content: ''; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(180deg, transparent 70%, rgba(5, 5, 5, 0.35)); }
+.vgrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin: 36px 0 40px; text-align: left; }
+.vcard { position: relative; padding: 26px; border-radius: 26px; border: 1px solid var(--line); background: linear-gradient(160deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.02)); overflow: hidden; transition: transform 0.5s var(--ease), border-color 0.4s; }
+.vcard:hover { transform: translateY(-4px); border-color: rgba(255, 255, 255, 0.22); }
+.vcard i { display: block; font-style: normal; font-size: 12px; font-weight: 700; letter-spacing: 0.14em; color: var(--c3); margin-bottom: 18px; }
+.vcard p { margin: 0; color: var(--fg2); font-size: 15px; }
+@media (max-width: 900px) { .vgrid { grid-template-columns: 1fr; } }
+@media (min-width: 560px) and (max-width: 900px) { .vgrid { grid-template-columns: 1fr 1fr; } }
+
+/* smooth scroll is done in main.js on desktop; keep the native fallback elsewhere */
+html.has-smooth { scroll-behavior: auto; }

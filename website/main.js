@@ -291,3 +291,61 @@ new IntersectionObserver((es) => es.forEach((e) => (e.isIntersecting ? reelVideo
   const v = document.getElementById('song-video')
   new IntersectionObserver((es) => es.forEach((e) => { if (!e.isIntersecting && !v.paused) v.pause() }), { threshold: 0.1 }).observe(v)
 }
+
+/* ---------- Vega: newest release links ---------- */
+;(async () => {
+  try {
+    const rs = await (await fetch('https://api.github.com/repos/DhruvHarani1/vega/releases?per_page=10')).json()
+    const r = rs.find((x) => !x.draft && x.assets.some((a) => a.name.endsWith('.exe')))
+    if (!r) return
+    const exe = r.assets.find((a) => a.name.endsWith('.exe')), apk = r.assets.find((a) => a.name.endsWith('.apk'))
+    const mb = (n) => `${(n / 1048576).toFixed(0)} MB`
+    const v = r.tag_name.replace(/^\D+/, '')
+    document.getElementById('vega-win').href = exe.browser_download_url
+    document.getElementById('vega-win').textContent = `Download for Windows · ${v}`
+    if (apk) {
+      document.getElementById('vega-and').href = apk.browser_download_url
+      document.getElementById('vega-and').textContent = `Download for Android · ${v}`
+    }
+    document.getElementById('vega-meta').textContent = `Version ${v} · Windows ${mb(exe.size)}${apk ? ` · Android ${mb(apk.size)}` : ''} · free and open source`
+  } catch { /* keep the releases page links */ }
+})()
+
+/* ---------- smooth scrolling (mouse wheel and in-page links) ---------- */
+if (!reduce && matchMedia('(hover: hover) and (pointer: fine)').matches) {
+  const root = document.documentElement
+  root.classList.add('has-smooth')
+  let target = scrollY, cur = scrollY, raf = 0
+  const max = () => root.scrollHeight - innerHeight
+  const clamp = (v) => Math.max(0, Math.min(max(), v))
+  const tick = () => {
+    const d = target - cur
+    if (Math.abs(d) < 0.4) { cur = target; scrollTo(0, cur); raf = 0; return }
+    cur += d * 0.11
+    scrollTo(0, cur)
+    raf = requestAnimationFrame(tick)
+  }
+  const go = (y) => { target = clamp(y); if (!raf) raf = requestAnimationFrame(tick) }
+  addEventListener('wheel', (e) => {
+    if (e.ctrlKey || e.defaultPrevented || Math.abs(e.deltaX) > Math.abs(e.deltaY)) return
+    // leave nested scrollers (video controls, horizontally scrolling tabs) alone
+    if (e.target.closest && e.target.closest('video, .tabs--scroll')) return
+    e.preventDefault()
+    const k = e.deltaMode === 1 ? 34 : e.deltaMode === 2 ? innerHeight : 1
+    if (!raf) { cur = target = scrollY }
+    go(target + e.deltaY * k * 0.9)
+  }, { passive: false })
+  // keyboard, scrollbar drag, find-in-page: follow the real position when we are not animating
+  addEventListener('scroll', () => { if (!raf) cur = target = scrollY }, { passive: true })
+  document.addEventListener('click', (e) => {
+    const a = e.target.closest && e.target.closest('a[href^="#"]')
+    if (!a || e.metaKey || e.ctrlKey || e.shiftKey) return
+    const id = a.getAttribute('href').slice(1)
+    const el = id ? document.getElementById(id) : document.body
+    if (!el) return
+    e.preventDefault()
+    if (!raf) cur = scrollY
+    go(id && id !== 'top' ? el.getBoundingClientRect().top + scrollY - 70 : 0)
+    history.replaceState(null, '', id ? `#${id}` : location.pathname)
+  })
+}
