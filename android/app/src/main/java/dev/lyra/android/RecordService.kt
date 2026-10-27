@@ -81,7 +81,8 @@ class RecordService : Service() {
         private var cacheFile: File? = null
 
         /** which sound the last saved video got: "capture", "microphone" or "none" */
-        @Volatile var lastSound: String = "none"
+        @Volatile var lastSound: String = "not tested"
+        @Volatile var lastSoundLevelDbfs: Double? = null
 
         fun begin(ctx: Context, code: Int, data: Intent) {
             ctx.startForegroundService(Intent(ctx, RecordService::class.java).putExtra("code", code).putExtra("data", data))
@@ -150,6 +151,7 @@ class RecordService : Service() {
             }
             r.stop()
             lastSound = r.soundSource
+            lastSoundLevelDbfs = r.soundLevelDbfs
             val problem = r.failure
             pfd?.close()
             pfd = null

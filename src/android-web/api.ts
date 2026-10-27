@@ -365,6 +365,7 @@ export const androidApi: LyraApi & { android: NonNullable<LyraApi['android']> } 
     openAmbient: async () => void (await rpc('openAmbient')),
     toggleAmbient: async () => void (await rpc('toggleAmbient')),
     audioRoute: () => rpc<{ headphones: boolean }>('audioRoute'),
+    compatibilityReport: () => rpc<string>('compatibilityReport'),
     recordVideo: (fromStart) => rpc<{ ok: boolean; error?: string }>('recordVideo', fromStart),
     addAmbientTile: () => rpc<boolean>('addAmbientTile'),
     setOverlay: (on) => rpc<{ ok: boolean; needsPermission?: boolean }>('overlaySet', on)

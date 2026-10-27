@@ -65,6 +65,10 @@ class ScreenRecorder(
     @Volatile var soundSource: String = "none"
         private set
 
+    /** Peak input level of the audio source selected for the finished video, in dBFS. */
+    @Volatile var soundLevelDbfs: Double? = null
+        private set
+
     private var vTrack = -1
     private var originUs = -1L // presentation time of the first video sample
     private val lock = Any()
@@ -314,6 +318,7 @@ class ScreenRecorder(
             else -> "microphone"
         }
         android.util.Log.i("LyraRec", "sound: $soundSource (capture peak ${capture?.peak}, mic peak ${mic?.peak})")
+        soundLevelDbfs = tap?.peak?.takeIf { it > 0 }?.let { 20.0 * kotlin.math.log10(it / 32768.0) }
 
         // ---- the sound: read, align to the first video frame, clean, encode
         var aacFormat: MediaFormat? = null
