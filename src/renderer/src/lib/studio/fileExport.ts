@@ -20,6 +20,8 @@ export interface FileExportOptions {
   quality: Quality
   fps?: Fps
   look: Look
+  motionStyle?: import('./scene').MotionStyle
+  filmGrain?: boolean
   showSong: boolean
   startMs: number
   endMs: number
@@ -127,6 +129,8 @@ export async function exportFromFile(opts: FileExportOptions, onProgress: (p: Pr
       accent: css.getPropertyValue('--accent').trim() || '#d8d8d8',
       tint1: css.getPropertyValue('--tint1').trim() || '#1a1a1a',
       tint2: css.getPropertyValue('--tint2').trim() || '#101010',
+      motionStyle: opts.motionStyle,
+      filmGrain: opts.filmGrain,
       showSong: opts.showSong,
       totalMs: total * 1000,
       ...lookInputs(opts.look, css.getPropertyValue('--accent').trim() || '#ffffff')

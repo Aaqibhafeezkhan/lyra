@@ -16,6 +16,8 @@ export type LayoutStyle = 'scroll' | 'focus' | 'subtitle'
 export type FontChoice = 'sans' | 'serif' | 'rounded' | 'mono'
 export type Highlight = 'white' | 'accent' | 'gold'
 export type TextPosition = 'upper' | 'middle' | 'lower'
+export type { MotionStyle } from './scene'
+import type { MotionStyle } from './scene'
 
 /** How the text looks: shared by the preview and both exporters. */
 export interface Look {
@@ -41,6 +43,8 @@ export function lookInputs(look: Look, accent: string): { style: LayoutStyle; fi
 
 export interface ExportOptions {
   look: Look
+  motionStyle?: MotionStyle
+  filmGrain?: boolean
   ratio: Ratio
   quality: Quality
   /** frames per second: 60 is smoother, 30 makes a smaller file (default 60) */
@@ -178,6 +182,8 @@ export async function exportVideo(opts: ExportOptions, onProgress: (p: Progress)
       accent: css.getPropertyValue('--accent').trim() || '#d8d8d8',
       tint1: css.getPropertyValue('--tint1').trim() || '#1a1a1a',
       tint2: css.getPropertyValue('--tint2').trim() || '#101010',
+      motionStyle: opts.motionStyle,
+      filmGrain: opts.filmGrain,
       showSong: opts.showSong,
       totalMs: total * 1000,
       ...lookInputs(opts.look, css.getPropertyValue('--accent').trim() || '#ffffff')

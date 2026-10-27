@@ -244,6 +244,8 @@ export async function exportSmooth(opts: ExportOptions, onProgress: (p: Progress
       accent: css.getPropertyValue('--accent').trim() || '#d8d8d8',
       tint1: css.getPropertyValue('--tint1').trim() || '#1a1a1a',
       tint2: css.getPropertyValue('--tint2').trim() || '#101010',
+      motionStyle: opts.motionStyle,
+      filmGrain: opts.filmGrain,
       showSong: opts.showSong,
       totalMs: audioSecs * 1000,
       ...lookInputs(opts.look, css.getPropertyValue('--accent').trim() || '#ffffff')
