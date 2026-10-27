@@ -214,8 +214,7 @@ function YoutubeLayer({ spec, run, onFail }: { spec: Extract<BackgroundSpec, { k
   // YouTube flashes its own controls for a few seconds after it starts and after the app is reopened: keep it invisible then
   const [masked, setMasked] = useState(phoneInit())
   const maskTimer = useRef(0)
-  const holdMask = (ms = 4000, always = false): void => {
-    if (!phone && !always) return
+  const holdMask = (ms = 4000): void => {
     setMasked(true)
     window.clearTimeout(maskTimer.current)
     maskTimer.current = window.setTimeout(() => setMasked(false), ms)
@@ -263,9 +262,12 @@ function YoutubeLayer({ spec, run, onFail }: { spec: Extract<BackgroundSpec, { k
         return
       }
       if (d?.info?.playerState !== undefined) {
+        const previousState = lastState.current
         lastState.current = d.info.playerState
         // playing, paused (we pause it while the song is paused) or cued all mean the player works: no need to give up on it
         if (d.info.playerState === 1 || d.info.playerState === 2 || d.info.playerState === 5) window.clearTimeout(timer.current)
+        // YouTube re-shows its transport overlay when playback resumes after a pause (not after buffering or a seek).
+        if (!phone && d.info.playerState === 1 && previousState === 2) holdMask(1800)
       }
       if (d?.event === 'onError') onFailRef.current(`error ${(d as { info?: unknown }).info ?? ''}`)
       else if (d?.event === 'onReady') {
@@ -274,8 +276,8 @@ function YoutubeLayer({ spec, run, onFail }: { spec: Extract<BackgroundSpec, { k
       } else if (d?.event === 'infoDelivery' && d.info?.playerState === 1) {
         window.clearTimeout(timer.current)
         setReady((was) => {
-          // on the PC too, the first seconds: YouTube shows its own previous / pause / next buttons over a fresh video
-          if (!was) holdMask(phone ? 4000 : 6500, true)
+          // Keep the embed hidden while YouTube's startup transport overlay is visible.
+          if (!was) holdMask(phone ? 4000 : 6500)
           return true
         })
       }
@@ -286,6 +288,7 @@ function YoutubeLayer({ spec, run, onFail }: { spec: Extract<BackgroundSpec, { k
     return () => {
       window.removeEventListener('message', onMsg)
       window.clearTimeout(timer.current)
+      window.clearTimeout(maskTimer.current)
     }
   }, [spec.videoId])
 
