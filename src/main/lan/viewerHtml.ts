@@ -46,10 +46,10 @@ export const VIEWER_HTML = String.raw`<!doctype html>
   <div class="meta"><div class="art" id="art"></div><div><div class="t" id="t"></div><div class="ar" id="ar"></div></div><div class="bar"><b id="bar"></b></div></div>
   <div class="lyrics" id="box"><div class="col" id="col"></div></div>
 </main>
-<div class="msg" id="msg">Lyra का इंतज़ार हो रहा है…</div>
+<div class="msg" id="msg">Waiting for Lyra…</div>
 <div class="dot off" id="dot" title="connection"></div>
 <audio id="aud" autoplay playsinline></audio>
-<div class="listen"><button id="listen" type="button">सुनें</button><span id="sync"><span id="sync-label"></span> <button id="nm" type="button">−</button><b id="nv">0 ms</b><button id="np" type="button">+</button></span></div>
+<div class="listen"><button id="listen" type="button">Listen</button><span id="sync"><span id="sync-label"></span> <button id="nm" type="button">−</button><b id="nv">0 ms</b><button id="np" type="button">+</button></span></div>
 <script>
 (() => {
   const K = new URLSearchParams(location.search).get('k') || ''
