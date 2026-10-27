@@ -40,6 +40,7 @@ const translations: Record<Language, Record<string, string>> = {
     'the host is not playing yet': 'होस्ट ने अभी गाना नहीं चलाया है',
     'playing': 'चल रहा है',
     'paused': 'रुका हुआ है',
+    'Play {title} by {artists} in your player.': 'अपने प्लेयर में {artists} का {title} गाना चलाएँ।',
     'Find it in Spotify': 'Spotify में खोजें',
     'Syncing with the host…': 'होस्ट के साथ सिंक हो रहा है…',
     'In sync ✓': 'सिंक हो गया ✓',
@@ -91,8 +92,9 @@ export function setLanguage(language: Language): void {
   listeners.forEach((listener) => listener())
 }
 
-export function translate(key: string): string {
-  return translations[currentLanguage][key] ?? key
+export function translate(key: string, values?: Record<string, string>): string {
+  const translated = translations[currentLanguage][key] ?? key
+  return Object.entries(values ?? {}).reduce((text, [name, value]) => text.replaceAll(`{${name}}`, value), translated)
 }
 
 export function useTranslation(): { language: Language; setLanguage: typeof setLanguage; t: typeof translate } {
