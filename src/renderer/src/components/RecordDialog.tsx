@@ -7,9 +7,26 @@ export function RecordDialog({ onClose }: { onClose: () => void }): ReactElement
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [phones, setPhones] = useState(false)
+  const [reportBusy, setReportBusy] = useState(false)
+  const [reportCopied, setReportCopied] = useState(false)
   useEffect(() => {
     void window.lyra.android?.audioRoute().then((r) => setPhones(r.headphones)).catch(() => undefined)
   }, [])
+
+  const copyCompatibilityReport = async (): Promise<void> => {
+    setReportBusy(true)
+    setReportCopied(false)
+    setError(null)
+    try {
+      const report = await window.lyra.android?.compatibilityReport()
+      if (!report) throw new Error('Compatibility reporting is not available here.')
+      setReportCopied(true)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not copy the compatibility report.')
+    } finally {
+      setReportBusy(false)
+    }
+  }
 
   const start = async (fromStart: boolean): Promise<void> => {
     setBusy(true)
@@ -47,6 +64,16 @@ export function RecordDialog({ onClose }: { onClose: () => void }): ReactElement
           </p>
         )}
         {error && <p className="studio__song" style={{ color: "#ff8a8a" }}>{error}</p>}
+        <div className="studio__group">
+          <button type="button" className="pill" disabled={reportBusy} onClick={() => void copyCompatibilityReport()}>
+            {reportBusy ? 'Preparing report…' : 'Copy compatibility report'}
+          </button>
+        </div>
+        {reportCopied && (
+          <p className="studio__song">
+            Report copied. Paste it in a comment on <a href="https://github.com/DhruvHarani1/lyra/issues/19" target="_blank" rel="noreferrer">issue #19</a> and mention the music app you tested.
+          </p>
+        )}
         <div className="studio__group">
           <button type="button" className="pill pill--primary" disabled={!track || busy} onClick={() => void start(true)}>
             Record from the start of the song
