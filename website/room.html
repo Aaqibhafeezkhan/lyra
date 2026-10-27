@@ -46,16 +46,28 @@
   <div class="meta"><div class="art" id="art"></div><div><div class="t" id="t"></div><div class="ar" id="ar"></div></div><div class="bar"><b id="bar"></b></div></div>
   <div class="lyrics" id="box"><div class="col" id="col"></div></div>
 </main>
-<div class="msg" id="msg">Waiting for Lyra…</div>
+<div class="msg" id="msg">Lyra का इंतज़ार हो रहा है…</div>
 <div class="dot off" id="dot" title="connection"></div>
-<div class="play" id="play">Lyrics only. Play the same song on your own device to listen along.</div>
+<div class="play" id="play">केवल बोल दिख रहे हैं। साथ सुनने के लिए अपने डिवाइस पर वही गाना चलाएँ।</div>
 <script src="assets/peerjs.min.js"></script>
 <script>
 (() => {
   const K = new URLSearchParams(location.search).get('k') || ''
   const $ = (id) => document.getElementById(id)
+  const language = (navigator.language || '').toLowerCase().startsWith('hi') ? 'hi' : 'en'
+  const strings = {
+    en: { waiting: 'Waiting for Lyra…', waitingSong: 'Waiting for the host to play a song…', instrumental: 'Instrumental ♪', lyricsError: 'Lyrics couldn’t load', noLyrics: 'No synced lyrics for this song', missingCode: 'This link is missing its room code. Ask your host to share it again.', joining: 'Joining the room…', hostClosed: 'The host closed the room.', hostLost: 'Lost the connection to the host.', roomUnavailable: 'This room isn’t open (anymore). Ask your host for a fresh link.', retrying: 'Trying again…', connectionError: 'Couldn’t connect. Check your internet and reload this page.', getLyra: 'Get Lyra', lyricsOnly: 'Lyrics only. Play the same song on your own device to listen along.' },
+    hi: { waiting: 'Lyra का इंतज़ार हो रहा है…', waitingSong: 'होस्ट के गाना चलाने का इंतज़ार हो रहा है…', instrumental: 'वाद्य संगीत ♪', lyricsError: 'गीत के बोल लोड नहीं हो सके', noLyrics: 'इस गाने के सिंक किए हुए बोल उपलब्ध नहीं हैं', missingCode: 'इस लिंक में रूम कोड नहीं है। होस्ट से नया लिंक माँगें।', joining: 'रूम से जुड़ रहे हैं…', hostClosed: 'होस्ट ने रूम बंद कर दिया।', hostLost: 'होस्ट से कनेक्शन टूट गया।', roomUnavailable: 'यह रूम अब खुला नहीं है। होस्ट से नया लिंक माँगें।', retrying: 'फिर कोशिश हो रही है…', connectionError: 'कनेक्ट नहीं हो सका। इंटरनेट जाँचें और पेज फिर से खोलें।', getLyra: 'Lyra डाउनलोड करें', lyricsOnly: 'केवल बोल दिख रहे हैं। साथ सुनने के लिए अपने डिवाइस पर वही गाना चलाएँ।' }
+  }
+  const tr = (key) => strings[language][key] || strings.en[key] || key
+  document.documentElement.lang = language
+  document.title = language === 'hi' ? 'साथ में सुनें · Lyra' : 'Listening together · Lyra'
+  document.querySelector('.top > span').textContent = language === 'hi' ? 'साथ में सुनें' : 'Listening together'
+  document.querySelector('.top a').textContent = tr('getLyra')
+  $('play').textContent = tr('lyricsOnly')
   let st = null, lines = [], idx = -1, offset = 0, trackId = '', words = []
   const msg = (t) => { $('msg').textContent = t || ''; $('msg').style.display = t ? '' : 'none' }
+  msg(tr('waiting'))
 
   // ---- lyrics (word timing is estimated, like the app does for line-synced lyrics)
   function estimate(ls, dur) {
@@ -83,9 +95,9 @@
     try {
       const r = await (await fetch('/lyrics?k=' + K)).json()
       if (r.status === 'synced' && r.lines.length) { lines = estimate(r.lines, st && st.durationMs); render() }
-      else if (r.status === 'instrumental') msg('Instrumental ♪')
-      else msg(r.status === 'error' ? 'Lyrics couldn’t load' : 'No synced lyrics for this song')
-    } catch { msg('Lyrics couldn’t load') }
+      else if (r.status === 'instrumental') msg(tr('instrumental'))
+      else msg(tr(r.status === 'error' ? 'lyricsError' : 'noLyrics'))
+    } catch { msg(tr('lyricsError')) }
   }
 
   // ---- clock
@@ -98,7 +110,7 @@
   const setState = (m) => {
     const changed = !st || st.trackId !== m.trackId
     st = m
-    if (!m.trackId) { $('t').textContent = ''; $('ar').textContent = ''; lines = []; render(); msg('Waiting for the host to play a song…'); trackId = ''; return }
+    if (!m.trackId) { $('t').textContent = ''; $('ar').textContent = ''; lines = []; render(); msg(tr('waitingSong')); trackId = ''; return }
     if (changed) {
       trackId = m.trackId; lines = []; render(); msg('')
       $('t').textContent = m.title; $('ar').textContent = m.artists
@@ -120,36 +132,36 @@
   }
   function onMsg(m) {
     lastMsg = Date.now()
-    if (m.t === 'bye') { ended_('The host closed the room.'); try { conn.close() } catch {} return }
+    if (m.t === 'bye') { ended_(tr('hostClosed')); try { conn.close() } catch {} return }
     if (m.t === 'pong') { const rtt = Date.now() - m.c; skew = m.h + rtt / 2 - Date.now(); return }
     if (m.t === 'state') { setState({ trackId: m.trackId, title: m.title, artists: m.artists, durationMs: m.durationMs, playing: m.playing, positionMs: m.positionMs, sampledAt: m.at }); return }
     if (m.t === 'art' && st && m.trackId === st.trackId) { $('art').style.backgroundImage = 'url(' + JSON.stringify(m.src) + ')'; const bg = $('bg'); bg.classList.remove('plain'); bg.style.backgroundImage = $('art').style.backgroundImage; return }
     if (m.t === 'lyrics' && st && m.trackId === st.trackId) {
       if (m.status === 'synced' && m.lines.length) { lines = estimate(m.lines, st.durationMs); render(); msg('') }
-      else if (m.status === 'instrumental') msg('Instrumental ♪')
-      else msg('No synced lyrics for this song')
+      else if (m.status === 'instrumental') msg(tr('instrumental'))
+      else msg(tr('noLyrics'))
     }
   }
   function join() {
-    if (!CODE) { msg('This link is missing its room code. Ask your host to share it again.'); return }
-    msg('Joining the room…')
+    if (!CODE) { msg(tr('missingCode')); return }
+    msg(tr('joining'))
     const peer = new Peer({ debug: 0 })
     peer.on('open', () => {
       conn = peer.connect('lyra-room-' + CODE, { reliable: true })
       conn.on('open', () => {
-        tries = 0; ended = false; lastMsg = Date.now(); clearInterval(watchdog); watchdog = setInterval(() => { if (Date.now() - lastMsg > 16000) ended_('Lost the connection to the host.') }, 3000); $('dot').classList.remove('off'); $('who').textContent = 'Room ' + CODE; msg('Waiting for the host to play a song…')
+        tries = 0; ended = false; lastMsg = Date.now(); clearInterval(watchdog); watchdog = setInterval(() => { if (Date.now() - lastMsg > 16000) ended_(tr('hostLost')) }, 3000); $('dot').classList.remove('off'); $('who').textContent = 'Room ' + CODE; msg(tr('waitingSong'))
         conn.send({ t: 'hello' })
         const ping = () => { if (conn && conn.open) conn.send({ t: 'ping', c: Date.now() }) }
         ping(); clearInterval(pingTimer); pingTimer = setInterval(ping, 8000)
       })
       conn.on('data', onMsg)
-      conn.on('close', () => { ended_('The host closed the room.'); try { peer.destroy() } catch {} })
+      conn.on('close', () => { ended_(tr('hostClosed')); try { peer.destroy() } catch {} })
     })
     peer.on('error', (e) => {
       $('dot').classList.add('off')
-      if (e.type === 'peer-unavailable') { msg('This room isn’t open (anymore). Ask your host for a fresh link.'); return }
-      if (++tries < 4) { msg('Trying again…'); setTimeout(join, 2000 * tries); return }
-      msg('Couldn’t connect. Check your internet and reload this page.')
+      if (e.type === 'peer-unavailable') { msg(tr('roomUnavailable')); return }
+      if (++tries < 4) { msg(tr('retrying')); setTimeout(join, 2000 * tries); return }
+      msg(tr('connectionError'))
     })
   }
 
