@@ -282,12 +282,22 @@ function YoutubeLayer({ spec, run, onFail }: { spec: Extract<BackgroundSpec, { k
         })
       }
     }
+    const onPointerMove = (event: PointerEvent): void => {
+      const rect = wrap.current?.getBoundingClientRect()
+      if (!phone && ready && rect && event.clientX >= rect.left && event.clientX <= rect.right && event.clientY >= rect.top && event.clientY <= rect.bottom) {
+        // The cross-origin player can reveal its controls on hover; briefly mask it while the pointer is moving.
+        holdMask(900)
+      }
+    }
     window.addEventListener('message', onMsg)
+    window.addEventListener('pointermove', onPointerMove, { passive: true })
     // if it never starts (blocked embed, offline) fall back instead of showing a black box
     timer.current = window.setTimeout(() => onFailRef.current('timeout'), 25_000)
     return () => {
       window.removeEventListener('message', onMsg)
+      window.removeEventListener('pointermove', onPointerMove)
       window.clearTimeout(timer.current)
+      window.clearTimeout(maskTimer.current)
     }
   }, [spec.videoId])
 
@@ -306,14 +316,7 @@ function YoutubeLayer({ spec, run, onFail }: { spec: Extract<BackgroundSpec, { k
     `https://www.youtube-nocookie.com/embed/${spec.videoId}?autoplay=1&mute=1&controls=0&loop=1&playlist=${spec.videoId}&start=${start}` +
     '&modestbranding=1&playsinline=1&disablekb=1&rel=0&fs=0&iv_load_policy=3&enablejsapi=1&vq=' + (document.documentElement.dataset.ambient === '1' ? 'large' : 'hd1080')
   return (
-    <div
-      ref={wrap}
-      className="backdrop__ytwrap"
-      onPointerMove={() => {
-        // The cross-origin player can reveal its controls on hover; briefly mask it while the pointer is moving.
-        if (!phone && ready) holdMask(900)
-      }}
-    >
+    <div ref={wrap} className="backdrop__ytwrap">
       <iframe
         ref={frame}
         className="backdrop__yt"
