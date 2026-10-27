@@ -120,7 +120,7 @@ function JamPanel() {
           </p>
           {needSong && (
             <p className="hint">
-              Play <b>{needSong.title}</b> by {needSong.artists} in your player.{' '}
+              {t('Play {title} by {artists} in your player.', { title: needSong.title, artists: needSong.artists })}{' '}
               <a href={`https://open.spotify.com/search/${encodeURIComponent(`${needSong.title} ${needSong.artists}`)}`} target="_blank" rel="noreferrer">
                 {t('Find it in Spotify')}
               </a>
