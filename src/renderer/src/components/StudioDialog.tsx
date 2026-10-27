@@ -182,8 +182,8 @@ export function StudioDialog({ onClose }: { onClose(): void }) {
       if (source === 'live') {
         const opts: ExportOptions = {
           look,
-          motionStyle,
-          filmGrain,
+          motionStyle: bg === 'motion' ? motionStyle : undefined,
+          filmGrain: bg === 'motion' && filmGrain,
           ratio,
           quality,
           fps,
@@ -210,8 +210,8 @@ export function StudioDialog({ onClose }: { onClose(): void }) {
             quality,
             fps,
             look,
-            motionStyle,
-            filmGrain,
+            motionStyle: bg === 'motion' ? motionStyle : undefined,
+            filmGrain: bg === 'motion' && filmGrain,
             showSong,
             startMs: range.startMs,
             endMs: range.endMs,
@@ -310,7 +310,7 @@ export function StudioDialog({ onClose }: { onClose(): void }) {
             {ready && subjectTrack && (
               <>
                 <div className="studio__preview-wrap">
-                  <StudioPreview track={subjectTrack} lines={lines} ratio={ratio} look={look} motionStyle={motionStyle} filmGrain={filmGrain} showSong={showSong} media={media} stage={previewStage} startMs={range.startMs} endMs={range.endMs} />
+                  <StudioPreview track={subjectTrack} lines={lines} ratio={ratio} look={look} motionStyle={bg === 'motion' ? motionStyle : undefined} filmGrain={bg === 'motion' && filmGrain} showSong={showSong} media={media} stage={previewStage} startMs={range.startMs} endMs={range.endMs} />
                 </div>
 
                 <div className="studio__group">

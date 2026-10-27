@@ -10,7 +10,7 @@ interface Props {
   lines: LyricLine[]
   ratio: Ratio
   look: Look
-  motionStyle: MotionStyle
+  motionStyle?: MotionStyle
   filmGrain: boolean
   showSong: boolean
   /** a looping video or photo behind the lyrics, or null for the cover's colours */
