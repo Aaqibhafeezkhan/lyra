@@ -284,7 +284,7 @@ function YoutubeLayer({ spec, run, onFail }: { spec: Extract<BackgroundSpec, { k
     }
     const onPointerMove = (event: PointerEvent): void => {
       const rect = wrap.current?.getBoundingClientRect()
-      if (!phone && ready && rect && event.clientX >= rect.left && event.clientX <= rect.right && event.clientY >= rect.top && event.clientY <= rect.bottom) {
+      if (!phone && rect && event.clientX >= rect.left && event.clientX <= rect.right && event.clientY >= rect.top && event.clientY <= rect.bottom) {
         // The cross-origin player can reveal its controls on hover; briefly mask it while the pointer is moving.
         holdMask(900)
       }
