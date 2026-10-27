@@ -5,12 +5,15 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
+import android.media.MediaCodecList
+import android.media.MediaFormat
 import android.net.Uri
 import android.os.Handler
 import android.os.Looper
 import android.provider.Settings
 import android.util.Base64
 import android.view.WindowManager
+import android.webkit.WebView
 import androidx.webkit.JavaScriptReplyProxy
 import androidx.webkit.WebMessageCompat
 import androidx.webkit.WebViewCompat
@@ -112,6 +115,12 @@ class Rpc(private val ctx: Context, private val web: LyraWebView, private val ac
                 val types = am.getDevices(android.media.AudioManager.GET_DEVICES_OUTPUTS).map { it.type }
                 val phones = types.any { it == android.media.AudioDeviceInfo.TYPE_WIRED_HEADPHONES || it == android.media.AudioDeviceInfo.TYPE_WIRED_HEADSET || it == android.media.AudioDeviceInfo.TYPE_BLUETOOTH_A2DP || it == android.media.AudioDeviceInfo.TYPE_BLE_HEADSET || it == android.media.AudioDeviceInfo.TYPE_USB_HEADSET || it == android.media.AudioDeviceInfo.TYPE_HEARING_AID }
                 ok(JSONObject().put("headphones", phones))
+            }
+            "compatibilityReport" -> ui {
+                val report = buildCompatibilityReport()
+                (ctx.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager)
+                    .setPrimaryClip(ClipData.newPlainText("Lyra compatibility report", report))
+                ok(report)
             }
             "recordVideo" -> ui {
                 if (android.os.Build.VERSION.SDK_INT >= 29) {
@@ -238,6 +247,36 @@ class Rpc(private val ctx: Context, private val web: LyraWebView, private val ac
             }
             else -> fail("unknown method")
         }
+    }
+
+    /** A shareable device report. It deliberately excludes account, app-list, and identifier data. */
+    private fun buildCompatibilityReport(): String {
+        val webViewVersion = runCatching { WebView.getCurrentWebViewPackage()?.versionName }.getOrNull() ?: "unavailable"
+        val supports1080p60 = runCatching {
+            MediaCodecList(MediaCodecList.REGULAR_CODECS).codecInfos.any { codec ->
+                codec.isEncoder && codec.supportedTypes.any { it.equals(MediaFormat.MIMETYPE_VIDEO_AVC, ignoreCase = true) } &&
+                    runCatching {
+                        codec.getCapabilitiesForType(MediaFormat.MIMETYPE_VIDEO_AVC)
+                            .videoCapabilities?.areSizeAndRateSupported(1920, 1080, 60.0) == true
+                    }.getOrDefault(false)
+            }
+        }.getOrDefault(false)
+        val audioPath = when (RecordService.lastSound) {
+            "capture" -> "direct playback capture"
+            "microphone" -> "microphone"
+            "none" -> "silent / no usable audio"
+            else -> "not tested yet"
+        }
+        val level = RecordService.lastSoundLevelDbfs?.let { "%.1f dBFS peak".format(java.util.Locale.US, it) } ?: "not measured"
+        return listOf(
+            "Lyra Android compatibility report",
+            "Device: ${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL}".trim(),
+            "Android: ${android.os.Build.VERSION.RELEASE} (API ${android.os.Build.VERSION.SDK_INT})",
+            "WebView: $webViewVersion",
+            "Audio path: $audioPath",
+            "Measured audio level: $level",
+            "H.264 encoder supports 1080p60: ${if (supports1080p60) "yes" else "no"}"
+        ).joinToString("\\n")
     }
 
     /** HTTPS GET without browser CORS limits, so the shared core can call LRCLIB, Apple, YouTube from the phone. */
