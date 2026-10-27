@@ -49,13 +49,24 @@ export const VIEWER_HTML = String.raw`<!doctype html>
 <div class="msg" id="msg">Waiting for Lyra…</div>
 <div class="dot off" id="dot" title="connection"></div>
 <audio id="aud" autoplay playsinline></audio>
-<div class="listen"><button id="listen" type="button">Listen</button><span id="sync">Lyrics timing <button id="nm" type="button">−</button><b id="nv">0 ms</b><button id="np" type="button">+</button></span></div>
+<div class="listen"><button id="listen" type="button">Listen</button><span id="sync"><span id="sync-label"></span> <button id="nm" type="button">−</button><b id="nv">0 ms</b><button id="np" type="button">+</button></span></div>
 <script>
 (() => {
   const K = new URLSearchParams(location.search).get('k') || ''
   const $ = (id) => document.getElementById(id)
+  const language = (navigator.language || '').toLowerCase().startsWith('hi') ? 'hi' : 'en'
+  const strings = {
+    en: { lyricsTiming: 'Lyrics timing', waiting: 'Waiting for Lyra…', instrumental: 'Instrumental ♪', lyricsError: 'Lyrics couldn’t load', noLyrics: 'No synced lyrics for this song', playSong: 'Play a song in Spotify', listen: 'Listen', connecting: 'Connecting…', soundOn: 'Sound on', soundLost: 'Sound lost. Tap to retry', startSoundError: 'Could not start the sound.', missingCode: 'This link is missing its room code. Ask your host to share it again.' },
+    hi: { lyricsTiming: 'गीत के बोल का समय', waiting: 'Lyra का इंतज़ार हो रहा है…', instrumental: 'वाद्य संगीत ♪', lyricsError: 'गीत के बोल लोड नहीं हो सके', noLyrics: 'इस गाने के सिंक किए हुए बोल उपलब्ध नहीं हैं', playSong: 'Spotify में कोई गाना चलाएँ', listen: 'सुनें', connecting: 'कनेक्ट हो रहा है…', soundOn: 'आवाज़ चालू', soundLost: 'आवाज़ बंद हो गई। फिर कोशिश करने के लिए टैप करें', startSoundError: 'आवाज़ शुरू नहीं हो सकी।', missingCode: 'इस लिंक में रूम कोड नहीं है। होस्ट से नया लिंक माँगें।' }
+  }
+  const tr = (key) => strings[language][key] || strings.en[key] || key
+  document.documentElement.lang = language
+  document.title = language === 'hi' ? 'Lyra TV मोड' : 'Lyra'
   let st = null, lines = [], idx = -1, offset = 0, trackId = '', words = []
   const msg = (t) => { $('msg').textContent = t || ''; $('msg').style.display = t ? '' : 'none' }
+  $('listen').textContent = tr('listen')
+  $('sync-label').textContent = tr('lyricsTiming')
+  msg(tr('waiting'))
 
   // ---- lyrics (word timing is estimated, like the app does for line-synced lyrics)
   function estimate(ls, dur) {
@@ -83,9 +94,9 @@ export const VIEWER_HTML = String.raw`<!doctype html>
     try {
       const r = await (await fetch('/lyrics?k=' + K)).json()
       if (r.status === 'synced' && r.lines.length) { lines = estimate(r.lines, st && st.durationMs); render() }
-      else if (r.status === 'instrumental') msg('Instrumental ♪')
-      else msg(r.status === 'error' ? 'Lyrics couldn’t load' : 'No synced lyrics for this song')
-    } catch { msg('Lyrics couldn’t load') }
+      else if (r.status === 'instrumental') msg(tr('instrumental'))
+      else msg(tr(r.status === 'error' ? 'lyricsError' : 'noLyrics'))
+    } catch { msg(tr('lyricsError')) }
   }
 
   // ---- clock
@@ -103,7 +114,7 @@ export const VIEWER_HTML = String.raw`<!doctype html>
       if (m.type !== 'state') return
       const changed = !st || st.trackId !== m.trackId
       st = m
-      if (!m.trackId) { $('t').textContent = ''; $('ar').textContent = ''; lines = []; render(); msg('Play a song in Spotify'); trackId = ''; return }
+      if (!m.trackId) { $('t').textContent = ''; $('ar').textContent = ''; lines = []; render(); msg(tr('playSong')); trackId = ''; return }
       if (changed) {
         trackId = m.trackId
         $('t').textContent = m.title; $('ar').textContent = m.artists
@@ -121,7 +132,7 @@ export const VIEWER_HTML = String.raw`<!doctype html>
   async function listen() {
     const btn = $('listen')
     if (listening) { location.reload(); return }
-    btn.textContent = 'Connecting…'; btn.disabled = true
+    btn.textContent = tr('connecting'); btn.disabled = true
     try {
       const pc = new RTCPeerConnection({ iceServers: [] })
       pc.addTransceiver('audio', { direction: 'recvonly' })
@@ -138,8 +149,8 @@ export const VIEWER_HTML = String.raw`<!doctype html>
       if (!r.ok) throw new Error(j.error || 'Could not start the sound.')
       await pc.setRemoteDescription(j)
       pc.getReceivers().forEach((rc) => { try { rc.playoutDelayHint = 0 } catch (e) {} })
-      pc.onconnectionstatechange = () => { if (pc.connectionState === 'failed') { btn.disabled = false; btn.textContent = 'Sound lost. Tap to retry'; listening = false; lag = 0; $('sync').style.display = 'none' } }
-      listening = true; btn.disabled = false; btn.textContent = 'Sound on'
+      pc.onconnectionstatechange = () => { if (pc.connectionState === 'failed') { btn.disabled = false; btn.textContent = tr('soundLost'); listening = false; lag = 0; $('sync').style.display = 'none' } }
+      listening = true; btn.disabled = false; btn.textContent = tr('soundOn')
       $('sync').style.display = 'flex'; setNudge(nudge)
       // measure the delay between the PC and this speaker so the lyrics can wait for the sound
       let last = null
@@ -153,8 +164,8 @@ export const VIEWER_HTML = String.raw`<!doctype html>
         if (jb) lag = lag ? lag * 0.7 + (jb + rtt / 2 + 30) * 0.3 : jb + rtt / 2 + 30
       }, 2000)
     } catch (e) {
-      btn.disabled = false; btn.textContent = 'Listen'
-      msg((e && e.message) || 'Could not start the sound.')
+      btn.disabled = false; btn.textContent = tr('listen')
+      msg((e && e.message) || tr('startSoundError'))
       setTimeout(() => { if (!st || !st.trackId) return; msg('') }, 5000)
     }
   }

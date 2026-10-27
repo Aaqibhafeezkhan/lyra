@@ -10,6 +10,7 @@ import { roomLink, useRoom } from '@/store/room'
 import { useJam } from '@/store/jam'
 import QRCode from 'qrcode'
 import { useUi } from '@/store/ui'
+import { setLanguage, useTranslation, type Language } from '@/i18n'
 
 /** Copy text and tell the user it worked (or didn't). */
 async function copyWithToast(text: string, what: string): Promise<void> {
@@ -31,6 +32,7 @@ async function copyWithToast(text: string, what: string): Promise<void> {
 }
 
 function RoomPanel() {
+  const { t } = useTranslation()
   const { code, guests, state, error, start, stop } = useRoom()
   const [qr, setQr] = useState<string | null>(null)
   const link = code ? roomLink(code) : ''
@@ -40,7 +42,7 @@ function RoomPanel() {
   }, [link])
   return (
     <>
-      <Row label="Host a room" hint="Share a link: friends open it in any browser and see your synced lyrics live. Friends with Lyra can also join to listen in sync with you">
+      <Row label={t('Host a room')} hint={t('Share a link: friends open it in any browser and see your synced lyrics live. Friends with Lyra can also join to listen in sync with you')}>
         {state === 'idle' || state === 'error' ? (
           <button
             type="button"
@@ -50,26 +52,26 @@ function RoomPanel() {
               start()
             }}
           >
-            Start a room
+            {t('Start a room')}
           </button>
         ) : (
           <button type="button" className="pill" onClick={stop}>
-            Stop room
+            {t('Stop room')}
           </button>
         )}
       </Row>
       {error && <p className="hint">{error}</p>}
-      {state === 'starting' && <p className="hint">Opening the room…</p>}
+      {state === 'starting' && <p className="hint">{t('Opening the room…')}</p>}
       {state === 'live' && code && (
         <div className="tvlink">
           {qr && <img src={qr} width={150} height={150} alt="QR code for the room link" />}
           <div>
             <p className="hint">
-              Room <b>{code}</b> · {guests} {guests === 1 ? 'person' : 'people'} watching. Guests connect straight to this device, so they can see its network address. Stop the room any time.
+              {t('Room')} <b>{code}</b> · {guests} {t(guests === 1 ? 'person' : 'people')} {t('watching. Guests connect straight to this device, so they can see its network address. Stop the room any time.')}
             </p>
             <code onClick={(e) => window.getSelection()?.selectAllChildren(e.currentTarget)}>{link}</code>
-            <button type="button" className="pill" onClick={() => void copyWithToast(link, 'Room link')}>
-              Copy link
+            <button type="button" className="pill" onClick={() => void copyWithToast(link, t('Room link'))}>
+              {t('Copy link')}
             </button>
           </div>
         </div>
@@ -80,15 +82,16 @@ function RoomPanel() {
 
 /** Join someone else's room from inside Lyra and listen in sync. */
 function JamPanel() {
+  const { t } = useTranslation()
   const { status, message, host, needSong, syncing, syncOn, setSync, join, leave } = useJam()
   const [text, setText] = useState('')
   const active = status === 'joining' || status === 'connected'
   return (
     <>
-      <Row label="Join a room" hint="Paste a room link or code. Everyone plays the same song in their own Spotify; Lyra keeps your play, pause and position in step with the host">
+      <Row label={t('Join a room')} hint={t('Paste a room link or code. Everyone plays the same song in their own Spotify; Lyra keeps your play, pause and position in step with the host')}>
         {active ? (
           <button type="button" className="pill" onClick={leave}>
-            Leave room
+            {t('Leave room')}
           </button>
         ) : null}
       </Row>
@@ -101,31 +104,31 @@ function JamPanel() {
             join(text)
           }}
         >
-          <input value={text} onChange={(e) => setText(e.target.value)} placeholder="Room link or code" aria-label="Room link or code" spellCheck={false} />
+          <input value={text} onChange={(e) => setText(e.target.value)} placeholder={t('Room link or code')} aria-label={t('Room link or code')} spellCheck={false} />
           <button type="submit" className="pill" disabled={!text.trim()}>
-            Join
+            {t('Join')}
           </button>
         </form>
       )}
       {message && <p className="hint">{message}</p>}
-      {status === 'joining' && <p className="hint">Joining…</p>}
+      {status === 'joining' && <p className="hint">{t('Joining…')}</p>}
       {status === 'connected' && (
         <div className="jam">
           <p className="hint">
-            In the room · {host?.trackId ? <b>{host.title}</b> : 'the host is not playing yet'}
-            {host?.trackId ? ` · ${host.artists} · ${host.playing ? 'playing' : 'paused'}` : ''}
+            In the room · {host?.trackId ? <b>{host.title}</b> : t('the host is not playing yet')}
+            {host?.trackId ? ` · ${host.artists} · ${t(host.playing ? 'playing' : 'paused')}` : ''}
           </p>
           {needSong && (
             <p className="hint">
-              Play <b>{needSong.title}</b> by {needSong.artists} in your player.{' '}
+              {t('Play {title} by {artists} in your player.', { title: needSong.title, artists: needSong.artists })}{' '}
               <a href={`https://open.spotify.com/search/${encodeURIComponent(`${needSong.title} ${needSong.artists}`)}`} target="_blank" rel="noreferrer">
-                Find it in Spotify
+                {t('Find it in Spotify')}
               </a>
             </p>
           )}
-          {!needSong && host?.trackId && <p className="hint">{syncOn ? (syncing ? 'Syncing with the host…' : 'In sync ✓') : 'Sync is off: you are playing on your own.'}</p>}
-          <Row label="Keep my player in sync" hint="Matches the host's play, pause and position">
-            <Toggle label="Keep my player in sync" checked={syncOn} onChange={setSync} />
+          {!needSong && host?.trackId && <p className="hint">{syncOn ? (syncing ? t('Syncing with the host…') : t('In sync ✓')) : t('Sync is off: you are playing on your own.')}</p>}
+          <Row label={t('Keep my player in sync')} hint={t("Matches the host's play, pause and position")}>
+            <Toggle label={t('Keep my player in sync')} checked={syncOn} onChange={setSync} />
           </Row>
         </div>
       )}
@@ -135,6 +138,7 @@ function JamPanel() {
 
 /** Hosting and joining live side by side so it is obvious what each one does. */
 function RoomHub() {
+  const { t } = useTranslation()
   const roomState = useRoom((r) => r.state)
   const jamStatus = useJam((j) => j.status)
   const [mode, setMode] = useState<'host' | 'join'>(jamStatus === 'idle' ? 'host' : 'join')
@@ -142,12 +146,12 @@ function RoomHub() {
   return (
     <>
       <Segmented<'host' | 'join'>
-        label="Room role"
+        label={t('Room role')}
         value={shown}
         onChange={setMode}
         options={[
-          { v: 'host', label: 'Host a room' },
-          { v: 'join', label: 'Join a room' }
+          { v: 'host', label: t('Host a room') },
+          { v: 'join', label: t('Join a room') }
         ]}
       />
       {shown === 'host' ? <RoomPanel /> : <JamPanel />}
@@ -156,6 +160,7 @@ function RoomHub() {
 }
 
 function TvLink() {
+  const { t } = useTranslation()
   const [info, setInfo] = useState<{ running: boolean; urls: string[]; qr: string | null } | null>(null)
   useEffect(() => {
     let alive = true
@@ -168,15 +173,15 @@ function TvLink() {
     }
   }, [])
   if (!info) return null
-  if (!info.running || !info.urls.length) return <p className="hint">Starting… If nothing appears, check that you are connected to Wi-Fi or a network.</p>
+  if (!info.running || !info.urls.length) return <p className="hint">{t('Starting… If nothing appears, check that you are connected to Wi-Fi or a network.')}</p>
   return (
     <div className="tvlink">
       {info.qr && <img src={info.qr} width={150} height={150} alt="QR code for the TV link" />}
       <div>
-        <p className="hint">Open this on any device on the same Wi-Fi. Keep the link private: anyone who has it can see what you play.</p>
+        <p className="hint">{t('Open this on any device on the same Wi-Fi. Keep the link private: anyone who has it can see what you play.')}</p>
         <code onClick={(e) => window.getSelection()?.selectAllChildren(e.currentTarget)}>{info.urls[0]}</code>
-        <button type="button" className="pill" onClick={() => void copyWithToast(info.urls[0]!, 'TV link')}>
-          Copy link
+        <button type="button" className="pill" onClick={() => void copyWithToast(info.urls[0]!, t('TV link'))}>
+          {t('Copy link')}
         </button>
       </div>
     </div>
@@ -478,6 +483,7 @@ function BackgroundSection() {
 
 /** Android only: keep the screen on / keep Lyra from being closed while you listen. */
 function PhoneSection() {
+  const { t } = useTranslation()
   const s = useSettings((x) => x.settings)
   const set = useSettings((x) => x.set)
   const toast = useUi((x) => x.toast)
@@ -551,7 +557,7 @@ function PhoneSection() {
           Open
         </button>
       </Row>
-      <Row label="Notification access" hint="Lets Lyra see what is playing">
+      <Row label={t('Notification access')} hint={t('Lets Lyra see what is playing')}>
         <button type="button" className="pill" onClick={() => void window.lyra.android?.openAccessSettings()}>
           Open
         </button>
@@ -561,6 +567,7 @@ function PhoneSection() {
 }
 
 export function SettingsPanel() {
+  const { t, language } = useTranslation()
   const android = document.documentElement.dataset.platform === 'android'
   const s = useSettings((x) => x.settings)
   const set = useSettings((x) => x.set)
@@ -572,21 +579,21 @@ export function SettingsPanel() {
   const up = <K extends keyof Settings>(k: K) => (v: Settings[K]) => set({ [k]: v } as Partial<Settings>)
   const tabs: Array<{ id: string; label: string }> = android
     ? [
-        { id: 'phone', label: 'Phone' },
-        { id: 'lyrics', label: 'Lyrics' },
-        { id: 'look', label: 'Look' },
-        { id: 'bg', label: 'Background' },
-        { id: 'share', label: 'Share' },
-        { id: 'about', label: 'About' }
+        { id: 'phone', label: t('Phone') },
+        { id: 'lyrics', label: t('Lyrics') },
+        { id: 'look', label: t('Look') },
+        { id: 'bg', label: t('Background') },
+        { id: 'share', label: t('Share') },
+        { id: 'about', label: t('About') }
       ]
     : [
-        { id: 'general', label: 'General' },
-        { id: 'lyrics', label: 'Lyrics' },
-        { id: 'look', label: 'Look' },
-        { id: 'bg', label: 'Background' },
-        { id: 'share', label: 'Share' },
-        { id: 'keys', label: 'Shortcuts' },
-        { id: 'about', label: 'About' }
+        { id: 'general', label: t('General') },
+        { id: 'lyrics', label: t('Lyrics') },
+        { id: 'look', label: t('Look') },
+        { id: 'bg', label: t('Background') },
+        { id: 'share', label: t('Share') },
+        { id: 'keys', label: t('Shortcuts') },
+        { id: 'about', label: t('About') }
       ]
   const [tab, setTabState] = useState<string>(() => {
     const saved = sessionStorage.getItem('lyra.settingsTab')
@@ -625,7 +632,7 @@ export function SettingsPanel() {
 
   return (
     <div className="settings" data-nodrag>
-      <nav className="stabs" role="tablist" aria-label="Settings sections">
+      <nav className="stabs" role="tablist" aria-label={t('Settings sections')}>
         {tabs.map((t, index) => (
           <button
             key={t.id}
@@ -649,9 +656,15 @@ export function SettingsPanel() {
 
       {!android && tab === 'general' && (
       <section>
-        <h4>Music source</h4>
+        <Row label={t('Language')} hint={t('Choose the language used in Lyra settings')}>
+          <select value={language} onChange={(e) => setLanguage(e.target.value as Language)} aria-label={t('Language')}>
+            <option value="en">English</option>
+            <option value="hi">हिन्दी</option>
+          </select>
+        </Row>
+        <h4>{t('Music source')}</h4>
         <Segmented
-          label="Music source"
+          label={t('Music source')}
           value={active}
           onChange={(v) => {
             if (v === 'local') void window.lyra.spotify.useLocal()
@@ -811,20 +824,20 @@ export function SettingsPanel() {
 
       {tab === 'share' && (
       <section>
-        <h4>Rooms: listen together</h4>
+        <h4>{t('Rooms: listen together')}</h4>
         <RoomHub />
       </section>
       )}
 
       {!android && tab === 'share' && (
       <section>
-        <h4>Nearby screens (TV mode)</h4>
-        <Row label="Show lyrics on other screens" hint="Same Wi-Fi, no internet needed: scan the QR code on a phone, tablet, laptop or TV browser to get big synced lyrics. Off by default">
-          <Toggle label="TV and party mode" checked={s.lanViewer} onChange={up('lanViewer')} />
+        <h4>{t('Nearby screens (TV mode)')}</h4>
+        <Row label={t('Show lyrics on other screens')} hint={t('Same Wi-Fi, no internet needed: scan the QR code on a phone, tablet, laptop or TV browser to get big synced lyrics. Off by default')}>
+          <Toggle label={t('TV and party mode')} checked={s.lanViewer} onChange={up('lanViewer')} />
         </Row>
         {s.lanViewer && (
-          <Row label="Stream sound too (Jam nearby)" hint="Lets devices on your Wi-Fi press Listen and hear this PC's sound with the lyrics. It sends everything this PC plays, only over your local network, and only while someone is listening. For you and the people in your home">
-            <Toggle label="Stream sound" checked={s.lanAudio} onChange={up('lanAudio')} />
+          <Row label={t('Stream sound too (Jam nearby)')} hint={t("Lets devices on your Wi-Fi press Listen and hear this PC's sound with the lyrics. It sends everything this PC plays, only over your local network, and only while someone is listening. For you and the people in your home")}>
+            <Toggle label={t('Stream sound')} checked={s.lanAudio} onChange={up('lanAudio')} />
           </Row>
         )}
         {s.lanViewer && <TvLink />}
@@ -833,18 +846,18 @@ export function SettingsPanel() {
 
       {!android && tab === 'general' && (
       <section>
-        <h4>System</h4>
-        <Row label="Launch at startup" hint="Applies to installed builds">
-          <Toggle label="Launch at startup" checked={s.launchAtStartup} onChange={up('launchAtStartup')} />
+        <h4>{t('System')}</h4>
+        <Row label={t('Launch at startup')} hint={t('Applies to installed builds')}>
+          <Toggle label={t('Launch at startup')} checked={s.launchAtStartup} onChange={up('launchAtStartup')} />
         </Row>
-        <Row label="Control system volume" hint="Windows source. Loads a helper that some antivirus tools flag">
-          <Toggle label="Control system volume" checked={s.systemVolume} onChange={up('systemVolume')} />
+        <Row label={t('Control system volume')} hint={t('Windows source. Loads a helper that some antivirus tools flag')}>
+          <Toggle label={t('Control system volume')} checked={s.systemVolume} onChange={up('systemVolume')} />
         </Row>
-        <Row label="Global shortcuts">
-          <Toggle label="Global shortcuts" checked={s.globalShortcuts} onChange={up('globalShortcuts')} />
+        <Row label={t('Global shortcuts')}>
+          <Toggle label={t('Global shortcuts')} checked={s.globalShortcuts} onChange={up('globalShortcuts')} />
         </Row>
-        <Row label="Track change notifications">
-          <Toggle label="Track change notifications" checked={s.trackNotifications} onChange={up('trackNotifications')} />
+        <Row label={t('Track change notifications')}>
+          <Toggle label={t('Track change notifications')} checked={s.trackNotifications} onChange={up('trackNotifications')} />
         </Row>
       </section>
       )}
