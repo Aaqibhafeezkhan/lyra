@@ -4,7 +4,7 @@ import { parseLrc } from '@shared/lrc'
 import { estimateWords } from '@shared/wordTiming'
 import { decodeAudio, exportFromFile } from '@/lib/studio/fileExport'
 import { exportSmooth } from '@/lib/studio/twoPhase'
-import { dimensions, exportVideo, type ExportOptions, type Fps, type FontChoice, type Highlight, type LayoutStyle, type Look, type Quality, type Ratio, type TextPosition } from '@/lib/studio/recorder'
+import { dimensions, exportVideo, type ExportOptions, type Fps, type FontChoice, type Highlight, type LayoutStyle, type Look, type Quality, type Ratio, type TextPosition, type MotionStyle } from '@/lib/studio/recorder'
 import { autoChorus } from '@/lib/studio/sections'
 import { StageSource } from '@/lib/studio/stage'
 import { useLyrics } from '@/store/lyrics'
@@ -58,10 +58,12 @@ export function StudioDialog({ onClose }: { onClose(): void }) {
   // a PC that dropped frames last time starts at 30 fps
   const [fps, setFps] = useState<Fps>(() => (localStorage.getItem('lyra.studio.slowPc') ? 30 : 60))
   const [look, setLook] = useState<Look>({ style: 'scroll', font: 'sans', highlight: 'white', position: 'middle', romanize: useSettings.getState().settings.romanizeLyrics })
+  const [motionStyle, setMotionStyle] = useState<MotionStyle>('gradient')
+  const [filmGrain, setFilmGrain] = useState(false)
   const [showSong, setShowSong] = useState(true)
   // smooth: record the song first, draw the video afterwards (never stutters, takes longer); instant: draw while it plays
   const [method, setMethod] = useState<'smooth' | 'instant'>(() => (localStorage.getItem('lyra.studio.method') === 'instant' ? 'instant' : 'smooth'))
-  const [bg, setBg] = useState<'auto' | 'cover' | 'file'>('auto')
+  const [bg, setBg] = useState<'auto' | 'cover' | 'motion' | 'file'>('auto')
   const [file, setFile] = useState<{ url: string; kind: 'video' | 'image'; name: string } | null>(null)
   const [spec, setSpec] = useState<BackgroundSpec | null>(null)
   const [phase, setPhase] = useState<Phase>({ name: 'setup' })
@@ -180,6 +182,8 @@ export function StudioDialog({ onClose }: { onClose(): void }) {
       if (source === 'live') {
         const opts: ExportOptions = {
           look,
+          motionStyle,
+          filmGrain,
           ratio,
           quality,
           fps,
@@ -206,6 +210,8 @@ export function StudioDialog({ onClose }: { onClose(): void }) {
             quality,
             fps,
             look,
+            motionStyle,
+            filmGrain,
             showSong,
             startMs: range.startMs,
             endMs: range.endMs,
@@ -304,7 +310,7 @@ export function StudioDialog({ onClose }: { onClose(): void }) {
             {ready && subjectTrack && (
               <>
                 <div className="studio__preview-wrap">
-                  <StudioPreview track={subjectTrack} lines={lines} ratio={ratio} look={look} showSong={showSong} media={media} stage={previewStage} startMs={range.startMs} endMs={range.endMs} />
+                  <StudioPreview track={subjectTrack} lines={lines} ratio={ratio} look={look} motionStyle={motionStyle} filmGrain={filmGrain} showSong={showSong} media={media} stage={previewStage} startMs={range.startMs} endMs={range.endMs} />
                 </div>
 
                 <div className="studio__group">
@@ -371,7 +377,8 @@ export function StudioDialog({ onClose }: { onClose(): void }) {
 
                 <div className="studio__group">
                   <span>Background</span>
-                  {seg<'auto' | 'cover' | 'file'>('Background', bg, source === 'live' ? [{ v: 'auto', label: 'Current video' }, { v: 'cover', label: 'Cover colours' }, { v: 'file', label: 'My file' }] : [{ v: 'cover', label: 'Cover colours' }, { v: 'file', label: 'My video or photo' }], setBg)}
+                  {seg<'auto' | 'cover' | 'motion' | 'file'>('Background', bg, source === 'live' ? [{ v: 'auto', label: 'Current video' }, { v: 'cover', label: 'Cover colours' }, { v: 'motion', label: 'Motion' }, { v: 'file', label: 'My file' }] : [{ v: 'cover', label: 'Cover colours' }, { v: 'motion', label: 'Motion' }, { v: 'file', label: 'My video or photo' }], setBg)}
+                  {bg === 'motion' && <><span>Motion style</span>{seg<MotionStyle>('Motion style', motionStyle, [{ v: 'gradient', label: 'Drifting gradient' }, { v: 'aurora', label: 'Soft aurora' }, { v: 'particles', label: 'Soft particles' }], setMotionStyle)}<label className="studio__check"><input type="checkbox" checked={filmGrain} onChange={(e) => setFilmGrain(e.target.checked)} /> Film grain</label></>}
                   {source === 'live' && bg === 'auto' && !autoUsable && <small>This song’s video can’t be exported yet, so the cover’s colours are used.</small>}
                   {source === 'live' && bg === 'auto' && spec?.kind === 'youtube' && (
                     <>

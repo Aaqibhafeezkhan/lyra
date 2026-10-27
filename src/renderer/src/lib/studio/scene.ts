@@ -6,6 +6,8 @@ import type { LyricLine } from '@shared/types'
  * Pure drawing: given the playback position it paints the background, the scrolling lyrics (current line filling
  * word by word), the song title and a moving Lyra logo. The recorder calls draw() once per video frame.
  */
+export type MotionStyle = 'aurora' | 'gradient' | 'particles'
+
 export interface SceneInput {
   w: number
   h: number
@@ -21,6 +23,8 @@ export interface SceneInput {
   accent: string
   tint1: string
   tint2: string
+  motionStyle?: MotionStyle
+  filmGrain?: boolean
   showSong: boolean
   fontFamily: string
   totalMs: number
@@ -47,6 +51,73 @@ export interface Scene {
   draw(ctx: CanvasRenderingContext2D, posMs: number, tSec: number): void
   /** the closing card; k runs 0..1 over its duration */
   endCard(ctx: CanvasRenderingContext2D, k: number, tSec: number): void
+}
+
+/**
+ * Draw a time-driven background using only the supplied canvas context. Frames are deterministic for a given
+ * time and palette, so browser rendering and skia-canvas export share the same result.
+ */
+export function drawMotionBackground(ctx: CanvasRenderingContext2D, w: number, h: number, t: number, tint1: string, tint2: string, accent: string, style: MotionStyle | 'cover' = 'cover', filmGrain = false): void {
+  ctx.save()
+  if (style === 'cover') {
+    const gradient = ctx.createLinearGradient(0, 0, w, h)
+    gradient.addColorStop(0, tint1)
+    gradient.addColorStop(1, tint2)
+    ctx.fillStyle = gradient
+    ctx.fillRect(0, 0, w, h)
+  } else if (style === 'aurora') {
+    ctx.fillStyle = tint1
+    ctx.fillRect(0, 0, w, h)
+    const bands = [
+      { x: 0.18 + Math.sin(t * 0.13) * 0.12, y: 0.3 + Math.cos(t * 0.09) * 0.08, r: 0.72, color: 'rgba(142,92,255,0.42)' },
+      { x: 0.76 + Math.cos(t * 0.11) * 0.1, y: 0.48 + Math.sin(t * 0.08) * 0.1, r: 0.64, color: 'rgba(64,196,220,0.38)' },
+      { x: 0.48 + Math.sin(t * 0.07) * 0.16, y: 0.78 + Math.cos(t * 0.1) * 0.08, r: 0.58, color: 'rgba(142,92,255,0.3)' }
+    ]
+    for (const band of bands) {
+      const x = band.x * w, y = band.y * h, radius = Math.max(w, h) * band.r
+      const glow = ctx.createRadialGradient(x, y, 0, x, y, radius)
+      glow.addColorStop(0, band.color)
+      glow.addColorStop(0.48, band.color.replace(/0\.[0-9]+\)$/, '0.15)'))
+      glow.addColorStop(1, 'rgba(0,0,0,0)')
+      ctx.fillStyle = glow
+      ctx.fillRect(0, 0, w, h)
+    }
+  } else if (style === 'particles') {
+    const gradient = ctx.createLinearGradient(0, 0, w, h)
+    gradient.addColorStop(0, tint1); gradient.addColorStop(1, tint2)
+    ctx.fillStyle = gradient; ctx.fillRect(0, 0, w, h)
+    const count = Math.max(24, Math.min(110, Math.round(w * h / 18000)))
+    for (let i = 0; i < count; i++) {
+      const seed = i * 127.1 + 311.7
+      const x = ((Math.sin(seed) * 43758.5453) % 1 + 1) % 1
+      const y = ((Math.sin(seed + 19.19) * 24634.6345) % 1 + 1) % 1
+      const px = (x * w + Math.sin(t * (0.12 + (i % 5) * 0.025) + i) * w * 0.035 + w) % w
+      const py = ((y * h - (t * (2 + (i % 4)) + i * 13)) % (h + 20) + h + 20) % (h + 20) - 10
+      ctx.globalAlpha = 0.18 + (i % 5) * 0.055
+      ctx.fillStyle = i % 3 === 0 ? accent : '#ffffff'
+      ctx.beginPath(); ctx.arc(px, py, 0.8 + (i % 4) * 0.55, 0, Math.PI * 2); ctx.fill()
+    }
+    ctx.globalAlpha = 1
+  } else {
+    const gradient = ctx.createLinearGradient(w * (0.12 + Math.sin(t * 0.06) * 0.08), h * (0.08 + Math.cos(t * 0.05) * 0.08), w * (0.88 + Math.cos(t * 0.04) * 0.08), h * (0.92 + Math.sin(t * 0.045) * 0.05))
+    gradient.addColorStop(0, tint1); gradient.addColorStop(0.52, accent); gradient.addColorStop(1, tint2)
+    ctx.fillStyle = gradient; ctx.fillRect(0, 0, w, h)
+    const glow = ctx.createRadialGradient(w * (0.5 + Math.sin(t * 0.08) * 0.22), h * (0.48 + Math.cos(t * 0.07) * 0.2), 0, w * 0.5, h * 0.5, Math.max(w, h) * 0.82)
+    glow.addColorStop(0, 'rgba(255,255,255,0.07)'); glow.addColorStop(1, 'rgba(0,0,0,0)')
+    ctx.fillStyle = glow; ctx.fillRect(0, 0, w, h)
+  }
+  if (filmGrain) {
+    const count = Math.max(180, Math.min(900, Math.round(w * h / 2200)))
+    ctx.globalAlpha = 0.075; ctx.fillStyle = '#ffffff'
+    for (let i = 0; i < count; i++) {
+      const seed = i * 78.233 + Math.floor(t * 12) * 12.9898
+      const x = ((Math.sin(seed) * 43758.5453) % 1 + 1) % 1 * w
+      const y = ((Math.sin(seed + 91.7) * 24634.6345) % 1 + 1) % 1 * h
+      ctx.fillRect(x, y, 1, 1)
+    }
+    ctx.globalAlpha = 1
+  }
+  ctx.restore()
 }
 
 export function createScene(inp: SceneInput): Scene {
@@ -152,11 +223,7 @@ export function createScene(inp: SceneInput): Scene {
     lastT = t
 
     // ---- background
-    const g = ctx.createLinearGradient(0, 0, w, h)
-    g.addColorStop(0, inp.tint1)
-    g.addColorStop(1, inp.tint2)
-    ctx.fillStyle = g
-    ctx.fillRect(0, 0, w, h)
+    drawMotionBackground(ctx, w, h, t, inp.tint1, inp.tint2, inp.accent, inp.motionStyle ?? 'cover', !!inp.filmGrain && !inp.media && !inp.stage?.bitmap)
     const m = inp.media
     const sb = inp.stage?.bitmap
     if (sb) {
@@ -169,7 +236,7 @@ export function createScene(inp: SceneInput): Scene {
       ctx.drawImage(sb, sx, sy, sw, sh, (w - sw * k) / 2, (h - sh * k) / 2, sw * k, sh * k)
     } else if (m instanceof HTMLVideoElement && m.readyState >= 2 && m.videoWidth) cover(ctx, m, m.videoWidth, m.videoHeight)
     else if (m instanceof HTMLImageElement && m.naturalWidth) cover(ctx, m, m.naturalWidth, m.naturalHeight, 1.04 + Math.sin(t / 12) * 0.02, Math.sin(t / 9) * base * 0.01, Math.cos(t / 11) * base * 0.01)
-    else if (blurred) cover(ctx, blurred, blurred.width, blurred.height, 1.1 + Math.sin(t / 10) * 0.05, Math.sin(t / 7) * w * 0.03, Math.cos(t / 8) * h * 0.03)
+    else if (blurred && (inp.motionStyle ?? 'cover') === 'cover') cover(ctx, blurred, blurred.width, blurred.height, 1.1 + Math.sin(t / 10) * 0.05, Math.sin(t / 7) * w * 0.03, Math.cos(t / 8) * h * 0.03)
     const veil = ctx.createLinearGradient(0, 0, 0, h)
     const hasMedia = !!m || !!sb
     // light at the top so the picture shows, darker towards the lyrics and the song at the bottom
