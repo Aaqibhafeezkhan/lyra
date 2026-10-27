@@ -214,8 +214,7 @@ function YoutubeLayer({ spec, run, onFail }: { spec: Extract<BackgroundSpec, { k
   // YouTube flashes its own controls for a few seconds after it starts and after the app is reopened: keep it invisible then
   const [masked, setMasked] = useState(phoneInit())
   const maskTimer = useRef(0)
-  const holdMask = (ms = 4000, always = false): void => {
-    if (!phone && !always) return
+  const holdMask = (ms = 4000): void => {
     setMasked(true)
     window.clearTimeout(maskTimer.current)
     maskTimer.current = window.setTimeout(() => setMasked(false), ms)
@@ -263,9 +262,12 @@ function YoutubeLayer({ spec, run, onFail }: { spec: Extract<BackgroundSpec, { k
         return
       }
       if (d?.info?.playerState !== undefined) {
+        const previousState = lastState.current
         lastState.current = d.info.playerState
         // playing, paused (we pause it while the song is paused) or cued all mean the player works: no need to give up on it
         if (d.info.playerState === 1 || d.info.playerState === 2 || d.info.playerState === 5) window.clearTimeout(timer.current)
+        // YouTube re-shows its transport overlay when playback resumes.
+        if (!phone && d.info.playerState === 1 && previousState !== 1) holdMask(1800)
       }
       if (d?.event === 'onError') onFailRef.current(`error ${(d as { info?: unknown }).info ?? ''}`)
       else if (d?.event === 'onReady') {
@@ -274,8 +276,8 @@ function YoutubeLayer({ spec, run, onFail }: { spec: Extract<BackgroundSpec, { k
       } else if (d?.event === 'infoDelivery' && d.info?.playerState === 1) {
         window.clearTimeout(timer.current)
         setReady((was) => {
-          // on the PC too, the first seconds: YouTube shows its own previous / pause / next buttons over a fresh video
-          if (!was) holdMask(phone ? 4000 : 6500, true)
+          // Keep the embed hidden while YouTube's startup transport overlay is visible.
+          if (!was) holdMask(phone ? 4000 : 6500)
           return true
         })
       }
@@ -304,7 +306,14 @@ function YoutubeLayer({ spec, run, onFail }: { spec: Extract<BackgroundSpec, { k
     `https://www.youtube-nocookie.com/embed/${spec.videoId}?autoplay=1&mute=1&controls=0&loop=1&playlist=${spec.videoId}&start=${start}` +
     '&modestbranding=1&playsinline=1&disablekb=1&rel=0&fs=0&iv_load_policy=3&enablejsapi=1&vq=' + (document.documentElement.dataset.ambient === '1' ? 'large' : 'hd1080')
   return (
-    <div ref={wrap} className="backdrop__ytwrap">
+    <div
+      ref={wrap}
+      className="backdrop__ytwrap"
+      onPointerMove={() => {
+        // The cross-origin player can reveal its controls on hover; briefly mask it while the pointer is moving.
+        if (!phone && ready) holdMask(900)
+      }}
+    >
       <iframe
         ref={frame}
         className="backdrop__yt"
