@@ -49,15 +49,15 @@ export const VIEWER_HTML = String.raw`<!doctype html>
 <div class="msg" id="msg">Lyra का इंतज़ार हो रहा है…</div>
 <div class="dot off" id="dot" title="connection"></div>
 <audio id="aud" autoplay playsinline></audio>
-<div class="listen"><button id="listen" type="button">सुनें</button><span id="sync">Lyrics timing <button id="nm" type="button">−</button><b id="nv">0 ms</b><button id="np" type="button">+</button></span></div>
+<div class="listen"><button id="listen" type="button">सुनें</button><span id="sync"><span id="sync-label"></span> <button id="nm" type="button">−</button><b id="nv">0 ms</b><button id="np" type="button">+</button></span></div>
 <script>
 (() => {
   const K = new URLSearchParams(location.search).get('k') || ''
   const $ = (id) => document.getElementById(id)
   const language = (navigator.language || '').toLowerCase().startsWith('hi') ? 'hi' : 'en'
   const strings = {
-    en: { waiting: 'Waiting for Lyra…', instrumental: 'Instrumental ♪', lyricsError: 'Lyrics couldn’t load', noLyrics: 'No synced lyrics for this song', playSong: 'Play a song in Spotify', listen: 'Listen', connecting: 'Connecting…', soundOn: 'Sound on', soundLost: 'Sound lost. Tap to retry', startSoundError: 'Could not start the sound.', missingCode: 'This link is missing its room code. Ask your host to share it again.' },
-    hi: { waiting: 'Lyra का इंतज़ार हो रहा है…', instrumental: 'वाद्य संगीत ♪', lyricsError: 'गीत के बोल लोड नहीं हो सके', noLyrics: 'इस गाने के सिंक किए हुए बोल उपलब्ध नहीं हैं', playSong: 'Spotify में कोई गाना चलाएँ', listen: 'सुनें', connecting: 'कनेक्ट हो रहा है…', soundOn: 'आवाज़ चालू', soundLost: 'आवाज़ बंद हो गई। फिर कोशिश करने के लिए टैप करें', startSoundError: 'आवाज़ शुरू नहीं हो सकी।', missingCode: 'इस लिंक में रूम कोड नहीं है। होस्ट से नया लिंक माँगें।' }
+    en: { lyricsTiming: 'Lyrics timing', waiting: 'Waiting for Lyra…', instrumental: 'Instrumental ♪', lyricsError: 'Lyrics couldn’t load', noLyrics: 'No synced lyrics for this song', playSong: 'Play a song in Spotify', listen: 'Listen', connecting: 'Connecting…', soundOn: 'Sound on', soundLost: 'Sound lost. Tap to retry', startSoundError: 'Could not start the sound.', missingCode: 'This link is missing its room code. Ask your host to share it again.' },
+    hi: { lyricsTiming: 'गीत के बोल का समय', waiting: 'Lyra का इंतज़ार हो रहा है…', instrumental: 'वाद्य संगीत ♪', lyricsError: 'गीत के बोल लोड नहीं हो सके', noLyrics: 'इस गाने के सिंक किए हुए बोल उपलब्ध नहीं हैं', playSong: 'Spotify में कोई गाना चलाएँ', listen: 'सुनें', connecting: 'कनेक्ट हो रहा है…', soundOn: 'आवाज़ चालू', soundLost: 'आवाज़ बंद हो गई। फिर कोशिश करने के लिए टैप करें', startSoundError: 'आवाज़ शुरू नहीं हो सकी।', missingCode: 'इस लिंक में रूम कोड नहीं है। होस्ट से नया लिंक माँगें।' }
   }
   const tr = (key) => strings[language][key] || strings.en[key] || key
   document.documentElement.lang = language
@@ -65,6 +65,7 @@ export const VIEWER_HTML = String.raw`<!doctype html>
   let st = null, lines = [], idx = -1, offset = 0, trackId = '', words = []
   const msg = (t) => { $('msg').textContent = t || ''; $('msg').style.display = t ? '' : 'none' }
   $('listen').textContent = tr('listen')
+  $('sync-label').textContent = tr('lyricsTiming')
   msg(tr('waiting'))
 
   // ---- lyrics (word timing is estimated, like the app does for line-synced lyrics)
