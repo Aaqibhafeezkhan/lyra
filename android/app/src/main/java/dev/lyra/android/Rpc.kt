@@ -276,7 +276,7 @@ class Rpc(private val ctx: Context, private val web: LyraWebView, private val ac
             "Audio path: $audioPath",
             "Measured audio level: $level",
             "H.264 encoder supports 1080p60: ${if (supports1080p60) "yes" else "no"}"
-        ).joinToString("\\n")
+        ).joinToString("\n")
     }
 
     /** HTTPS GET without browser CORS limits, so the shared core can call LRCLIB, Apple, YouTube from the phone. */
