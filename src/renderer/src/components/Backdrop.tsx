@@ -266,8 +266,8 @@ function YoutubeLayer({ spec, run, onFail }: { spec: Extract<BackgroundSpec, { k
         lastState.current = d.info.playerState
         // playing, paused (we pause it while the song is paused) or cued all mean the player works: no need to give up on it
         if (d.info.playerState === 1 || d.info.playerState === 2 || d.info.playerState === 5) window.clearTimeout(timer.current)
-        // YouTube re-shows its transport overlay when playback resumes.
-        if (!phone && d.info.playerState === 1 && previousState !== 1) holdMask(1800)
+        // YouTube re-shows its transport overlay when playback resumes after a pause (not after buffering or a seek).
+        if (!phone && d.info.playerState === 1 && previousState === 2) holdMask(1800)
       }
       if (d?.event === 'onError') onFailRef.current(`error ${(d as { info?: unknown }).info ?? ''}`)
       else if (d?.event === 'onReady') {
@@ -282,20 +282,11 @@ function YoutubeLayer({ spec, run, onFail }: { spec: Extract<BackgroundSpec, { k
         })
       }
     }
-    const onPointerMove = (event: PointerEvent): void => {
-      const rect = wrap.current?.getBoundingClientRect()
-      if (!phone && rect && event.clientX >= rect.left && event.clientX <= rect.right && event.clientY >= rect.top && event.clientY <= rect.bottom) {
-        // The cross-origin player can reveal its controls on hover; briefly mask it while the pointer is moving.
-        holdMask(900)
-      }
-    }
     window.addEventListener('message', onMsg)
-    window.addEventListener('pointermove', onPointerMove, { passive: true })
     // if it never starts (blocked embed, offline) fall back instead of showing a black box
     timer.current = window.setTimeout(() => onFailRef.current('timeout'), 25_000)
     return () => {
       window.removeEventListener('message', onMsg)
-      window.removeEventListener('pointermove', onPointerMove)
       window.clearTimeout(timer.current)
       window.clearTimeout(maskTimer.current)
     }
