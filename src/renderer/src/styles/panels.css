@@ -115,13 +115,13 @@
   padding: 4px 0 10px;
   flex-wrap: wrap;
   background: var(--bg-1);
-  border-bottom: 1px solid var(--line-2);
+  border-bottom: 1px solid var(--line);
 }
 .stabs button {
   flex: none;
   height: 28px;
   padding: 0 12px;
-  border: 1px solid var(--line-2);
+  border: 1px solid var(--line);
   border-radius: 999px;
   background: var(--glass);
   color: var(--fg-2);
@@ -144,7 +144,7 @@
 .settings section {
   margin: 0 0 12px;
   padding: 2px 14px 6px;
-  border: 1px solid var(--line-2);
+  border: 1px solid var(--line);
   border-radius: 16px;
   background: var(--glass);
 }
@@ -706,3 +706,8 @@
 .studio .pill { justify-content: flex-start; text-align: left; }
 .studio .seg { flex-wrap: wrap; }
 .studio .joinrow input { min-width: 0; }
+
+/* light theme: the hairlines are barely visible on white, so Settings uses the stronger line colour there only */
+[data-theme='light'] .stabs { border-bottom-color: var(--line-2); }
+[data-theme='light'] .stabs button,
+[data-theme='light'] .settings section { border-color: var(--line-2); }
