@@ -15,6 +15,7 @@ import { NEUTRAL_PALETTE } from '@/lib/palette'
 import { fillWindow, isAnimating, runTransition, shell } from '@/lib/shell'
 import { useLyrics } from '@/store/lyrics'
 import { OFFSET_STEP_MS, nudgeSongOffset } from '@/store/offsets'
+import { getFullscreenShortcutAction } from '@shared/shortcuts'
 import { usePlayer } from '@/store/player'
 import { useSettings } from '@/store/settings'
 import { requestMode, useUi } from '@/store/ui'
@@ -83,10 +84,28 @@ function useHotkeys(): void {
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
       const t = e.target instanceof Element ? e.target : document.body
-      if (t.closest('input[type="text"], textarea') || e.ctrlKey || e.metaKey || e.altKey) return
-      const onControl = !!t.closest('button, [role="slider"], input[type="range"]')
+      const editable = !!t.closest('input, textarea, select, [contenteditable="true"], [role="textbox"]')
+      if (e.ctrlKey || e.metaKey || e.altKey) return
       const p = usePlayer.getState()
       const ui = useUi.getState()
+      const fullscreenAction = getFullscreenShortcutAction(e.key, editable)
+      if (ui.mode === 'full' && fullscreenAction) {
+        e.preventDefault()
+        switch (fullscreenAction.type) {
+          case 'nudge':
+            nudgeSongOffset(fullscreenAction.direction * OFFSET_STEP_MS)
+            break
+          case 'layout':
+            useSettings.getState().set({ fullLayout: fullscreenAction.layout })
+            break
+          case 'flip-side':
+            useUi.getState().toggleLyricSide()
+            break
+        }
+        return
+      }
+      if (editable) return
+      const onControl = !!t.closest('button, [role="slider"], input[type="range"]')
 
       switch (e.key) {
         case ' ':

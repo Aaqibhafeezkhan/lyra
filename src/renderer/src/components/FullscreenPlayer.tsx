@@ -23,6 +23,7 @@ export function FullscreenPlayer() {
   const togglePanel = useUi((s) => s.togglePanel)
   const df = useUi((s) => s.distractionFree)
   const toggleDf = useUi((s) => s.toggleDistractionFree)
+  const sideFlipped = useUi((s) => s.lyricSideFlipped)
 
   const quiet = idle && panel === 'none'
   // cinema layout: a video is playing, so get the UI out of its way
@@ -31,7 +32,7 @@ export function FullscreenPlayer() {
   const ytVideo = useBgState((s) => s.kind === 'youtube')
 
   return (
-    <div className={`full ${quiet ? 'is-idle' : ''} ${df ? 'is-df' : ''} ${cinema ? `is-cinema layout-${layout}` : ''}`}>
+    <div className={`full ${quiet ? 'is-idle' : ''} ${df ? 'is-df' : ''} ${sideFlipped ? 'is-side-flipped' : ''} ${cinema ? `is-cinema layout-${layout}` : ''}`}>
       <header className="full__top">
         <span className="full__device">{device ? `Playing on ${device.name}` : 'Lyra'}</span>
         <div className="full__tools">

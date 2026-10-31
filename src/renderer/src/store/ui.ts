@@ -12,11 +12,13 @@ interface UiStore {
   mode: ViewMode
   panel: Panel
   distractionFree: boolean
+  lyricSideFlipped: boolean
   toasts: Toast[]
   setMode(mode: ViewMode): void
   setPanel(p: Panel): void
   togglePanel(p: Exclude<Panel, 'none'>): void
   toggleDistractionFree(): void
+  toggleLyricSide(): void
   toast(message: string, kind?: Toast['kind']): void
   dismissToast(id: number): void
 }
@@ -27,6 +29,7 @@ export const useUi = create<UiStore>((set, get) => ({
   mode: 'compact',
   panel: 'none',
   distractionFree: false,
+  lyricSideFlipped: false,
   toasts: [],
   setMode(mode) {
     set({ mode, panel: mode === 'compact' || mode === 'minimal' ? 'none' : get().panel })
@@ -34,6 +37,7 @@ export const useUi = create<UiStore>((set, get) => ({
   setPanel: (panel) => set({ panel }),
   togglePanel: (p) => set({ panel: get().panel === p ? 'none' : p }),
   toggleDistractionFree: () => set({ distractionFree: !get().distractionFree }),
+  toggleLyricSide: () => set({ lyricSideFlipped: !get().lyricSideFlipped }),
   toast(message, kind = 'info') {
     const id = ++toastId
     set({ toasts: [...get().toasts.filter((t) => t.message !== message).slice(-2), { id, message, kind }] })
